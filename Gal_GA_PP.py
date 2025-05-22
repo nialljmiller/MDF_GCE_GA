@@ -275,14 +275,8 @@ class GalacticEvolutionGA:
             def mutate_with_population(individual):
                 return self.gaussian_mutate(individual)
                 
-        else:  # Default to covariance-aware mutation
-            def mutate_with_population(individual):
-                return self.covariance_aware_mutate(individual, population)
-        
         toolbox.register("mutate", mutate_with_population)
         
-        toolbox.register("mutate", mutate_with_population)
-
         toolbox.register("select", self.selDiversityTournament, tournsize=self.tournament_size, lambda_diversity=self.lambda_diversity)
 
         # Create the initial population
@@ -544,7 +538,7 @@ class GalacticEvolutionGA:
 
             # *** Here’s where we update the operator rates dynamically ***
             self.update_operator_rates(population, gen, num_generations)
-            offspring = prevent_duplicates(offspring, toolbox)
+            offspring = self.prevent_duplicates(offspring, toolbox)
 
             # After evaluations, update population and move on to next generation
             for idx, ind in enumerate(population):
@@ -587,91 +581,7 @@ class GalacticEvolutionGA:
 
 
 
-
-
-
-    def get_param_bounds(self, param_index):
-        """Get min and max bounds for a parameter by its index"""
-        if param_index == 5:  # sigma_2
-            return self.sigma_2_min, self.sigma_2_max
-        elif param_index == 6:  # tmax_1
-            return min(self.tmax_1_list), max(self.tmax_1_list)
-        elif param_index == 7:  # tmax_2
-            return min(self.tmax_2_list), max(self.tmax_2_list)
-        elif param_index == 8:  # infall_timescale_1
-            return min(self.infall_timescale_1_list), max(self.infall_timescale_1_list)
-        elif param_index == 9:  # infall_timescale_2
-            return min(self.infall_timescale_2_list), max(self.infall_timescale_2_list)
-        elif param_index == 10:  # sfe
-            return min(self.sfe_array), max(self.sfe_array)
-        elif param_index == 11:  # imf_upper_limits
-            return min(self.imf_upper_limits), max(self.imf_upper_limits)
-        elif param_index == 12:  # mgal_values
-            return min(self.mgal_values), max(self.mgal_values)
-        elif param_index == 13:  # nb_array
-            return min(self.nb_array), max(self.nb_array)
-        else:
-            # Default for categorical parameters
-            return 0, 10  # Arbitrary range for categorical indices
-
-    def covariance_aware_mutate(self, individual, population, top_fraction=0.3, base_scale=1.0, regularization=1e-6):
-            """
-            An expanded version of covariance_aware_mutate that handles all parameters.
-            For categorical parameters, we use a simpler approach.
-            """
-            # Sort the population by fitness
-            pop_sorted = sorted(population, key=lambda ind: ind.fitness.values[0])
-            n_top = max(1, int(top_fraction * len(population)))
-            top_inds = pop_sorted[:n_top]
-            
-            # Get parameter type information
-            categorical_indices = self.categorical_indices
-            continuous_indices = self.continuous_indices
-            
-            # Handle continuous parameters with covariance-based mutation
-            if len(continuous_indices) > 1:  # Need at least 2 dimensions for covariance
-                # Extract continuous parameters from top individuals
-                continuous_data = []
-                for ind in top_inds:
-                    continuous_data.append([ind[i] for i in continuous_indices])
-                continuous_array = np.array(continuous_data, dtype=float)
-                
-                # Compute covariance matrix
-                cov_matrix = np.cov(continuous_array, rowvar=False)
-                cov_matrix += np.eye(cov_matrix.shape[0]) * regularization
-                scaled_cov = base_scale * cov_matrix
-                
-                # Sample mutation vector
-                mutation_vector = np.random.multivariate_normal(np.zeros(len(continuous_indices)), scaled_cov)
-                
-                # Apply mutation to continuous parameters
-                for idx, i in enumerate(continuous_indices):
-                    individual[i] += mutation_vector[idx]
-                    # Clamp within bounds
-                    min_bound, max_bound = self.get_param_bounds(i)
-                    individual[i] = min(max(individual[i], min_bound), max_bound)
-            else:
-                # Fallback for the case with only one continuous parameter
-                for i in continuous_indices:
-                    min_bound, max_bound = self.get_param_bounds(i)
-                    scale = (max_bound - min_bound) * 0.1
-                    individual[i] += random.gauss(0, scale)
-                    individual[i] = min(max(individual[i], min_bound), max_bound)
-            
-            # Handle categorical parameters with simple mutation
-            for i in categorical_indices:
-                if random.random() < 0.2:  # 20% chance to mutate each categorical parameter
-                    param_name = self.index_to_param_map[i]
-                    num_categories = len(getattr(self, param_name))# + '_list'))
-                    
-                    # Select a new random category (different from current)
-                    current_value = individual[i]
-                    new_value = current_value
-                    while new_value == current_value and num_categories > 1:
-                        new_value = random.randint(0, num_categories - 1)
-                    individual[i] = new_value
-            
-            return individual,
+    
 
     def uniform_mutate(self, individual, indpb=0.2):
         """

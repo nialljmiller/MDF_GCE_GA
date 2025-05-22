@@ -579,6 +579,30 @@ class GalacticEvolutionGA:
               f"mutpb = {self.mutpb:.2f}, cxpb = {self.cxpb:.2f}")
 
 
+    def get_param_bounds(self, index):
+        """
+        Returns the min and max bounds for the given continuous parameter index.
+        """
+        if index == 5:
+            return self.sigma_2_min, self.sigma_2_max
+        elif index == 6:
+            return min(self.tmax_1_list), max(self.tmax_1_list)
+        elif index == 7:
+            return self.t_2_min, self.t_2_max
+        elif index == 8:
+            return min(self.infall_timescale_1_list), max(self.infall_timescale_1_list)
+        elif index == 9:
+            return self.infall_2_min, self.infall_2_max
+        elif index == 10:
+            return min(self.sfe_array), max(self.sfe_array)
+        elif index == 11:
+            return min(self.imf_upper_limits), max(self.imf_upper_limits)
+        elif index == 12:
+            return min(self.mgal_values), max(self.mgal_values)
+        elif index == 13:
+            return min(self.nb_array), max(self.nb_array)
+        else:
+            raise IndexError(f"No bounds defined for parameter index {index}")
 
 
 

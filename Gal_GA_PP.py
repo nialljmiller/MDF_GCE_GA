@@ -275,6 +275,7 @@ class GalacticEvolutionGA:
             def mutate_with_population(individual):
                 return self.gaussian_mutate(individual)
                 
+
         toolbox.register("mutate", mutate_with_population)
         
         toolbox.register("select", self.selDiversityTournament, tournsize=self.tournament_size, lambda_diversity=self.lambda_diversity)

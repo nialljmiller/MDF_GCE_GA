@@ -419,7 +419,24 @@ class GalacticEvolutionGA:
         return selected
 
 
-
+    def prevent_duplicates(self, offspring, toolbox):
+        """Replace duplicate individuals with new mutations"""
+        unique_genomes = set()
+        distinct_offspring = []
+        
+        for ind in offspring:
+            # Create a hashable representation of key parameters
+            genome_key = tuple([round(val, 6) if isinstance(val, float) else val for val in ind])
+            
+            if genome_key in unique_genomes:
+                # Replace duplicate with a completely new individual
+                new_ind = toolbox.individual()
+                distinct_offspring.append(new_ind)
+            else:
+                unique_genomes.add(genome_key)
+                distinct_offspring.append(ind)
+    
+        return distinct_offspring
 
 
 
@@ -527,6 +544,7 @@ class GalacticEvolutionGA:
 
             # *** Here’s where we update the operator rates dynamically ***
             self.update_operator_rates(population, gen, num_generations)
+            offspring = prevent_duplicates(offspring, toolbox)
 
             # After evaluations, update population and move on to next generation
             for idx, ind in enumerate(population):

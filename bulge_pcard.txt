@@ -56,7 +56,7 @@ tournament_size: 4
 loss_metric: 'wrmse'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
-fancy_mutation: 'uniform'
+fancy_mutation: 'gaussian'
 
 #if the range of future individuals should be restricted iteravitely. if True - faster convergence on minima but less confidence on global minima.
 shrink_range: 'False'

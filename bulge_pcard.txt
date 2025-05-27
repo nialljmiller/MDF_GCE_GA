@@ -29,17 +29,17 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 16
+popsize: 16 
 
 #How many generations (/epochs) are performed. 
-generations: 64
+generations: 128
 
 #probability an individual will make babies. 
-crossover_probability: 0.7
+crossover_probability: 0.5
 
 #probability that any given invdividual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.3
+mutation_probability: 0.5
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -53,7 +53,7 @@ selection_threshold: -1
 tournament_size: 4
 
 #how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine_similarity','log_cosh','wrmse'
-loss_metric: 'wrmse'
+loss_metric: 'ks'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'
@@ -81,7 +81,7 @@ tmax_1_list: [0.1,0.11] # for two infall scenario, sweep
 #
 
 
-tmax_2_list: [1,14]
+tmax_2_list: [1,30]
 
 ############################################################
 #

@@ -334,7 +334,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     
     plt.tight_layout()
     plt.savefig(f'GA/loss/walker_loss_history_{loss_metric}.png', dpi=300, bbox_inches='tight')
-    plt.show()
+    #plt.show()
     
     print(f"Loss history plot saved to GA/loss/walker_loss_history_{loss_metric}.png")
     return plt.gcf()
@@ -515,7 +515,7 @@ def plot_mutation_info_3D(GA, population, fitnesses, base_sigma=1.0, mutation_ty
 
         plt.tight_layout()
         plt.savefig('GA/MDF_individuals_3D.png', bbox_inches='tight')
-        #plt.show()
+        ##plt.show()
         print('...plot made!')
 
 

@@ -628,27 +628,29 @@ class GalacticEvolutionGA:
         return individual,
 
     def gaussian_mutate(self, individual, indpb=0.2, sigma_scale=0.1):
-        """
-        Gaussian mutation that perturbs values using a normal distribution.
-        Sigma is scaled relative to the parameter range.
-        """
-        for i in range(len(individual)):
-            if random.random() < indpb:
-                # Handle categorical parameters
-                if i in self.categorical_indices:
-                    param_name = self.index_to_param_map[i]
-                    num_categories = len(getattr(self, param_name))
-                    individual[i] = random.randint(0, num_categories - 1)
-                # Handle continuous parameters
-                else:
-                    min_bound, max_bound = self.get_param_bounds(i)
-                    range_size = max_bound - min_bound
-                    sigma = range_size * sigma_scale
-                    individual[i] += random.gauss(0, sigma)
-                    # Clamp to bounds
-                    individual[i] = min(max(individual[i], min_bound), max_bound)
+        # Calculate population spread for each parameter
+        population_array = np.array([ind for ind in population if ind.fitness.valid])
         
-        return individual,
+        for i in range(len(individual)):
+            if random.random() < indpb and i in self.continuous_indices:
+                # Use population standard deviation as mutation scale
+                param_values = population_array[:, i]
+                param_std = np.std(param_values)
+                
+                # Start with large exploration, reduce over time
+                exploration_factor = max(0.1, 1.0 - (self.gen / self.num_generations))
+                sigma = param_std * exploration_factor
+                
+                individual[i] += random.gauss(0, sigma)
+                
+                # Soft boundary handling instead of hard clamping
+                min_bound, max_bound = self.get_param_bounds(i)
+                if individual[i] < min_bound:
+                    individual[i] = min_bound + abs(random.gauss(0, sigma * 0.1))
+                elif individual[i] > max_bound:
+                    individual[i] = max_bound - abs(random.gauss(0, sigma * 0.1))
+
+
 
 
 

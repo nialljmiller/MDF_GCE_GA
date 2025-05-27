@@ -29,10 +29,10 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 32
+popsize: 16
 
 #How many generations (/epochs) are performed. 
-generations: 256
+generations: 64
 
 #probability an individual will make babies. 
 crossover_probability: 0.7
@@ -66,7 +66,7 @@ shrink_range: 'False'
 # Set to 1e9 to suppress the first infall entirely.
 #
 ############################################################
-sigma_2_list: [1e9, 1.5e9]
+sigma_2_list: [0.1,100]
 ############################################################
 #
 # Tmax 2 list: Time (in Gyr) after the universe's birth when the second infall occurs.
@@ -81,7 +81,7 @@ tmax_1_list: [0.1,0.11] # for two infall scenario, sweep
 #
 
 
-tmax_2_list: [1,100]
+tmax_2_list: [1,14]
 
 ############################################################
 #
@@ -94,7 +94,7 @@ infall_timescale_1_list: [0.1] ## fix for single infall model; sweep otherwise
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 
 
-infall_timescale_2_list: [0.5, 20.0]
+infall_timescale_2_list: [0.1, 20.0]
 
 
 
@@ -125,7 +125,7 @@ sfe_array: [0.02]
 # Choose from 'kroupa', 'salpeter', or other predefined options.
 #
 ############################################################
-imf_array: ['kroupa', 'salpeter']
+imf_array: ['kroupa']
 
 
 ############################################################
@@ -134,7 +134,7 @@ imf_array: ['kroupa', 'salpeter']
 # Default value: 50.
 #
 ############################################################
-imf_upper_limits: [50,100]
+imf_upper_limits: [50]
 
 
 ############################################################
@@ -143,8 +143,8 @@ imf_upper_limits: [50,100]
 # Choose from predefined options in OMEGA.
 #
 ############################################################
-#sn1a_assumptions: ['sn1a_Gronow.txt']
-sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
+sn1a_assumptions: ['sn1a_Gronow.txt']
+#sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
 
 
 ############################################################
@@ -172,7 +172,7 @@ mgal_values: [1.9e9,2.1e9]
 # Sweep values between 1e-4 and 1e-2 for better constraints.
 #
 ############################################################
-nb_array: [1e-4,1e-2]
+nb_array: [1e-3]
 
 
 ############################################################
@@ -181,7 +181,8 @@ nb_array: [1e-4,1e-2]
 # Available options include: 'power_law', 'gauss', 'exp', 'maoz'.
 #
 ############################################################
-sn1a_rates: ['power_law','gauss','exp']
+sn1a_rates: ['power_law']
+#,'gauss','exp']
 
 
 ############################################################
@@ -190,7 +191,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Higher values increase precision but take longer to compute.
 #
 ############################################################
-timesteps: 100
+timesteps: 20
 
 
 ############################################################

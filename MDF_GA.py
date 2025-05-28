@@ -31,15 +31,11 @@ parser.add_argument('--results-file', type=str, default='GA/simulation_results.c
                    help='CSV file containing results (for plot-only mode)')
 args = parser.parse_args()
 
-# Load and normalize observational data
-obs_file = 'binned_dist_lat6_0.08dex.dat'
-feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
-normalized_count = count / count.max()  # Normalize count for comparison
-
 # Parse parameters from the 'bulge_pcard.txt' file
 params = Gal_GA.parse_inlist('bulge_pcard.txt')
 
 # Assign parsed parameters to variables
+obs_file = params['obs_file']
 iniab_header = params['iniab_header']
 sn1a_header = params['sn1a_header']
 sigma_2_list = params['sigma_2_list']
@@ -70,6 +66,11 @@ selection_threshold = params['selection_threshold']
 loss_metric = params['loss_metric']
 fancy_mutation = params['fancy_mutation']
 shrink_range = params['shrink_range']
+
+
+# Load and normalize observational data
+feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
+normalized_count = count / count.max()  # Normalize count for comparison
 
 # Global GalGA object to be used for both computation and plotting
 GalGA = None
@@ -257,12 +258,15 @@ def load_ga_for_plotting():
 
 if __name__ == "__main__":
 
-    make_history = True
+    results_file = 'GA/simulation_results.csv'
+
+    make_history = False
     # Load walker history if requested
     if make_history == True:
         results_file = run_ga()
         save_walker_history()
     else:
+        load_ga_for_plotting()
         GalGA.walker_history = load_walker_history()
     
     # Generate all plots using the plotting module

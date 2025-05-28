@@ -7,7 +7,8 @@
 #
 ################################
 
-
+#MDF data to fit to
+obs_file: 'composite_gaussians.dat'
 
 # Header for iniab tables (used for specifying isotope/element abundances)
 iniab_header: 'yield_tables/iniabu/'
@@ -29,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 16 
+popsize: 32 
 
 #How many generations (/epochs) are performed. 
 generations: 128

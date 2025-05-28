@@ -10,49 +10,64 @@ import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm, colors
 import pandas as pd
+from scipy.interpolate import UnivariateSpline
+
 
 def ensure_dirs():
     """Ensure necessary directories exist"""
     os.makedirs('GA/loss', exist_ok=True)
 
+
 def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None):
-    """Plot all model MDFs, highlight the best model, and overlay observational data"""
+    import matplotlib.pyplot as plt
+
     plt.figure(figsize=(18, 12))
-    
-    # Get the best model from the results dataframe if provided
+    ax = plt.gca()
+
+    # determine the best‐model params
     if results_df is not None and not results_df.empty:
-        best_model = results_df.iloc[0]
-        best_params = np.array([best_model['sigma_2'], best_model['t_2'], best_model['infall_2']])
+        bm = results_df.iloc[0]
+        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
     else:
-        # Otherwise just use the first model as the reference
-        best_params = np.array([GalGA.results[0][5], GalGA.results[0][7], GalGA.results[0][9]])
-    
-    # Loop through each stored model result to plot its MDF curve
-    for i in range(len(GalGA.mdf_data)):
-        x_data, y_data = GalGA.mdf_data[i]  # each is an array for the MDF curve
-        label = GalGA.labels[i]
-        
-        # Get the parameters of the current model from the results array
-        params = np.array([GalGA.results[i][5], GalGA.results[i][7], GalGA.results[i][9]])
-        
-        # If these match (within tolerance) the best model's parameters, plot in red and thicker
-        if np.allclose(params, best_params, rtol=1e-5):
-            plt.plot(x_data, y_data, label=f'{label} (BEST)', color='red', linewidth=2, zorder=3)
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+
+    best_plotted = False
+    for (x_data, y_data), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
+        params = (res[5], res[7], res[9])
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+
+        if is_best:
+            if not best_plotted:
+                # make a little bullet-list out of your comma-separated features
+                pieces = [f"• {p.strip()}" for p in label.split(',')]
+                pretty_label = "\n".join(pieces) + "\n• (BEST)"
+                ax.plot(x_data, y_data,
+                        label=pretty_label,
+                        color="red", linewidth=2, zorder=3)
+                best_plotted = True
+            else:
+                ax.plot(x_data, y_data,
+                        color="red", linewidth=2, zorder=3)
         else:
-            plt.plot(x_data, y_data, alpha=0.5, zorder=1)
-    
-    # Plot the raw observational data (black crosses)
-    plt.plot(feh, normalized_count, label='Observational Data', color='black', 
-             marker='x', linestyle='-', markersize=12, zorder=2)
-    
-    plt.xlabel('[Fe/H]')
-    plt.ylabel('Normalized Number Density')
-    plt.xlim(-2, 1)
-    plt.legend()
-    plt.title('Metallicity Distribution Functions (MDFs)')
-    plt.savefig('GA/MDF_multiple_results.png', bbox_inches='tight')
-    print("Generated MDF curves plot")
-    
+            ax.plot(x_data, y_data,
+                    alpha=0.5, zorder=1)
+
+    # observational data
+    ax.plot(feh, normalized_count,
+            label="Observational Data",
+            color="black", marker="x", linestyle="-", markersize=8, zorder=2)
+
+    ax.set_xlabel("[Fe/H]")
+    ax.set_ylabel("Normalized Number Density")
+    ax.set_xlim(-2, 1)
+    ax.set_title("Metallicity Distribution Functions (MDFs)")
+
+    # legend out to the left so multiline shows up
+    ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
+
+    plt.tight_layout()
+    plt.savefig("GA/MDF_multiple_results.png", bbox_inches="tight")
     return plt.gcf()
 
 def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
@@ -204,12 +219,6 @@ def extract_metrics(results_file):
     return sigma_2_vals, t_2_vals, infall_2_vals, metrics_dict, df
 
 
-
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import pandas as pd
-from scipy.interpolate import UnivariateSpline
 
 def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
     """

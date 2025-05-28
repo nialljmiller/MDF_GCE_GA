@@ -35,7 +35,7 @@ from matplotlib.ticker import MultipleLocator
 # ---------------------------------------------------
 # Global style for paper-quality figures
 # ---------------------------------------------------
-plt.style.use('seaborn-whitegrid')
+
 plt.rcParams.update({
     'figure.dpi': 300,
     'savefig.dpi': 300,
@@ -818,47 +818,286 @@ def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_ty
 
 
 
+def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path='GA/Four_Panel_Alpha.png'):
+    """
+    Create a 4-panel plot showing [Mg/Fe], [Si/Fe], [Ca/Fe], [Ti/Fe] vs [Fe/H]
+    Similar to the example plot you showed.
+    
+    Parameters:
+    -----------
+    GalGA : GalacticEvolutionGA object
+        Contains the alpha_data, results, and labels from GA run
+    Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe : arrays
+        Observational data
+    results_df : DataFrame, optional
+        Results dataframe sorted by loss (best model first)
+    save_path : str
+        Path to save the plot
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.ticker import MultipleLocator
+    
+    # Check if we have alpha data
+    if not hasattr(GalGA, 'alpha_data') or len(GalGA.alpha_data) == 0:
+        print("No alpha data available for plotting")
+        return None
+    
+    # Determine best model parameters
+    if results_df is not None and not results_df.empty:
+        bm = results_df.iloc[0]
+        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
+    else:
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+    
+    # Set up the plot
+    plt.rcParams.update({'font.size': 16.})
+    f, axarr = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
+    f.subplots_adjust(hspace=0.)
+    f.subplots_adjust(wspace=0.)
+    
+    # Define the layout: [row][col] -> element index
+    # Row 0: Mg (col 0), Si (col 1)
+    # Row 1: Ca (col 0), Ti (col 1)  
+    element_positions = {
+        0: (0, 0),  # Mg
+        1: (0, 1),  # Si  
+        2: (1, 0),  # Ca
+        3: (1, 1)   # Ti
+    }
+    
+    element_names = ['Mg', 'Si', 'Ca', 'Ti']
+    observational_data = [Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe]
+    
+    # Plot all models for each element
+    for model_idx, (alpha_arrs, label, res) in enumerate(zip(GalGA.alpha_data, GalGA.labels, GalGA.results)):
+        # Determine if this is the best model
+        params = (res[5], res[7], res[9])
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+        
+        # Plot each of the 4 alpha elements
+        for elem_idx, (row, col) in element_positions.items():
+            if elem_idx < len(alpha_arrs):
+                x_data, y_data = alpha_arrs[elem_idx]
+                
+                if is_best:
+                    # Highlight best model in red
+                    axarr[row][col].plot(x_data, y_data, 
+                                       color='red', linewidth=2.5, alpha=1, zorder=3)
+                else:
+                    # All other models in gray
+                    axarr[row][col].plot(x_data, y_data, 
+                                       color='gray', alpha=0.4, linewidth=1, zorder=1)
+    
+    # Add observational data and styling to each panel
+    for elem_idx, (row, col) in element_positions.items():
+        ax = axarr[row][col]
+        
+        # Add observational data as blue stars
+        ax.scatter(Fe_H, observational_data[elem_idx], 
+                  marker='*', color='blue', s=20, zorder=2)
+        
+        # Add element label
+        element_name = element_names[elem_idx]
+        ax.text(-1, 0.75, element_name, 
+               backgroundcolor='white', zorder=11, ha='center', fontsize=14)
+        
+        # Set tick parameters to match the example
+        ax.xaxis.set_minor_locator(MultipleLocator(0.2))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.2))
+        ax.tick_params(top=True, right=True, direction='in', length=6)
+        ax.tick_params(which='minor', right=True, direction='in', length=4)
+    
+    # Set common limits
+    plt.xlim(-2, 1)
+    plt.ylim(-0.8, 1)
+    
+    # Add common axis labels
+    f.add_subplot(111, frameon=False)
+    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.xlabel("[Fe/H]", fontsize=16)
+    plt.ylabel("[X/Fe]", fontsize=16)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches='tight', dpi=300)
+    plt.close(f)
+    
+    print(f"Four-panel alpha plot saved to {save_path}")
+    return f
+
+
+def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png'):
+    """
+    Detailed version with multi-line labels like the MDF detailed plot.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Check if we have age data
+    if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
+        print("No age data available for plotting")
+        return None
+
+    plt.figure(figsize=(18, 12))
+    ax = plt.gca()
+
+    # Determine the best model params
+    if results_df is not None and not results_df.empty:
+        bm = results_df.iloc[0]
+        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
+    else:
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+
+    best_plotted = False
+    for i, (age_data, label, res) in enumerate(zip(GalGA.age_data, GalGA.labels, GalGA.results)):
+        params = (res[5], res[7], res[9])
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+        
+        # Extract and transform age data
+        x_age_raw, y_feh = age_data
+        x_age_gyr = (x_age_raw[-1]/1e9) - np.array(x_age_raw)/1e9
+
+        if is_best:
+            if not best_plotted:
+                # Make a little bullet-list out of your comma-separated features
+                pieces = [f"• {p.strip()}" for p in label.split(',')]
+                pretty_label = "\n".join(pieces) + "\n• (BEST)"
+                ax.plot(y_feh, x_age_gyr,
+                        label=pretty_label,
+                        color="red", linewidth=2, zorder=3)
+                best_plotted = True
+            else:
+                ax.plot(y_feh, x_age_gyr,
+                        color="red", linewidth=2, zorder=3)
+        else:
+            ax.plot(y_feh, x_age_gyr,
+                    alpha=0.5, zorder=1)
+
+    # Observational data
+    ax.scatter(Fe_H, age_Joyce, marker='*', s=150, color='blue', 
+              label='Joyce et al.', zorder=2)
+    ax.scatter(Fe_H, age_Bensby, marker='^', s=150, color='orange', 
+              label='Bensby et al.', zorder=2)
+
+    ax.set_xlabel("[Fe/H]", fontsize=16)
+    ax.set_ylabel("Age (Gyr)", fontsize=16)
+    ax.set_xlim(-2, 1)
+    ax.set_title("Age vs Metallicity")
+
+    # Legend out to the left so multiline shows up
+    ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
+
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    return plt.gcf()
 
 
 
-
-
-
+# Update the generate_all_plots function to include the four-panel alpha plot
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
-    """Generate all plots from GalGA results"""
+    """Generate all plots from GalGA results including four-panel alpha plot"""
+    
+    # Load observational alpha element data
+    f = open('Bensby_Data.tsv')
+    lines = f.readlines()
+    Fe_H = []
+    Fe_H_err = []
+    age_Joyce = []
+    age_Bensby = []
+    Si_Fe = []
+    Si_Fe_err = []
+    Ca_Fe = []
+    Ca_Fe_err = []
+    Mg_Fe = []
+    Mg_Fe_err = []
+    Ti_Fe = []
+    Ti_Fe_err = []
+    
+    for line in lines[1::]:
+        line = line.split()
+        
+        Fe_H_ind = lines[0].split().index('[Fe/H]')
+        Fe_H_err_ind = lines[0].split().index('error_[Fe/H]')
+        
+        Si_Fe_ind = lines[0].split().index('[Si/Fe]')
+        Si_Fe_err_ind = lines[0].split().index('error_[Si/Fe]')
+        
+        Ca_Fe_ind = lines[0].split().index('[Ca/Fe]')
+        Ca_Fe_err_ind = lines[0].split().index('error_[Ca/Fe]')
+        
+        Mg_Fe_ind = lines[0].split().index('[Mg/Fe]')
+        Mg_Fe_err_ind = lines[0].split().index('error_[Mg/Fe]')
+        
+        Ti_Fe_ind = lines[0].split().index('[Ti/Fe]')
+        Ti_Fe_err_ind = lines[0].split().index('error_[Ti/Fe]')
+        
+        age_Joyce_ind = lines[0].split().index('Joyce_age')
+        age_Bensby_ind = lines[0].split().index('Bensby')
+        
+        age_Joyce.append(float(line[age_Joyce_ind]))
+        age_Bensby.append(float(line[age_Bensby_ind]))
+        Fe_H.append(float(line[Fe_H_ind]))
+        Fe_H_err.append(float(line[Fe_H_err_ind]))
+        Si_Fe.append(float(line[Si_Fe_ind]))
+        Si_Fe_err.append(float(line[Si_Fe_err_ind]))
+        Ca_Fe.append(float(line[Ca_Fe_ind]))
+        Ca_Fe_err.append(float(line[Ca_Fe_err_ind]))
+        Mg_Fe.append(float(line[Mg_Fe_ind]))
+        Mg_Fe_err.append(float(line[Mg_Fe_err_ind]))
+        Ti_Fe.append(float(line[Ti_Fe_ind]))
+        Ti_Fe_err.append(float(line[Ti_Fe_err_ind]))
+    
+    f.close()
+    
+    # Convert to numpy arrays
+    Fe_H = np.array(Fe_H)
+    Si_Fe = np.array(Si_Fe)
+    Ca_Fe = np.array(Ca_Fe) 
+    Mg_Fe = np.array(Mg_Fe)
+    Ti_Fe = np.array(Ti_Fe)
+    
     # Ensure directories exist
     ensure_dirs()
     
     # Extract metrics for scatter plots
     sigma_2_vals, t_2_vals, infall_2_vals, metrics_dict, df = extract_metrics(results_file)
     
-    # 1. Plot MDF curves
+    # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
     
-    # 2. Plot 3D scatter plots for various metrics
+    # 2. Plot Four-Panel Alpha Elements (NEW)
+    print("Generating Four-Panel Alpha Elements plot...")
+    plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, df)
+
+    print("Generating AGE  plot...")
+    plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
+
+    # 3. Plot 3D scatter plots for various metrics
     print("Generating 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name)
     
-    # 3. Plot 2D scatter plots
+    # 4. Plot 2D scatter plots
     print("Generating 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name)
     
-
+    # 5. Walker evolution plots
     print("Generating walker evolution plots...")
     param_names = ["sigma_2", "t_2", "infall_2"]
-    param_indices = [0, 1, 5, 7, 9]  # Indices in the individual arrays
+    param_indices = [0, 1, 5, 7, 9]
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
     
-    # NEW: Plot loss history for each walker
+    # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
     for metric in ['wrmse', 'huber', 'mae', 'cosine']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
-
-    # 5. Create 3D animation
+        
+    # 7. Create 3D animation
     print("Generating 3D animation...")
-    create_3d_animation(GalGA.walker_history)
-
-
+    #create_3d_animation(GalGA.walker_history)
+    
     print("All plotting complete! Check the GA directory for results.")
+    print(f"Loaded {len(Fe_H)} observational data points for individual alpha elements")

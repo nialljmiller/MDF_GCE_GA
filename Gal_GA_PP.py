@@ -103,6 +103,8 @@ class GalacticEvolutionGA:
         self.quant_individuals = False
         self.model_count = 0
         self.mdf_data = []
+        self.age_data = []
+        self.alpha_data = []
         self.results = []
         self.labels = []
         self.MDFs = []
@@ -540,24 +542,25 @@ class GalacticEvolutionGA:
 
         # Run GCE model and compute MDF
         GCE_model = omega_plus.omega_plus(**kwargs)
-        x_data, y_data = GCE_model.inner.plot_mdf(axis_mdf='[Fe/H]', sigma_gauss=0.1, norm=True, return_x_y=True)
-        x_data = np.array(x_data)
-        y_data = np.array(y_data)
+        MDF_x_data, MDF_y_data = GCE_model.inner.plot_mdf(axis_mdf='[Fe/H]', sigma_gauss=0.1, norm=True, return_x_y=True)
+        MDF_x_data = np.array(MDF_x_data)
+        MDF_y_data = np.array(MDF_y_data)
 
 
-        # — now compute the α-distribution —
         elements = ['[Mg/Fe]','[Si/Fe]','[Ca/Fe]','[Ti/Fe]']
         alpha_arrs = []
         for el in elements:
-            _, y_el = GCE_model.inner.plot_spectro(xaxis='[Fe/H]', yaxis=el, return_x_y=True)
-            alpha_arrs.append(y_el)
-        # α = mean over the four element tracks
-        alpha_y = np.nanmean(np.vstack(alpha_arrs), axis=0)
+            alpha_x_data, alpha_y_data = GCE_model.inner.plot_spectro(xaxis='[Fe/H]', yaxis=el, return_x_y=True)
+            alpha_arrs.append([np.array(alpha_x_data), np.array(alpha_y_data)])
 
+
+        age_x_data, age_y_data=GCE_model.inner.plot_spectro(xaxis='age', yaxis='[Fe/H]', return_x_y=True)
+        age_x_data = np.array(age_x_data)
+        age_y_data = np.array(age_y_data)
 
         # Evaluate the spline at the same [Fe/H] grid as your data
-        cs_MDF = CubicSpline(x_data, y_data)
-        fmin, fmax = x_data.min(), x_data.max()
+        cs_MDF = CubicSpline(MDF_x_data, MDF_y_data)
+        fmin, fmax = MDF_x_data.min(), MDF_x_data.max()
         feh_clamped = np.clip(self.feh, fmin, fmax)
         theory_count_array = cs_MDF(feh_clamped)
 
@@ -582,9 +585,11 @@ class GalacticEvolutionGA:
         
         result = {
             'label': label,
-            'x_data': x_data,
-            'y_data': y_data,
-            'alpha_y': alpha_y, 
+            'MDF_x_data': MDF_x_data,
+            'MDF_y_data': MDF_y_data,
+            'age_x_data': age_x_data,
+            'age_y_data': age_y_data,
+            'alpha_arrs': alpha_arrs,
             'metrics': metrics,
             'cs_MDF': cs_MDF,
             'model_number': self.model_count
@@ -651,7 +656,9 @@ class GalacticEvolutionGA:
                 for (ind, (fit, result)) in zip(invalid_ind, fitnesses_and_results):
                     ind.fitness.values = fit
                     self.labels.append(result['label'])
-                    self.mdf_data.append([result['x_data'], result['y_data']])
+                    self.mdf_data.append([result['MDF_x_data'], result['MDF_y_data']])
+                    self.alpha_data.append(result['alpha_arrs'])
+                    self.age_data.append([result['age_x_data'], result['age_y_data']])
                     self.results.append(result['metrics'])
                     self.MDFs.append(result['cs_MDF'])
                     self.model_numbers.append(result['model_number'])
@@ -694,8 +701,9 @@ class GalacticEvolutionGA:
                 for (ind, (fit, result)) in zip(invalid_ind, fitnesses_and_results):
                     ind.fitness.values = fit
                     self.labels.append(result['label'])
-                    self.mdf_data.append([result['x_data'], result['y_data']])
-                    self.alpha_data.append(result['alpha_y'])
+                    self.mdf_data.append([result['MDF_x_data'], result['MDF_y_data']])
+                    self.alpha_data.append(result['alpha_arrs'])
+                    self.age_data.append([result['age_x_data'], result['age_y_data']])
                     self.results.append(result['metrics'])
                     self.MDFs.append(result['cs_MDF'])
                     self.model_numbers.append(result['model_number'])

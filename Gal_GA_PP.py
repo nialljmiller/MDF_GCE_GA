@@ -106,6 +106,7 @@ class GalacticEvolutionGA:
         self.results = []
         self.labels = []
         self.MDFs = []
+        self.alpha_data = []
         self.model_numbers = []
         self.shrink_range = shrink_range
         # Min and max values for sigma_2, t_2, and infall_2
@@ -317,25 +318,42 @@ class GalacticEvolutionGA:
 
 
 
-
-    def prevent_duplicates(self, offspring, toolbox):
-        """Replace duplicate individuals with new mutations"""
-        unique_genomes = set()
+    def prevent_duplicates(self, offspring, toolbox, max_attempts=5):
+        """Replace duplicate individuals by jittering them, not re-drawing from scratch."""
+        unique_keys = set()
         distinct_offspring = []
-        
+
         for ind in offspring:
-            # Create a hashable representation of key parameters
-            genome_key = tuple([round(val, 6) if isinstance(val, float) else val for val in ind])
-            
-            if genome_key in unique_genomes:
-                # Replace duplicate with a completely new individual
-                new_ind = toolbox.individual()
+            # build a hashable key from the genome
+            key = tuple(round(x, 6) if isinstance(x, float) else x for x in ind)
+
+            if key in unique_keys:
+                # duplicate: clone the Individual (so we keep .fitness, etc.)
+                new_ind = toolbox.clone(ind)
+                attempt = 0
+
+                while attempt < max_attempts:
+                    toolbox.mutate(new_ind)              # use your GA mutation
+                    del new_ind.fitness.values           # force re-evaluation
+
+                    new_key = tuple(round(x, 6) if isinstance(x, float) else x
+                                    for x in new_ind)
+                    if new_key not in unique_keys:
+                        key = new_key
+                        break
+
+                    attempt += 1
+
                 distinct_offspring.append(new_ind)
+                unique_keys.add(key)
+
             else:
-                unique_genomes.add(genome_key)
+                # first time: just keep the original individual
+                unique_keys.add(key)
                 distinct_offspring.append(ind)
-    
+
         return distinct_offspring
+
 
 
 
@@ -370,6 +388,11 @@ class GalacticEvolutionGA:
             
         print(f"Generation {generation}: diversity = {diversity:.4f}, " 
               f"mutpb = {self.mutpb:.2f}, cxpb = {self.cxpb:.2f}")
+
+
+
+
+
 
 
     def get_param_bounds(self, index):
@@ -521,6 +544,17 @@ class GalacticEvolutionGA:
         x_data = np.array(x_data)
         y_data = np.array(y_data)
 
+
+        # — now compute the α-distribution —
+        elements = ['[Mg/Fe]','[Si/Fe]','[Ca/Fe]','[Ti/Fe]']
+        alpha_arrs = []
+        for el in elements:
+            _, y_el = GCE_model.inner.plot_spectro(xaxis='[Fe/H]', yaxis=el, return_x_y=True)
+            alpha_arrs.append(y_el)
+        # α = mean over the four element tracks
+        alpha_y = np.nanmean(np.vstack(alpha_arrs), axis=0)
+
+
         # Evaluate the spline at the same [Fe/H] grid as your data
         cs_MDF = CubicSpline(x_data, y_data)
         fmin, fmax = x_data.min(), x_data.max()
@@ -550,6 +584,7 @@ class GalacticEvolutionGA:
             'label': label,
             'x_data': x_data,
             'y_data': y_data,
+            'alpha_y': alpha_y, 
             'metrics': metrics,
             'cs_MDF': cs_MDF,
             'model_number': self.model_count
@@ -660,6 +695,7 @@ class GalacticEvolutionGA:
                     ind.fitness.values = fit
                     self.labels.append(result['label'])
                     self.mdf_data.append([result['x_data'], result['y_data']])
+                    self.alpha_data.append(result['alpha_y'])
                     self.results.append(result['metrics'])
                     self.MDFs.append(result['cs_MDF'])
                     self.model_numbers.append(result['model_number'])

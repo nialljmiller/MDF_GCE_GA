@@ -18,6 +18,166 @@ def ensure_dirs():
     os.makedirs('GA/loss', exist_ok=True)
 
 
+#!/usr/bin/env python3
+"""
+Plotting functions for MDF_GA and related bulge diagnostics.
+Each function is standalone and saves a publication-quality figure.
+"""
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.interpolate import UnivariateSpline
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm, colors, gridspec
+from matplotlib.ticker import MultipleLocator
+
+# ---------------------------------------------------
+# Global style for paper-quality figures
+# ---------------------------------------------------
+plt.style.use('seaborn-whitegrid')
+plt.rcParams.update({
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'font.family': 'serif',
+    'font.size': 12,
+    'axes.labelsize': 14,
+    'axes.titlesize': 16,
+    'legend.fontsize': 12,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
+    'lines.linewidth': 1.5,
+})
+
+# ---------------------------------------------------
+def ensure_dirs():
+    """Ensure necessary directories exist."""
+    os.makedirs('GA/loss', exist_ok=True)
+
+# ---------------------------------------------------
+def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
+    """
+    Plot star formation rate (SFR) history vs Age for bulge models.
+    bulge_dict: mapping of label -> model with inner.history.age and .sfr_abs
+    """
+    fig, ax = plt.subplots(figsize=(6,5))
+    for label, model in bulge_dict.items():
+        age_gyr = np.array(model.inner.history.age) / 1e9
+        sfr = np.array(model.inner.history.sfr_abs)
+        ax.plot(age_gyr, sfr, label=label)
+
+    ax.set_xlabel('Age (Gyr)')
+    ax.set_ylabel(r'SFR [$M_\odot\ \mathrm{yr}^{-1}$]')
+    ax.set_xlim(0, np.max([np.max(np.array(m.inner.history.age)/1e9) for m in bulge_dict.values()]))
+    ax.legend(frameon=False, fontsize='small')
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+# ---------------------------------------------------
+def plot_mass_evolution(bulge_dict,save_path='GA/Mass_age.png'):
+    """
+    Plot bulge mass (locked + gas) evolution vs Age.
+    bulge_dict: mapping of label -> model with inner.history.m_locked, .m_gas_exp (or .m_gas)
+    """
+    fig, ax = plt.subplots(figsize=(6,5))
+    for label, model in bulge_dict.items():
+        age_gyr = np.array(model.inner.history.age) / 1e9
+        m_locked = np.array(getattr(model.inner.history, 'm_locked', []))
+        # fallback to m_gas_exp or m_gas
+        m_gas = np.array(getattr(model.inner.history, 'm_gas_exp', getattr(model.inner.history, 'm_gas', [])))
+        mass = m_locked + m_gas
+        ax.plot(age_gyr, mass, label=label)
+
+    ax.set_xlabel('Age (Gyr)')
+    ax.set_ylabel(r'Bulge Mass [$M_\odot$]')
+    ax.axhline(2e10, ls='--', color='k', label='Reference 2e10 $M_\odot$')
+    ax.legend(frameon=False, fontsize='small')
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+# ---------------------------------------------------
+def plot_alpha_histograms(obs_dict, model_dict, bins=25, save_path='GA/alpha_histograms.png'):
+    """
+    Plot histograms of alpha-element distributions for observation and models.
+    obs_dict: {'[Mg/Fe]': array, ...}
+    model_dict: {'label': [array_Mg, array_Si, array_Ca, array_Ti], ...}
+    """
+    elts = list(obs_dict.keys())
+    n = len(elts)
+    ncols = 2
+    nrows = int(np.ceil(n / ncols))
+    fig = plt.figure(figsize=(6*ncols, 4*nrows))
+    gs = gridspec.GridSpec(nrows, ncols, wspace=0.3, hspace=0.4)
+
+    for idx, elt in enumerate(elts):
+        ax = fig.add_subplot(gs[idx])
+        # observational distribution
+        ax.hist(obs_dict[elt], bins=bins,
+                histtype='stepfilled', alpha=0.3,
+                color='C0', label='Obs')
+        # model average
+        Ys = [np.asarray(arr[idx], float) for arr in model_dict.values()]
+        alpha_mod = np.nanmean(np.vstack(Ys), axis=0)
+        ax.hist(alpha_mod, bins=bins,
+                histtype='step', lw=2,
+                color='C1', label='Model')
+        ax.set_title(f'{elt} Distribution')
+        ax.set_xlabel(elt)
+        ax.set_ylabel('Count')
+        ax.legend(frameon=False, fontsize='small')
+
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+# ---------------------------------------------------
+# Existing MDF and GA plotting functions (slightly tweaked for style)
+# ---------------------------------------------------
+def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA/MDF_multiple_results.png'):
+    """
+    Plot all model MDFs, highlight the best model, and overlay data.
+    """
+    fig, ax = plt.subplots(figsize=(9,6))
+    # Determine best model parameters
+    if results_df is not None and not results_df.empty:
+        bm = results_df.iloc[0]
+        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
+    else:
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+
+    best_flag = False
+    # plot curves
+    for (x, y), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
+        params = (res[5], res[7], res[9])
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+        if is_best:
+            ax.plot(x, y, color='C3', linewidth=2.5,
+                    label='Best Model' if not best_flag else None)
+            best_flag = True
+        else:
+            ax.plot(x, y, color='gray', alpha=0.4)
+
+    # observational data
+    ax.plot(feh, normalized_count, 'x', ms=8, color='k', label='Data')
+    ax.set_xlabel('[Fe/H]')
+    ax.set_ylabel('Normalized Number Density')
+    ax.set_xlim(-2, 1)
+    ax.legend(loc='upper left', frameon=False)
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
+
+
+
+
+
 def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None):
     import matplotlib.pyplot as plt
 
@@ -688,7 +848,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
 
     print("Generating walker evolution plots...")
     param_names = ["sigma_2", "t_2", "infall_2"]
-    param_indices = [5, 7, 9]  # Indices in the individual arrays
+    param_indices = [0, 1, 5, 7, 9]  # Indices in the individual arrays
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
     
     # NEW: Plot loss history for each walker

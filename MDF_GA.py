@@ -80,12 +80,15 @@ GalGA = None
 def save_walker_history():
     if not hasattr(GalGA, 'walker_history'):
         return
-        
+
     np.savez_compressed(
         'GA/walker_history.npz',
         walker_ids=np.array(list(GalGA.walker_history.keys()), dtype=np.int32),
-        histories=[np.array(h) for h in GalGA.walker_history.values()]
+        histories=[np.array(h) for h in GalGA.walker_history.values()],
+        mdf_data=np.array(GalGA.mdf_data, dtype=object),      # your [Fe/H] vs count
+        alpha_data=np.array(GalGA.alpha_data, dtype=object)   # your α-distributions
     )
+
     print("Walker history saved")
 
 def load_walker_history():
@@ -260,7 +263,7 @@ if __name__ == "__main__":
 
     results_file = 'GA/simulation_results.csv'
 
-    make_history = False
+    make_history = True
     # Load walker history if requested
     if make_history == True:
         results_file = run_ga()

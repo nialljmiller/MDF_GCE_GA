@@ -54,7 +54,7 @@ selection_threshold: -1
 tournament_size: 4
 
 #how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine_similarity','log_cosh','wrmse'
-loss_metric: 'ks'
+loss_metric: 'huber'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'

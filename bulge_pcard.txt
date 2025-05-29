@@ -33,14 +33,14 @@ sn1a_header: 'yield_tables/'
 popsize: 64
 
 #How many generations (/epochs) are performed. 
-generations: 128
+generations: 8
 
 #probability an individual will make babies. 
-crossover_probability: 0.6
+crossover_probability: 0.5
 
 #probability that any given invdividual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.9
+mutation_probability: 0.5
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -54,7 +54,7 @@ selection_threshold: -1
 tournament_size: 4
 
 #how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine_similarity','log_cosh','wrmse'
-loss_metric: 'huber'
+loss_metric: 'mae'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'
@@ -74,7 +74,7 @@ sigma_2_list: [0.1,10]
 # Default for thin disk: 8 Gyr ago (tmax_2 = 5 Gyr).
 #
 ############################################################
-tmax_1_list: [0.01,0.11] # for two infall scenario, sweep
+tmax_1_list: [0.01,0.1] # for two infall scenario, sweep
 #
 ## default thick disk assumption is 11 Gyr ago (+/- 3 Gyr) a bunch of [M/H] = -0.5 stuff fell in
 #
@@ -82,7 +82,7 @@ tmax_1_list: [0.01,0.11] # for two infall scenario, sweep
 #
 
 
-tmax_2_list: [0.1,10]
+tmax_2_list: [0.1,10.0]
 
 ############################################################
 #
@@ -95,7 +95,7 @@ infall_timescale_1_list: [0.01,0.1] ## fix for single infall model; sweep otherw
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 
 
-infall_timescale_2_list: [0.1, 15.0]
+infall_timescale_2_list: [0.1, 10.0]
 
 
 
@@ -117,7 +117,8 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 # Can be a single value or a list of values.
 #
 ############################################################
-sfe_array: [0.02,25]
+#sfe_array: [0.02]
+sfe_array: [0.02, 25]
 
 
 ############################################################
@@ -135,7 +136,9 @@ imf_array: ['salpeter']
 # Default value: 50.
 #
 ############################################################
-imf_upper_limits: [50,100]
+imf_upper_limits: [50]
+
+#imf_upper_limits: [50,100]
 
 
 ############################################################
@@ -155,8 +158,8 @@ sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
 ############################################################
 #stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_Ravg.txt']
 
-stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
-
+#stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
+stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt']
 ############################################################
 #
 # Galaxy mass values (total mass in solar masses): 
@@ -191,7 +194,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Higher values increase precision but take longer to compute.
 #
 ############################################################
-timesteps: 100
+timesteps: 50
 
 
 ############################################################

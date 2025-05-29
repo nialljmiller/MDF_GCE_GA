@@ -36,11 +36,11 @@ popsize: 64
 generations: 128
 
 #probability an individual will make babies. 
-crossover_probability: 0.5
+crossover_probability: 0.6
 
 #probability that any given invdividual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.7
+mutation_probability: 0.9
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -155,7 +155,7 @@ sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
 ############################################################
 #stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_Ravg.txt']
 
-stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
+stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
 
 ############################################################
 #

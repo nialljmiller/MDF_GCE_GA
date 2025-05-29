@@ -230,8 +230,8 @@ class GalacticEvolutionGA:
                 return self.uniform_mutate(individual)
             
         elif self.fancy_mutation.lower() == 'gaussian':
-            def mutate_with_population(individual):
-                return self.gaussian_mutate(individual)
+            def mutate_with_population(individual, base_sigma_scale=0.1):
+                return self.gaussian_mutate(individual, base_sigma_scale=base_sigma_scale)
                 
 
         toolbox.register("mutate", mutate_with_population)
@@ -335,6 +335,8 @@ class GalacticEvolutionGA:
                 attempt = 0
 
                 while attempt < max_attempts:
+                    toolbox.mutate(new_ind, base_sigma_scale = 1.0)              # use your GA mutation
+                    toolbox.mutate(new_ind)              # use your GA mutation
                     toolbox.mutate(new_ind)              # use your GA mutation
                     del new_ind.fitness.values           # force re-evaluation
 
@@ -384,7 +386,7 @@ class GalacticEvolutionGA:
             self.cxpb = max(self.cxpb * 0.9, 0.3)    # Decrease crossover rate
         
         # If we're in later generations and diversity is still high, favor exploitation
-        elif progress > 0.6 and diversity > 0.3 * (self.sigma_2_max - self.sigma_2_min):
+        elif progress > 0.8 and diversity > 0.3 * (self.sigma_2_max - self.sigma_2_min):
             self.mutpb = max(self.mutpb * 0.9, 0.1)  # Decrease mutation rate
             self.cxpb = min(self.cxpb * 1.1, 0.9)    # Increase crossover rate
             
@@ -426,7 +428,7 @@ class GalacticEvolutionGA:
 
     
 
-    def uniform_mutate(self, individual, indpb=0.2):
+    def uniform_mutate(self, individual, indpb=1.0):
         """
         Uniform mutation that replaces values with uniform random values 
         within parameter bounds.
@@ -448,7 +450,7 @@ class GalacticEvolutionGA:
 
 
 
-    def gaussian_mutate(self, individual, indpb=0.2, base_sigma_scale=0.2):
+    def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2):
             
         """Mutation that creates small, connected steps"""
         for i in range(len(individual)):
@@ -467,9 +469,9 @@ class GalacticEvolutionGA:
                     # Start with 2% of range, decay to 0.5%
                     if hasattr(self, 'gen') and hasattr(self, 'num_generations'):
                         progress = self.gen / self.num_generations
-                        sigma_scale = 0.02 * (1 - 0.75 * progress)  # 2% -> 0.5%
+                        sigma_scale = base_sigma_scale * (1 - 0.75 * progress)  # 2% -> 0.5%
                     else:
-                        sigma_scale = 0.02
+                        sigma_scale = base_sigma_scale
                     
                     sigma = range_size * sigma_scale
                     individual[i] += random.gauss(0, sigma)

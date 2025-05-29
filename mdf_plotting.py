@@ -230,6 +230,8 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None):
     plt.savefig("GA/MDF_multiple_results.png", bbox_inches="tight")
     return plt.gcf()
 
+
+
 def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
     """Plot 3D scatter plot with color indicating a specific metric"""
     fig = plt.figure(figsize=(12, 10))
@@ -245,6 +247,9 @@ def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2'
     
     return fig
 
+
+
+
 def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
     """Plot 2D scatter plot with color indicating a specific metric"""
     plt.figure(figsize=(10, 8))
@@ -257,6 +262,9 @@ def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
     plt.close()
     
     return plt.gcf()
+
+
+
 
 def plot_walker_history(walker_history, param_names, param_indices):
     """Plot the evolution of parameters for each walker"""
@@ -300,6 +308,9 @@ def plot_walker_history(walker_history, param_names, param_indices):
     
     print("Generated walker evolution plots")
     return figs
+
+
+
 
 def create_3d_animation(walker_history):
     """Create an animated 3D visualization of walker evolution"""
@@ -359,25 +370,6 @@ def create_3d_animation(walker_history):
     
     print(f"Generated 3D animation: {gif_path}")
     return ani
-
-def extract_metrics(results_file):
-    """Extract metrics from CSV file for plotting"""
-    # Load the dataframe directly
-    df = pd.read_csv(results_file)
-    
-    # Extract parameters using column names
-    sigma_2_vals = df['sigma_2'].values
-    t_2_vals = df['t_2'].values
-    infall_2_vals = df['infall_2'].values
-    
-    # Extract metrics
-    metrics_dict = {}
-    for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble']:
-        if metric in df.columns:
-            metrics_dict[metric] = df[metric].values
-    
-    return sigma_2_vals, t_2_vals, infall_2_vals, metrics_dict, df
-
 
 
 def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
@@ -481,7 +473,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     plt.grid(True, alpha=0.3)
     
     # Only show legend for first few walkers to avoid clutter
-    plt.legend(loc='upper right', fontsize='small')
+    #plt.legend(loc='upper right', fontsize='small')
     
     # Add annotations about convergence
     min_losses = []
@@ -811,7 +803,7 @@ def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_ty
         ax.set_title("2D Scatter Plot of Individuals with Gene Bounds")
         ax.set_xlabel(gene_names[0])
         ax.set_ylabel(gene_names[1])
-        ax.legend()
+        #ax.legend()
         plt.tight_layout()
         plt.savefig('GA/MDF_individuals_2D.png', bbox_inches='tight')
         print('...2D plot made!')
@@ -995,6 +987,35 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
 
 
 
+def extract_metrics(results_file):
+    """Extract metrics from CSV file for plotting"""
+    # Load the dataframe directly
+    df = pd.read_csv(results_file)
+    
+    comp_idx_vals    = df['comp_idx'].values
+    imf_idx_vals     = df['imf_idx'].values
+    sn1a_idx_vals    = df['sn1a_idx'].values
+    sy_idx_vals      = df['sy_idx'].values
+    sn1ar_idx_vals   = df['sn1ar_idx'].values
+    sigma_2_vals     = df['sigma_2'].values
+    t_1_vals         = df['t_1'].values
+    t_2_vals         = df['t_2'].values
+    infall_1_vals    = df['infall_1'].values
+    infall_2_vals    = df['infall_2'].values
+    sfe_vals         = df['sfe'].values
+    imf_upper_vals   = df['imf_upper'].values
+    mgal_vals        = df['mgal'].values
+    nb_vals          = df['nb'].values
+
+    # Extract metrics
+    metrics_dict = {}
+    for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble']:
+        if metric in df.columns:
+            metrics_dict[metric] = df[metric].values
+    
+    return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
+
+
 # Update the generate_all_plots function to include the four-panel alpha plot
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
     """Generate all plots from GalGA results including four-panel alpha plot"""
@@ -1062,7 +1083,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     ensure_dirs()
     
     # Extract metrics for scatter plots
-    sigma_2_vals, t_2_vals, infall_2_vals, metrics_dict, df = extract_metrics(results_file)
+    
+    sigma_2_vals,t_1_vals,t_2_vals,infall_1_vals,infall_2_vals,sfe_vals,imf_upper_vals,mgal_vals,nb_vals, metrics_dict, df = extract_metrics(results_file)
     
     # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
@@ -1075,14 +1097,27 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
 
     # 3. Plot 3D scatter plots for various metrics
+
+
     print("Generating 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name)
+        plot_3d_scatter(sfe_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='imf_upper', zlabel='infall_2')
+        plot_3d_scatter(sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_nmi', xlabel='sfe', ylabel='t_2', zlabel='infall_2')
+        plot_3d_scatter(sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='sfe', ylabel='t_2', zlabel='infall_2')
     
     # 4. Plot 2D scatter plots
     print("Generating 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name)
+        plot_2d_scatter(imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_ii', xlabel='imf_upper', ylabel='infall_2')
+        plot_2d_scatter(sfe_vals, infall_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='infall_2')
+        plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='sigma_2')
+        plot_2d_scatter(sfe_vals, imf_upper_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='imf_upper')
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='t_2')
+    
+
+
     
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")

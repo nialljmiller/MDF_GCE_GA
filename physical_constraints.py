@@ -2,7 +2,7 @@ import numpy as np
 
 
 
-def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=True):
+def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False):
     """
     Check if model outputs are physically plausible.
     

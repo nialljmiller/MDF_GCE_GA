@@ -867,20 +867,28 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
         # Determine if this is the best model
         params = (res[5], res[7], res[9])
         is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-        
+                
         # Plot each of the 4 alpha elements
         for elem_idx, (row, col) in element_positions.items():
             if elem_idx < len(alpha_arrs):
                 x_data, y_data = alpha_arrs[elem_idx]
                 
-                if is_best:
-                    # Highlight best model in red
-                    axarr[row][col].plot(x_data, y_data, 
-                                       color='red', linewidth=2.5, alpha=1, zorder=3)
-                else:
-                    # All other models in gray
-                    axarr[row][col].plot(x_data, y_data, 
-                                       color='gray', alpha=0.4, linewidth=1, zorder=1)
+                # Sort by [Fe/H] to make smooth curves
+                if len(x_data) > 0 and len(y_data) > 0:
+                    x_data = np.array(x_data)
+                    y_data = np.array(y_data)
+                    sort_indices = np.argsort(x_data)
+                    x_sorted = x_data[sort_indices]
+                    y_sorted = y_data[sort_indices]
+                    
+                    if is_best:
+                        # Highlight best model in red
+                        axarr[row][col].plot(x_sorted, y_sorted, 
+                                           color='red', linewidth=2.5, alpha=1, zorder=3)
+                    else:
+                        # All other models in gray
+                        axarr[row][col].plot(x_sorted, y_sorted, 
+                                           color='gray', alpha=0.4, linewidth=1, zorder=1)
     
     # Add observational data and styling to each panel
     for elem_idx, (row, col) in element_positions.items():
@@ -1102,18 +1110,18 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     print("Generating 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name)
-        plot_3d_scatter(sfe_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='imf_upper', zlabel='infall_2')
-        plot_3d_scatter(sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_nmi', xlabel='sfe', ylabel='t_2', zlabel='infall_2')
+        plot_3d_scatter(sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='t_1', zlabel='infall_2')
+        plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_tti', xlabel='t_1', ylabel='t_2', zlabel='infall_2')
         plot_3d_scatter(sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='sfe', ylabel='t_2', zlabel='infall_2')
     
     # 4. Plot 2D scatter plots
     print("Generating 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name)
-        plot_2d_scatter(imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_ii', xlabel='imf_upper', ylabel='infall_2')
+        plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_ii', xlabel='t_1', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, infall_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='sigma_2')
-        plot_2d_scatter(sfe_vals, imf_upper_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='imf_upper')
+        plot_2d_scatter(sfe_vals, t_1_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_1')
         plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='t_2')
     
 

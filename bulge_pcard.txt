@@ -30,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 64
+popsize: 8
 
 #How many generations (/epochs) are performed. 
 generations: 8
@@ -74,7 +74,7 @@ sigma_2_list: [0.1,10]
 # Default for thin disk: 8 Gyr ago (tmax_2 = 5 Gyr).
 #
 ############################################################
-tmax_1_list: [0.01,0.1] # for two infall scenario, sweep
+tmax_1_list: [0.001,0.01] # for two infall scenario, sweep
 #
 ## default thick disk assumption is 11 Gyr ago (+/- 3 Gyr) a bunch of [M/H] = -0.5 stuff fell in
 #
@@ -82,7 +82,7 @@ tmax_1_list: [0.01,0.1] # for two infall scenario, sweep
 #
 
 
-tmax_2_list: [0.1,10.0]
+tmax_2_list: [0.1,15.0]
 
 ############################################################
 #
@@ -90,7 +90,7 @@ tmax_2_list: [0.1,10.0]
 # Default for thin disk: 5 Gyr.
 # AKA tau2
 ############################################################
-infall_timescale_1_list: [0.01,0.1] ## fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.001,0.01] ## fix for single infall model; sweep otherwise
 ## if the bulge is being continuously fed by the disk, over all time, this should be  10 Gyr
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 

@@ -24,6 +24,8 @@ from deap import base, creator, tools
 import random
 
 from loss import *
+from physical_constraints import apply_physics_penalty
+
 
 # Function to find the index of the nearest value in an array
 def find_nearest(array, value):
@@ -230,7 +232,7 @@ class GalacticEvolutionGA:
                 return self.uniform_mutate(individual)
             
         elif self.fancy_mutation.lower() == 'gaussian':
-            def mutate_with_population(individual, base_sigma_scale=0.1):
+            def mutate_with_population(individual, base_sigma_scale=0.01):
                 return self.gaussian_mutate(individual, base_sigma_scale=base_sigma_scale)
                 
 
@@ -357,8 +359,6 @@ class GalacticEvolutionGA:
                 distinct_offspring.append(ind)
 
         return distinct_offspring
-
-
 
 
 
@@ -571,6 +571,15 @@ class GalacticEvolutionGA:
 
         # Use selected loss
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
+
+
+        # Apply physics penalty
+        primary_loss_value = apply_physics_penalty(
+            primary_loss_value, 
+            MDF_x_data, MDF_y_data, 
+            alpha_arrs, 
+            age_x_data, age_y_data
+        )
 
         # Return the result with a detailed label
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '

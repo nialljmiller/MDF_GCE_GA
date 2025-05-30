@@ -2,7 +2,7 @@ import numpy as np
 
 
 
-def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False):
+def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=False):
     """
     Check if model outputs are physically plausible.
     
@@ -125,34 +125,36 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     # 3. AGE-METALLICITY CHECKS
     # ===============================
     
-    if len(age_x) > 0 and len(age_y) > 0:
-        
-        # Convert age from years to Gyr if needed
-        if np.max(age_x) > 100:  # Likely in years
-            age_gyr = age_x / 1e9
-        else:
-            age_gyr = age_x
-            
-        # Check for reasonable age range
-        if np.any(age_gyr < 0) or np.any(age_gyr > 15):
-            if liberal:
-                penalty_factor *= 1.3
-            else:
-                is_physical = False
-                return is_physical, penalty_factor
-        
-        # Very loose check: old stars shouldn't all be super metal-rich
-        if len(age_gyr) > 5:
-            old_stars = age_gyr > 10  # Stars older than 10 Gyr
-            if np.sum(old_stars) > 0:
-                old_feh = age_y[old_stars]
-                # If ALL old stars have [Fe/H] > 0, that's suspicious
-                if np.all(old_feh > 0.2):
-                    if liberal:
-                        penalty_factor *= 1.2
-                    else:
-                        is_physical = False
-                        return is_physical, penalty_factor
+    if age_meta_check:
+
+	    if len(age_x) > 0 and len(age_y) > 0:
+	        
+	        # Convert age from years to Gyr if needed
+	        if np.max(age_x) > 100:  # Likely in years
+	            age_gyr = age_x / 1e9
+	        else:
+	            age_gyr = age_x
+	            
+	        # Check for reasonable age range
+	        if np.any(age_gyr < 0) or np.any(age_gyr > 15):
+	            if liberal:
+	                penalty_factor *= 1.3
+	            else:
+	                is_physical = False
+	                return is_physical, penalty_factor
+	        
+	        # Very loose check: old stars shouldn't all be super metal-rich
+	        if len(age_gyr) > 5:
+	            old_stars = age_gyr > 10  # Stars older than 10 Gyr
+	            if np.sum(old_stars) > 0:
+	                old_feh = age_y[old_stars]
+	                # If ALL old stars have [Fe/H] > 0, that's suspicious
+	                if np.all(old_feh > 0.2):
+	                    if liberal:
+	                        penalty_factor *= 1.2
+	                    else:
+	                        is_physical = False
+	                        return is_physical, penalty_factor
     
     # ===============================
     # 4. GLOBAL SANITY CHECKS
@@ -189,7 +191,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     """
     
     is_physical, penalty_factor = check_physical_plausibility(
-        MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=True
+        MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False
     )
     
     if not is_physical:

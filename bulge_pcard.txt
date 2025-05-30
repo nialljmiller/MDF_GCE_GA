@@ -30,10 +30,10 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 128
+popsize: 64
 
 #How many generations (/epochs) are performed. 
-generations: 16
+generations: 128
 
 #probability an individual will make babies. 
 crossover_probability: 0.5
@@ -194,7 +194,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Higher values increase precision but take longer to compute.
 #
 ############################################################
-timesteps: 50
+timesteps: 100
 
 
 ############################################################

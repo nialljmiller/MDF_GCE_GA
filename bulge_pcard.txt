@@ -30,10 +30,10 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 4
+popsize: 128
 
 #How many generations (/epochs) are performed. 
-generations: 8
+generations: 16
 
 #probability an individual will make babies. 
 crossover_probability: 0.5
@@ -118,8 +118,8 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 #
 ############################################################
 #sfe_array: [0.02]
-sfe_array: [0.02, 25]
-delta_sfe_array: [0,0.1]
+sfe_array: [0.02, 25.0]
+delta_sfe_array: [0.0,1.0]
 
 ############################################################
 #

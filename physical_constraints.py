@@ -99,13 +99,28 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if np.sum(low_feh_mask) > 0:
                 low_feh_alpha = alpha_y[low_feh_mask]
                 # At least some points should show enhancement (>-0.2)
-                if np.all(low_feh_alpha < 0.2):
+                if np.any(low_feh_alpha < 0.2):
+                    if liberal:
+                        penalty_factor *= 1.2
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+
+
+            low_feh_mask = alpha_x > 0.0
+            if np.sum(low_feh_mask) > 0:
+                low_feh_alpha = alpha_y[low_feh_mask]
+                # At least some points should show enhancement (>-0.2)
+                if np.any(low_feh_alpha > 0.2):
                     if liberal:
                         penalty_factor *= 1.2
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
     
+
+
+
     # ===============================
     # 3. AGE-METALLICITY CHECKS
     # ===============================

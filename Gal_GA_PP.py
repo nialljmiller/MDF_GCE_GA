@@ -75,7 +75,7 @@ def print_population(GA, population, generation):
 
 class GalacticEvolutionGA:
 
-    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, imf_upper_limits, 
+    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits, 
                  sn1a_assumptions, stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, loss_metric='huber', fancy_mutation = 'gaussian', shrink_range = False, tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5,  PP = False):
         # Initialize parameters as instance variables
         self.sn1a_header = sn1a_header
@@ -88,6 +88,7 @@ class GalacticEvolutionGA:
         self.comp_array = comp_array
         self.imf_array = imf_array
         self.sfe_array = sfe_array
+        self.delta_sfe_array = delta_sfe_array  # Change in SFE at second infall
         self.imf_upper_limits = imf_upper_limits
         self.sn1a_assumptions = sn1a_assumptions
         self.stellar_yield_assumptions = stellar_yield_assumptions
@@ -158,7 +159,7 @@ class GalacticEvolutionGA:
 
         # Define which indices are categorical vs continuous
         self.categorical_indices = [0, 1, 2, 3, 4]  # comp, imf, sn1a, stellar_yield, sn1a_rate
-        self.continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13]  # sigma_2, t_1, t_2, etc.
+        self.continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]  # sigma_2, t_1, t_2, etc.
         
         # Map from index to parameter name (for getting bounds dynamically)
         self.index_to_param_map = {
@@ -173,9 +174,10 @@ class GalacticEvolutionGA:
             8: 'infall_timescale_1',
             9: 'infall_timescale_2',
             10: 'sfe',
-            11: 'imf_upper_limits',
-            12: 'mgal_values',
-            13: 'nb_array'
+            11: 'delta_sfe',
+            12: 'imf_upper_limits',
+            13: 'mgal_values',
+            14: 'nb_array'
         }
 
 
@@ -204,6 +206,9 @@ class GalacticEvolutionGA:
         toolbox.register("infall_1_attr", random.uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
         toolbox.register("infall_2_attr", random.uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
         toolbox.register("sfe_attr", random.uniform, min(self.sfe_array), max(self.sfe_array))
+
+        toolbox.register("delta_sfe_attr", random.uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
+
         toolbox.register("imf_upper_attr", random.uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
         toolbox.register("mgal_attr", random.uniform, min(self.mgal_values), max(self.mgal_values))
         toolbox.register("nb_attr", random.uniform, min(self.nb_array), max(self.nb_array))
@@ -214,7 +219,7 @@ class GalacticEvolutionGA:
                           toolbox.sy_attr, toolbox.sn1a_rate_attr,
                           toolbox.sigma_2_attr, toolbox.t_1_attr, toolbox.t_2_attr, 
                           toolbox.infall_1_attr, toolbox.infall_2_attr,
-                          toolbox.sfe_attr, toolbox.imf_upper_attr, 
+                          toolbox.sfe_attr, toolbox.delta_sfe_attr, toolbox.imf_upper_attr, 
                           toolbox.mgal_attr, toolbox.nb_attr), n=1)
 
         # Create a population by repeating individuals
@@ -289,7 +294,7 @@ class GalacticEvolutionGA:
                 ind1_copy[i] = ind2[i]
         
         # Handle continuous parameters with fitness-weighted blending
-        continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13]
+        continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
         for i in continuous_indices:
             # Fitness-weighted average with small noise
             avg_val = weight1 * ind1[i] + weight2 * ind2[i]
@@ -416,10 +421,12 @@ class GalacticEvolutionGA:
         elif index == 10:
             return min(self.sfe_array), max(self.sfe_array)
         elif index == 11:
-            return min(self.imf_upper_limits), max(self.imf_upper_limits)
+            return min(self.delta_sfe_array), max(self.delta_sfe_array)            
         elif index == 12:
-            return min(self.mgal_values), max(self.mgal_values)
+            return min(self.imf_upper_limits), max(self.imf_upper_limits)
         elif index == 13:
+            return min(self.mgal_values), max(self.mgal_values)
+        elif index == 14:
             return min(self.nb_array), max(self.nb_array)
         else:
             raise IndexError(f"No bounds defined for parameter index {index}")
@@ -506,9 +513,10 @@ class GalacticEvolutionGA:
         infall_1 = individual[8]
         infall_2 = individual[9]
         sfe_val = individual[10]
-        imf_upper = individual[11]
-        mgal = individual[12]
-        nb = individual[13]
+        delta_sfe_val = individual[11]
+        imf_upper = individual[12]
+        mgal = individual[13]
+        nb = individual[14]
         
         # Look up the actual values for categorical parameters
         comp = self.comp_array[comp_idx]
@@ -534,6 +542,7 @@ class GalacticEvolutionGA:
             'mass_loading': 0.0,
             'table': sn1a_header + sy,
             'sfe': sfe_val,
+            'delta_sfe': delta_sfe_val,
             'imf_type': imf_val,
             'sn1a_table': sn1a_header + sn1a,
             'imf_yields_range': [1, imf_upper],
@@ -585,13 +594,13 @@ class GalacticEvolutionGA:
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '
                  f'sigma2: {sigma_2:.3f}, t1: {t_1:.3f}, t2: {t_2:.3f}, '
                  f'infall1: {infall_1:.3f}, infall2: {infall_2:.3f}, '
-                 f'sfe: {sfe_val:.5f}, imf_upper: {imf_upper:.1f}, '
+                 f'sfe: {sfe_val:.5f}, delta_sfe: {delta_sfe_val:.3f}, imf_upper: {imf_upper:.1f}, '
                  f'mgal: {mgal:.2e}, nb: {nb:.2e}')
                  
         # Create metrics list for results storage
         metrics = [comp_idx, imf_idx, sn1a_idx, sy_idx, sn1ar_idx,
                    sigma_2, t_1, t_2, infall_1, infall_2, 
-                   sfe_val, imf_upper, mgal, nb,
+                   sfe_val, delta_sfe_val, imf_upper, mgal, nb,
                    ks, ensemble, wrmse, mae, mape, huber, cos_similarity, log_cosh]
         
         result = {

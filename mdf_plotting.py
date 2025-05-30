@@ -1011,6 +1011,7 @@ def extract_metrics(results_file):
     infall_1_vals    = df['infall_1'].values
     infall_2_vals    = df['infall_2'].values
     sfe_vals         = df['sfe'].values
+    delta_sfe_vals   = df['delta_sfe'].values
     imf_upper_vals   = df['imf_upper'].values
     mgal_vals        = df['mgal'].values
     nb_vals          = df['nb'].values
@@ -1021,7 +1022,7 @@ def extract_metrics(results_file):
         if metric in df.columns:
             metrics_dict[metric] = df[metric].values
     
-    return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
+    return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
 
 
 # Update the generate_all_plots function to include the four-panel alpha plot
@@ -1092,7 +1093,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # Extract metrics for scatter plots
     
-    sigma_2_vals,t_1_vals,t_2_vals,infall_1_vals,infall_2_vals,sfe_vals,imf_upper_vals,mgal_vals,nb_vals, metrics_dict, df = extract_metrics(results_file)
+    sigma_2_vals,t_1_vals,t_2_vals,infall_1_vals,infall_2_vals,sfe_vals,delta_sfe_vals,imf_upper_vals,mgal_vals,nb_vals, metrics_dict, df = extract_metrics(results_file)
     
     # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
@@ -1111,8 +1112,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     for metric_name, metric_vals in metrics_dict.items():
         plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name)
         plot_3d_scatter(sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='t_1', zlabel='infall_2')
+        plot_3d_scatter(sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='delta sfe', zlabel='infall_2')
         plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_tti', xlabel='t_1', ylabel='t_2', zlabel='infall_2')
-        plot_3d_scatter(sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='sfe', ylabel='t_2', zlabel='infall_2')
+        plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='delta sfe', ylabel='t_2', zlabel='infall_2')
     
     # 4. Plot 2D scatter plots
     print("Generating 2D scatter plots...")
@@ -1121,8 +1123,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_ii', xlabel='t_1', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, infall_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='sigma_2')
-        plot_2d_scatter(sfe_vals, t_1_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_1')
-        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='t_2')
+        plot_2d_scatter(sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='delta sfe')
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_1')
+        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='delta sfe', ylabel='t_2')
     
 
 

@@ -56,6 +56,8 @@ timesteps = params['timesteps']
 A2 = params['A2']
 A1 = params['A1']
 
+delta_sfe_array = params['delta_sfe_array']
+
 popsize = params['popsize']
 generations = params['generations']
 crossover_probability = params['crossover_probability']
@@ -125,6 +127,7 @@ def run_ga():
         comp_array=comp_array,
         imf_array=imf_array,
         sfe_array=sfe_array,
+        delta_sfe_array=delta_sfe_array,
         imf_upper_limits=imf_upper_limits,
         sn1a_assumptions=sn1a_assumptions,
         stellar_yield_assumptions=stellar_yield_assumptions,
@@ -157,7 +160,7 @@ def run_ga():
     col_names = [
         'comp_idx', 'imf_idx', 'sn1a_idx', 'sy_idx', 'sn1ar_idx',
         'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
-        'sfe', 'imf_upper', 'mgal', 'nb',
+        'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
         'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh'
     ]
 
@@ -210,6 +213,7 @@ def load_ga_for_plotting():
         comp_array=comp_array,
         imf_array=imf_array,
         sfe_array=sfe_array,
+        delta_sfe_array=delta_sfe_array,
         imf_upper_limits=imf_upper_limits,
         sn1a_assumptions=sn1a_assumptions,
         stellar_yield_assumptions=stellar_yield_assumptions,

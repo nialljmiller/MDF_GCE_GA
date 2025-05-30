@@ -137,7 +137,7 @@ class omega_plus():
                  nb_inter_lifetime_points=np.array([]), nb_inter_M_points_pop3=np.array([]),\
                  inter_M_points_pop3_tree=np.array([]), nb_inter_M_points=np.array([]),\
                  inter_M_points=np.array([]), y_coef_Z_aM_ej=np.array([]),
-                 yield_modifier=([]), tauup=[], oldold=False):
+                 yield_modifier=([]), tauup=[], delta_sfe=0.0, oldold=False):
 
         # Not implemented yet
         if len(sne_L_feedback) > 0:
@@ -281,6 +281,8 @@ class omega_plus():
         self.min_val = min_val
         self.twoinfall_sigmas = twoinfall_sigmas
         self.galradius = galradius
+        self.delta_sfe = delta_sfe  # Change in SFE at second infall
+
 
         # Get inflow rate if input array, and calculate the interpolation coefficients
         if self.len_m_inflow_in > 0:
@@ -414,38 +416,37 @@ class omega_plus():
     #                  Get SFE                   #
     ##############################################
     def __calculate_SFE(self):
-
-        '''
-        Calculate the SFE at each timestep
-
-        Arguments
-        =========
-
-          i_step_OMEGA : Current timestep index of the OMEGA instance
-
-        '''
-
+        """
+        Calculate the SFE at each timestep with optional step change at second infall
+        """
+        
         # Create the SFE array
         self.sfe = [0.0]*self.inner.nb_timesteps
-
-        # If the SFE depends on the dark matter mass ..
-        if self.sfe_m_dep:
-
-            # Calculate the SFE with the DM mass in OMEGA
-            m_DM_inv = 1.0 / self.inner.m_DM_0
-            for i_sfe in range(0,self.inner.nb_timesteps):
-                self.sfe[i_sfe] = self.inner.sfe * \
-                    (self.inner.m_DM_t[i_sfe] * m_DM_inv)**(self.sfe_m_index)
-
-        # If the SFE is constant with time ..
+        
+        # Get second infall time if it exists
+        if self.nb_exp_infall >= 2:
+            t_second_infall = self.exp_infall[1][1]
         else:
-
-            # Use the value of OMEGA
-            for i_sfe in range(0,self.inner.nb_timesteps):
-                self.sfe[i_sfe] = self.inner.sfe
-
-        # Create the interpolation coefficients
-        # sfe = self.sfe_coef[0] * t + self.sfe_coef[1]
+            t_second_infall = float('inf')  # Never switch if only one infall
+        
+        for i_sfe in range(self.inner.nb_timesteps):
+            current_age = self.inner.history.age[i_sfe]
+            
+            # Base SFE with optional step change at second infall
+            if current_age < t_second_infall:
+                base_sfe = self.inner.sfe  # Original SFE before second infall
+            else:
+                base_sfe = self.inner.sfe + self.delta_sfe  # SFE after second infall
+                
+            # Apply mass dependence if enabled
+            if self.sfe_m_dep:
+                m_DM_inv = 1.0 / self.inner.m_DM_0
+                self.sfe[i_sfe] = base_sfe * \
+                    (self.inner.m_DM_t[i_sfe] * m_DM_inv)**(self.sfe_m_index)
+            else:
+                self.sfe[i_sfe] = base_sfe
+        
+        # Keep existing interpolation coefficient calculation
         self.sfe_coef = np.zeros((self.inner.nb_timesteps,2))
         for i_cmdt in range(self.inner.nb_timesteps-1):
             self.sfe_coef[i_cmdt][0] = (self.sfe[i_cmdt+1] - \

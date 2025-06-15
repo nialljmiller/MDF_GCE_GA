@@ -1124,7 +1124,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_2d_scatter(sfe_vals, infall_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='sigma_2')
         plot_2d_scatter(sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='delta sfe')
-        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_1')
+        # Use correct label for the t_2 axis
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_2')
         plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='delta sfe', ylabel='t_2')
     
 
@@ -1133,7 +1134,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")
     param_names = ["sigma_2", "t_2", "infall_2"]
-    param_indices = [0, 1, 5, 7, 9]
+    # Indices of the parameters in the GA individual's gene list
+    # sigma_2 -> index 5, t_2 -> index 7, infall_2 -> index 9
+    param_indices = [5, 7, 9]
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
     
     # 6. Plot loss history for each walker

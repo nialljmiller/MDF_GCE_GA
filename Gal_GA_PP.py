@@ -25,6 +25,7 @@ import random
 
 from loss import *
 from physical_constraints import apply_physics_penalty
+import ast
 
 
 # Function to find the index of the nearest value in an array
@@ -44,20 +45,29 @@ def two_inflow_fn(t, exp_inflow):
 
 # Function to parse the inlist file into a dictionary
 def parse_inlist(file_path):
+    """Parse an inlist file and return a dictionary of parameters."""
     params = {}
     with open(file_path, 'r') as file:
         for line in file:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
+
             key, value = line.split(':', 1)
             key = key.strip()
             value = value.strip()
-            try:
-                parsed_value = eval(value)  # Try to evaluate if it's a list or expression
-            except:
-                parsed_value = value  # Keep original string if eval fails
+
+            lowered = value.lower().strip("'\"")
+            if lowered in {'true', 'false'}:
+                parsed_value = lowered == 'true'
+            else:
+                try:
+                    parsed_value = ast.literal_eval(value)
+                except Exception:
+                    parsed_value = value
+
             params[key] = parsed_value
+
     return params
 
 

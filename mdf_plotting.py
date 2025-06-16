@@ -3,34 +3,17 @@
 # Plotting functions for MDF_GA
 ################################
 
-import matplotlib.pyplot as plt
-import numpy as np
+"""Plotting utilities for MDF_GA and related bulge diagnostics."""
+
 import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm, colors
-import pandas as pd
-from scipy.interpolate import UnivariateSpline
-
-
-def ensure_dirs():
-    """Ensure necessary directories exist"""
-    os.makedirs('GA/loss', exist_ok=True)
-
-
-#!/usr/bin/env python3
-"""
-Plotting functions for MDF_GA and related bulge diagnostics.
-Each function is standalone and saves a publication-quality figure.
-"""
-import os
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.interpolate import UnivariateSpline
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm, colors, gridspec
 from matplotlib.ticker import MultipleLocator
+from scipy.interpolate import UnivariateSpline
 
 # ---------------------------------------------------
 # Global style for paper-quality figures
@@ -178,57 +161,6 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
 
 
 
-def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None):
-    import matplotlib.pyplot as plt
-
-    plt.figure(figsize=(18, 12))
-    ax = plt.gca()
-
-    # determine the best‐model params
-    if results_df is not None and not results_df.empty:
-        bm = results_df.iloc[0]
-        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
-    else:
-        r = GalGA.results[0]
-        best_params = (r[5], r[7], r[9])
-
-    best_plotted = False
-    for (x_data, y_data), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
-        params = (res[5], res[7], res[9])
-        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-
-        if is_best:
-            if not best_plotted:
-                # make a little bullet-list out of your comma-separated features
-                pieces = [f"• {p.strip()}" for p in label.split(',')]
-                pretty_label = "\n".join(pieces) + "\n• (BEST)"
-                ax.plot(x_data, y_data,
-                        label=pretty_label,
-                        color="red", linewidth=2, zorder=3)
-                best_plotted = True
-            else:
-                ax.plot(x_data, y_data,
-                        color="red", linewidth=2, zorder=3)
-        else:
-            ax.plot(x_data, y_data,
-                    alpha=0.5, zorder=1)
-
-    # observational data
-    ax.plot(feh, normalized_count,
-            label="Observational Data",
-            color="black", marker="x", linestyle="-", markersize=8, zorder=2)
-
-    ax.set_xlabel("[Fe/H]")
-    ax.set_ylabel("Normalized Number Density")
-    ax.set_xlim(-2, 1)
-    ax.set_title("Metallicity Distribution Functions (MDFs)")
-
-    # legend out to the left so multiline shows up
-    ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
-
-    plt.tight_layout()
-    plt.savefig("GA/MDF_multiple_results.png", bbox_inches="tight")
-    return plt.gcf()
 
 
 
@@ -1124,7 +1056,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_2d_scatter(sfe_vals, infall_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='infall_2')
         plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='sigma_2')
         plot_2d_scatter(sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_st', xlabel='sfe', ylabel='delta sfe')
-        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_1')
+        # Use correct label for the t_2 axis
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_si', xlabel='sfe', ylabel='t_2')
         plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_st', xlabel='delta sfe', ylabel='t_2')
     
 
@@ -1133,7 +1066,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")
     param_names = ["sigma_2", "t_2", "infall_2"]
-    param_indices = [0, 1, 5, 7, 9]
+    # Indices of the parameters in the GA individual's gene list
+    # sigma_2 -> index 5, t_2 -> index 7, infall_2 -> index 9
+    param_indices = [5, 7, 9]
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
     
     # 6. Plot loss history for each walker

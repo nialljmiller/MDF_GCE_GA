@@ -15,6 +15,7 @@ import sys
 #from sklearn import preprocessing
 sys.path.append('../')
 from NuPyCEE import omega
+import ast
 
 from string import printable
 from scipy.interpolate import CubicSpline
@@ -60,20 +61,29 @@ def two_inflow_fn(t, exp_inflow):
 
 # Function to parse the inlist file into a dictionary
 def parse_inlist(file_path):
+    """Parse a parameter file into a dictionary with proper Python types."""
     params = {}
     with open(file_path, 'r') as file:
         for line in file:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
+
             key, value = line.split(':', 1)
             key = key.strip()
             value = value.strip()
-            try:
-                parsed_value = eval(value)  # Try to evaluate if it's a list or expression
-            except:
-                parsed_value = value  # Keep original string if eval fails
+
+            lowered = value.lower().strip("'\"")
+            if lowered in {'true', 'false'}:
+                parsed_value = lowered == 'true'
+            else:
+                try:
+                    parsed_value = ast.literal_eval(value)
+                except Exception:
+                    parsed_value = value
+
             params[key] = parsed_value
+
     return params
 
 

@@ -30,10 +30,10 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 64
+popsize: 128
 
 #How many generations (/epochs) are performed. 
-generations: 128
+generations: 256
 
 #probability an individual will make babies. 
 crossover_probability: 0.5
@@ -90,12 +90,12 @@ tmax_2_list: [0.1,15.0]
 # Default for thin disk: 5 Gyr.
 # AKA tau2
 ############################################################
-infall_timescale_1_list: [0.001,0.01] ## fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.0001,0.01] ## fix for single infall model; sweep otherwise
 ## if the bulge is being continuously fed by the disk, over all time, this should be  10 Gyr
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 
 
-infall_timescale_2_list: [0.1, 10.0]
+infall_timescale_2_list: [0.1, 15.0]
 
 
 
@@ -106,7 +106,8 @@ infall_timescale_2_list: [0.1, 10.0]
 #
 ############################################################
 #comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt','iniab_output_feh_m200.txt'] 
-comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt'] 
+#comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt'] 
+comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt']
 #comp_array: ['iniab_output_feh_p000.txt']
 #comp_array: ['iniab_6.0E-03GN93.txt','iniab_FeH-1.5_GS98.txt']
 #comp_array: ['iniab_FeH-1.5_GS98.txt']
@@ -118,8 +119,8 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 #
 ############################################################
 #sfe_array: [0.02]
-sfe_array: [0.02, 25.0]
-delta_sfe_array: [0.0,1.0]
+sfe_array: [0.002, 5.0]
+delta_sfe_array: [0.0,2.0]
 
 ############################################################
 #
@@ -159,7 +160,8 @@ sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
 #stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_Ravg.txt']
 
 #stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
-stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt']
+#stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt']
+stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt']
 ############################################################
 #
 # Galaxy mass values (total mass in solar masses): 

@@ -15,6 +15,7 @@ import random
 import Gal_GA_PP as Gal_GA
 import pandas as pd
 import os
+import checkpoint  # checkpointing utilities
 # Import plotting module
 import mdf_plotting
 
@@ -111,8 +112,8 @@ def load_walker_history():
 
 
 
-def run_ga():
-    """Run the genetic algorithm"""
+def run_ga(cp_manager):
+    """Run the genetic algorithm with optional checkpointing."""
     global GalGA
     
     # Initialize the Galactic Evolution Genetic Algorithm class with parsed parameters
@@ -152,9 +153,18 @@ def run_ga():
     # Initialize Genetic Algorithm population and toolbox
     genal_population, genal_toolbox = GalGA.init_GenAl(population_size=popsize)
 
-    # Run the GA
-    GalGA.GenAl(population_size=popsize, num_generations=generations, 
-                population=genal_population, toolbox=genal_toolbox)
+    # Check for existing checkpoint
+    cp_data = cp_manager.load()
+    start_gen = 0
+    if cp_data:
+        genal_population = cp_data['population']
+        GalGA.__dict__.update(cp_data['ga_state'])
+        start_gen = cp_data['generation'] + 1
+
+    # Run the GA with checkpointing support
+    GalGA.GenAl(population_size=popsize, num_generations=generations,
+                population=genal_population, toolbox=genal_toolbox,
+                checkpoint_manager=cp_manager, start_gen=start_gen)
 
     # Define column names based on the structure of GalGA.results
     col_names = [
@@ -268,9 +278,8 @@ if __name__ == "__main__":
     results_file = 'GA/simulation_results.csv'
 
     make_history = True
-    # Load walker history if requested
-    if make_history == True:
-        results_file = run_ga()
+    if make_history:
+        results_file = checkpoint.run_with_checkpoint(run_ga)
         save_walker_history()
     else:
         load_ga_for_plotting()

@@ -633,7 +633,8 @@ class GalacticEvolutionGA:
 
 
 
-    def GenAl(self, population_size, num_generations, population, toolbox):
+    def GenAl(self, population_size, num_generations, population, toolbox,
+              checkpoint_manager=None, start_gen=0):
         total_eval_time = 0
         total_eval_steps = 0
         total_start_time = time.time()
@@ -646,15 +647,17 @@ class GalacticEvolutionGA:
             return ind
 
         # Use a context manager for the multiprocessing pool
-        if self.PP:        
+        if self.PP:
 
             with Pool(processes=16) as pool:
-            #with ThreadPool(processes=16) as pool:
-            #with multiprocessing.Pool() as pool:
                 toolbox.register("map", pool.map)
-                self._run_genetic_algorithm(population, toolbox, num_generations, requantize)
+                self._run_genetic_algorithm(
+                    population, toolbox, num_generations, requantize,
+                    start_gen=start_gen, checkpoint_manager=checkpoint_manager)
         else:
-            self._run_genetic_algorithm(population, toolbox, num_generations, requantize)
+            self._run_genetic_algorithm(
+                population, toolbox, num_generations, requantize,
+                start_gen=start_gen, checkpoint_manager=checkpoint_manager)
 
         total_time = time.time() - total_start_time
 
@@ -670,9 +673,11 @@ class GalacticEvolutionGA:
         gc.collect()  # Final garbage collection
 
 
-    def _run_genetic_algorithm(self, population, toolbox, num_generations, requantize):
-        self.walker_history = {i: [] for i in range(len(population))}  # Track each walker's history
-        for gen in range(num_generations):
+    def _run_genetic_algorithm(self, population, toolbox, num_generations, requantize,
+                               start_gen=0, checkpoint_manager=None):
+        if not hasattr(self, 'walker_history') or start_gen == 0:
+            self.walker_history = {i: [] for i in range(len(population))}
+        for gen in range(start_gen, num_generations):
             print(f"-- Generation {gen + 1}/{num_generations} --")
             self.gen = gen
             # Step 1: Evaluate individuals with invalid fitness
@@ -749,3 +754,6 @@ class GalacticEvolutionGA:
             population[:] = offspring
 
             gc.collect()  # clean up
+
+            if checkpoint_manager:
+                checkpoint_manager.save(gen, population, self)

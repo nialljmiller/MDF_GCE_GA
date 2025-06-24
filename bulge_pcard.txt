@@ -197,7 +197,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Higher values increase precision but take longer to compute.
 #
 ############################################################
-timesteps: 10
+timesteps: 100
 
 
 ############################################################

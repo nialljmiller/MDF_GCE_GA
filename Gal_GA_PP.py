@@ -22,6 +22,9 @@ from multiprocessing.pool import Pool
 
 from deap import base, creator, tools
 import random
+import pandas as pd
+import os
+import mdf_plotting
 
 from loss import *
 from physical_constraints import apply_physics_penalty
@@ -128,6 +131,8 @@ class GalacticEvolutionGA:
         self.sigma_2_min, self.sigma_2_max = min(sigma_2_list), max(sigma_2_list)
         self.t_2_min, self.t_2_max = min(tmax_2_list), max(tmax_2_list)
         self.infall_2_min, self.infall_2_max = min(infall_timescale_2_list), max(infall_timescale_2_list)
+
+        self.loss_metric = loss_metric
 
         self.cxpb=cxpb
         self.mutpb=mutpb
@@ -633,8 +638,16 @@ class GalacticEvolutionGA:
 
 
 
-    def GenAl(self, population_size, num_generations, population, toolbox,
-              checkpoint_manager=None, start_gen=0):
+    def GenAl(
+        self,
+        population_size,
+        num_generations,
+        population,
+        toolbox,
+        checkpoint_manager=None,
+        start_gen=0,
+        output_interval=None,
+    ):
         total_eval_time = 0
         total_eval_steps = 0
         total_start_time = time.time()
@@ -652,12 +665,24 @@ class GalacticEvolutionGA:
             with Pool(processes=16) as pool:
                 toolbox.register("map", pool.map)
                 self._run_genetic_algorithm(
-                    population, toolbox, num_generations, requantize,
-                    start_gen=start_gen, checkpoint_manager=checkpoint_manager)
+                    population,
+                    toolbox,
+                    num_generations,
+                    requantize,
+                    start_gen=start_gen,
+                    checkpoint_manager=checkpoint_manager,
+                    output_interval=output_interval,
+                )
         else:
             self._run_genetic_algorithm(
-                population, toolbox, num_generations, requantize,
-                start_gen=start_gen, checkpoint_manager=checkpoint_manager)
+                population,
+                toolbox,
+                num_generations,
+                requantize,
+                start_gen=start_gen,
+                checkpoint_manager=checkpoint_manager,
+                output_interval=output_interval,
+            )
 
         total_time = time.time() - total_start_time
 
@@ -673,8 +698,16 @@ class GalacticEvolutionGA:
         gc.collect()  # Final garbage collection
 
 
-    def _run_genetic_algorithm(self, population, toolbox, num_generations, requantize,
-                               start_gen=0, checkpoint_manager=None):
+    def _run_genetic_algorithm(
+        self,
+        population,
+        toolbox,
+        num_generations,
+        requantize,
+        start_gen=0,
+        checkpoint_manager=None,
+        output_interval=None,
+    ):
         if not hasattr(self, 'walker_history') or start_gen == 0:
             self.walker_history = {i: [] for i in range(len(population))}
         for gen in range(start_gen, num_generations):
@@ -757,3 +790,27 @@ class GalacticEvolutionGA:
 
             if checkpoint_manager:
                 checkpoint_manager.save(gen, population, self)
+
+            if output_interval and ((gen + 1) % output_interval == 0 or gen == num_generations - 1):
+                self.save_partial_results(gen)
+
+    def save_partial_results(self, generation):
+        """Save results and generate plots for the current generation."""
+        col_names = [
+            'comp_idx', 'imf_idx', 'sn1a_idx', 'sy_idx', 'sn1ar_idx',
+            'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
+            'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
+            'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh'
+        ]
+
+        df = pd.DataFrame(self.results, columns=col_names)
+        df['loss'] = df[self.loss_metric]
+        df.sort_values('loss', inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+        os.makedirs('GA', exist_ok=True)
+        results_file = f"GA/simulation_results_gen_{generation + 1}.csv"
+        df.to_csv(results_file, index=False)
+        print(f"Results saved to: {results_file}")
+
+        mdf_plotting.generate_all_plots(self, self.feh, self.normalized_count, results_file)

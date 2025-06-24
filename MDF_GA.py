@@ -66,6 +66,8 @@ mutation_probability = params['mutation_probability']
 tournament_size = params['tournament_size']
 selection_threshold = params['selection_threshold']
 
+output_interval = params.get('output_interval')
+
 loss_metric = params['loss_metric']
 fancy_mutation = params['fancy_mutation']
 shrink_range = params['shrink_range']
@@ -162,9 +164,15 @@ def run_ga(cp_manager):
         start_gen = cp_data['generation'] + 1
 
     # Run the GA with checkpointing support
-    GalGA.GenAl(population_size=popsize, num_generations=generations,
-                population=genal_population, toolbox=genal_toolbox,
-                checkpoint_manager=cp_manager, start_gen=start_gen)
+    GalGA.GenAl(
+        population_size=popsize,
+        num_generations=generations,
+        population=genal_population,
+        toolbox=genal_toolbox,
+        checkpoint_manager=cp_manager,
+        start_gen=start_gen,
+        output_interval=output_interval,
+    )
 
     # Define column names based on the structure of GalGA.results
     col_names = [

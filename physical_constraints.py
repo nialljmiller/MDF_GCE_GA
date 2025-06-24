@@ -41,7 +41,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     # Check for negative MDF values
     if np.any(MDF_y < 0):
         if liberal:
-            penalty_factor *= 2.0
+            penalty_factor *= 20.0
         else:
             is_physical = False
             return is_physical, penalty_factor
@@ -54,7 +54,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         # Very liberal: peak should be between -2.5 and +1.0
         if not (-1.0 <= peak_feh <= 1.0):
             if liberal:
-                penalty_factor *= 1.5
+                penalty_factor *= 10.5
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -62,11 +62,11 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     # Check MDF isn't too narrow (avoid delta functions)
     if len(MDF_y) > 2:
         # Find width at half maximum
-        half_max = np.max(MDF_y) / 2.0
+        half_max = np.max(MDF_y) / 20.0
         above_half = MDF_y >= half_max
         if np.sum(above_half) < 3:  # Less than 3 points above half max
             if liberal:
-                penalty_factor *= 1.3
+                penalty_factor *= 10.3
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -99,7 +99,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if np.sum(low_feh_mask) > 0:
                 low_feh_alpha = alpha_y[low_feh_mask]
                 # At least some points should show enhancement (>-0.2)
-                if np.any(low_feh_alpha < 0.2):
+                if np.any(low_feh_alpha < 0.1):
                     if liberal:
                         penalty_factor *= 1.2
                     else:
@@ -107,9 +107,9 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
                         return is_physical, penalty_factor
 
 
-            low_feh_mask = alpha_x > 0.0
-            if np.sum(low_feh_mask) > 0:
-                low_feh_alpha = alpha_y[low_feh_mask]
+            high_feh_mask = alpha_x > 0.0
+            if np.sum(high_feh_mask) > 0:
+                high_feh_alpha = alpha_y[high_feh_mask]
                 # At least some points should show enhancement (>-0.2)
                 if np.any(low_feh_alpha > 0.2):
                     if liberal:
@@ -118,7 +118,12 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
                         is_physical = False
                         return is_physical, penalty_factor
     
-
+            if np.median(alpha_y) < 0.0:
+                penalty_factor *= 1.2
+                if np.median(alpha_y) < -0.1:
+                    is_physical = False
+                    return is_physical, penalty_factor
+            
 
 
     # ===============================
@@ -149,12 +154,19 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
 	            if np.sum(old_stars) > 0:
 	                old_feh = age_y[old_stars]
 	                # If ALL old stars have [Fe/H] > 0, that's suspicious
-	                if np.all(old_feh > 0.2):
-	                    if liberal:
-	                        penalty_factor *= 1.2
-	                    else:
-	                        is_physical = False
-	                        return is_physical, penalty_factor
+                    if np.all(old_feh > 0.2):
+                        if liberal:
+                            penalty_factor *= 1.2
+                        else:
+                            is_physical = False
+                            return is_physical, penalty_factor
+                    
+                    if np.all(old_feh < 0.0):
+                        if liberal:
+                            penalty_factor *= 1.2
+                        else:
+                            is_physical = False
+                            return is_physical, penalty_factor                            
     
     # ===============================
     # 4. GLOBAL SANITY CHECKS
@@ -196,7 +208,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     
     if not is_physical:
         # Return a very high loss for unphysical models
-        return loss_value * 100.0
+        return 100.0
     else:
         # Apply penalty factor
         return loss_value * penalty_factor

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm, colors, gridspec
+from scipy.stats import linregress
 from matplotlib.ticker import MultipleLocator
 from scipy.interpolate import UnivariateSpline
 from matplotlib.gridspec import GridSpec
@@ -823,13 +824,15 @@ def plot_four_panel_alpha_density(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, resul
     plt.close(fig)
     print(f"Density-enhanced four-panel alpha plot saved to {save_path}")
 
+
 def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png'):
     """
-    Detailed version with multi-line labels like the MDF detailed plot.
+    Enhanced Age vs [Fe/H] plot with:
+    - Model lines (gray + red for best)
+    - Observational data (Joyce, Bensby)
+    - Linear fits to data with faint shaded difference
+    - Reversed axes and improved layout
     """
-    import matplotlib.pyplot as plt
-    import numpy as np
-    
     # Check if we have age data
     if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
         print("No age data available for plotting")
@@ -838,7 +841,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     plt.figure(figsize=(18, 12))
     ax = plt.gca()
 
-    # Determine the best model params
+    # Determine best model parameters
     if results_df is not None and not results_df.empty:
         bm = results_df.iloc[0]
         best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
@@ -850,45 +853,53 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     for i, (age_data, label, res) in enumerate(zip(GalGA.age_data, GalGA.labels, GalGA.results)):
         params = (res[5], res[7], res[9])
         is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-        
-        # Extract and transform age data
+
+        # Transform model age
         x_age_raw, y_feh = age_data
-        x_age_gyr = (x_age_raw[-1]/1e9) - np.array(x_age_raw)/1e9
+        x_age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
 
-        if is_best:
-            if not best_plotted:
-                # Make a little bullet-list out of your comma-separated features
-                pieces = [f"• {p.strip()}" for p in label.split(',')]
-                pretty_label = "\n".join(pieces) + "\n• (BEST)"
-                ax.plot(y_feh, x_age_gyr,
-                        label=pretty_label,
-                        color="red", linewidth=2, zorder=3)
-                best_plotted = True
-            else:
-                ax.plot(y_feh, x_age_gyr,
-                        color="red", linewidth=2, zorder=3)
+        if is_best and not best_plotted:
+            pieces = [f"• {p.strip()}" for p in label.split(',')]
+            pretty_label = "\n".join(pieces) + "\n• (BEST)"
+            ax.plot(y_feh, x_age_gyr, color="red", linewidth=2, zorder=3, label=pretty_label)
+            best_plotted = True
         else:
-            ax.plot(y_feh, x_age_gyr,
-                    alpha=0.5, zorder=1)
+            ax.plot(y_feh, x_age_gyr, color='gray', alpha=0.5, zorder=1)
 
-    # Observational data
-    ax.scatter(Fe_H, age_Joyce, marker='*', s=150, color='blue', 
-              label='Joyce et al.', zorder=2)
-    ax.scatter(Fe_H, age_Bensby, marker='^', s=150, color='orange', 
-              label='Bensby et al.', zorder=2)
+    # Plot observational data
+    ax.scatter(Fe_H, age_Joyce, marker='*', s=150, color='blue', label='Joyce et al.', zorder=2)
+    ax.scatter(Fe_H, age_Bensby, marker='^', s=150, color='orange', label='Bensby et al.', zorder=2)
+
+    # Linear fits
+    mask_joyce = np.isfinite(Fe_H) & np.isfinite(age_Joyce)
+    mask_bensby = np.isfinite(Fe_H) & np.isfinite(age_Bensby)
+
+    if np.sum(mask_joyce) > 1 and np.sum(mask_bensby) > 1:
+        slope_joyce, intercept_joyce, *_ = linregress(Fe_H[mask_joyce], age_Joyce[mask_joyce])
+        slope_bensby, intercept_bensby, *_ = linregress(Fe_H[mask_bensby], age_Bensby[mask_bensby])
+
+        x_vals = np.linspace(-2, 1, 500)
+        y_joyce = slope_joyce * x_vals + intercept_joyce
+        y_bensby = slope_bensby * x_vals + intercept_bensby
+
+        ax.plot(x_vals, y_joyce, color='blue', linestyle='--', lw=2, zorder=4)
+        ax.plot(x_vals, y_bensby, color='orange', linestyle='--', lw=2, zorder=4)
+        ax.fill_between(x_vals, y_joyce, y_bensby, color='purple', alpha=0.1, zorder=0)
+
+    # Flip axes
+    ax.invert_yaxis()
+    ax.invert_xaxis()
 
     ax.set_xlabel("[Fe/H]", fontsize=16)
     ax.set_ylabel("Age (Gyr)", fontsize=16)
-    ax.set_xlim(-2, 1)
-    ax.set_title("Age vs Metallicity")
+    ax.set_xlim(1, -2)
+    ax.set_ylim(0, 14)
+    ax.set_title("Age vs [Fe/H] with Model + Observational Fit Comparison")
 
-    # Legend out to the left so multiline shows up
     ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
-
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches="tight", dpi=300)
     return plt.gcf()
-
 
 
 def extract_metrics(results_file):

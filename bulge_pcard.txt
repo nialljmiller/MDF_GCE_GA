@@ -8,7 +8,7 @@
 ################################
 
 #MDF data to fit to
-obs_file: 'composite_gaussians.dat'
+obs_file: 'data/best_mdf.dat'
 
 # Header for iniab tables (used for specifying isotope/element abundances)
 iniab_header: 'yield_tables/iniabu/'

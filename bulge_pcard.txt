@@ -34,11 +34,11 @@ popsize: 64
 
 #How many generations (/epochs) are performed. 
 
-generations: 128
+generations: 1000
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 50
+output_interval: 5
 
 
 #probability an individual will make babies. 

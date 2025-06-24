@@ -18,6 +18,13 @@ from scipy.interpolate import UnivariateSpline
 from matplotlib.gridspec import GridSpec
 from scipy.stats import gaussian_kde
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+from scipy.stats import gaussian_kde
+import os
+from scipy.interpolate import UnivariateSpline
+from numpy.polynomial.polynomial import Polynomial
 
 # ---------------------------------------------------
 # Global style for paper-quality figures
@@ -207,47 +214,64 @@ def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
 
 
 def plot_walker_history(walker_history, param_names, param_indices):
-    """Plot the evolution of parameters for each walker"""
+    """
+    Plot the evolution of parameters for all walkers with median + spread.
+    """
     if not walker_history:
         print("Walker history data not available. Skipping walker evolution plots.")
         return None
-        
+
+    os.makedirs("GA/loss", exist_ok=True)
     figs = []
+
     for idx, param_name in enumerate(param_names):
-        fig = plt.figure(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(12, 6))
         figs.append(fig)
-        
+
+        all_histories = []
         for walker_idx, history in walker_history.items():
-            if not history:  # Skip if history is empty
+            if not history:
                 continue
-                
-            history = np.array(history)  # Convert to numpy array for easier slicing
+
+            history = np.array(history)
             param_idx = param_indices[idx]
-            
-            if param_idx >= history.shape[1]:  # Skip if parameter index is out of bounds
+
+            if param_idx >= history.shape[1]:
                 continue
-                
-            generations = np.arange(len(history))
-            
-            # Plot the parameter value for this walker
-            plt.plot(
-                generations, 
-                history[:, param_idx], 
-                label=f"Walker {walker_idx}",
-                alpha=0.5,
-                linestyle=None
-            )
-        
-        plt.xlabel("Generation")
-        plt.ylabel(f"{param_name} Value")
-        plt.title(f"Evolution of {param_name} Over Generations")
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig(f'GA/loss/walker_evolution_{param_name}.png', bbox_inches='tight')
-        plt.close()
-    
-    print("Generated walker evolution plots")
+
+            all_histories.append(history[:, param_idx])
+
+        if not all_histories:
+            continue
+
+        all_histories = np.array(all_histories)  # shape: (n_walkers, n_generations)
+        generations = np.arange(all_histories.shape[1])
+
+        # Plot faint lines for individual walkers
+        for walker_series in all_histories:
+            ax.plot(generations, walker_series, color='gray', alpha=0.1, linewidth=0.75)
+
+        # Overlay median and shaded quantiles
+        median = np.median(all_histories, axis=0)
+        lower = np.percentile(all_histories, 25, axis=0)
+        upper = np.percentile(all_histories, 75, axis=0)
+
+        ax.plot(generations, median, color='black', label='Median', linewidth=2)
+        ax.fill_between(generations, lower, upper, color='blue', alpha=0.2, label='25–75% range')
+
+        ax.set_xlabel("Generation")
+        ax.set_ylabel(f"{param_name}")
+        ax.set_title(f"Walker Evolution: {param_name}")
+        ax.legend(loc='best')
+        ax.grid(True)
+
+        fig.tight_layout()
+        fig.savefig(f'GA/loss/walker_evolution_{param_name}.png', bbox_inches='tight')
+        plt.close(fig)
+
+    print("Generated walker evolution plots with clarity enhancements")
     return figs
+
 
 
 
@@ -310,6 +334,7 @@ def create_3d_animation(walker_history):
     
     print(f"Generated 3D animation: {gif_path}")
     return ani
+
 
 
 def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
@@ -749,15 +774,17 @@ def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_ty
         print('...2D plot made!')
 
 
-def plot_four_panel_alpha_density(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path='GA/Four_Panel_Alpha_Density.png'):
-    """
-    Create a 4-panel plot showing [Mg/Fe], [Si/Fe], [Ca/Fe], [Ti/Fe] vs [Fe/H]
-    with model trials as gray lines, best model in red, and observed data as 2D KDE + marginal histograms.
-    """
+
+
+def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path='GA/Four_Panel_Alpha.png'):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import os
+
     element_names = ['Mg', 'Si', 'Ca', 'Ti']
     observational_data = [Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe]
-    
-    # Determine best model parameters
+
     if results_df is not None and not results_df.empty:
         bm = results_df.iloc[0]
         best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
@@ -765,83 +792,113 @@ def plot_four_panel_alpha_density(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, resul
         r = GalGA.results[0]
         best_params = (r[5], r[7], r[9])
 
-    fig = plt.figure(figsize=(14, 12))
-    outer_gs = GridSpec(2, 2, wspace=0.2, hspace=0.2)
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12), sharex=False, sharey=False)
+    fig.subplots_adjust(hspace=0.0, wspace=0.4)
 
     for idx, (element, obs_data) in enumerate(zip(element_names, observational_data)):
         row, col = divmod(idx, 2)
-        gs = GridSpec(4, 4, subplot_spec=outer_gs[idx])
+        ax_main = axes[row, col]
 
-        ax_joint = fig.add_subplot(gs[1:4, 0:3])
-        ax_marg_x = fig.add_subplot(gs[0, 0:3], sharex=ax_joint)
-        ax_marg_y = fig.add_subplot(gs[1:4, 3], sharey=ax_joint)
+        # Position for marginal KDE plot
+        rect = ax_main.get_position()
+        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.1, rect.height], sharey=ax_main)
 
-        # Plot model lines
+        # Always show y-ticks and labels
+        ax_main.tick_params(axis='y', which='both', left=True, labelleft=True)
+
+        # Draw all model curves
         for alpha_arrs, _, res in zip(GalGA.alpha_data, GalGA.labels, GalGA.results):
             params = (res[5], res[7], res[9])
             is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
             if idx < len(alpha_arrs):
-                x_data, y_data = alpha_arrs[idx]
-                x_data = np.array(x_data)
-                y_data = np.array(y_data)
-                sort_indices = np.argsort(x_data)
-                x_sorted = x_data[sort_indices]
-                y_sorted = y_data[sort_indices]
+                x_data, y_data = np.array(alpha_arrs[idx][0]), np.array(alpha_arrs[idx][1])
                 if is_best:
-                    ax_joint.plot(x_sorted, y_sorted, color='red', linewidth=2.5, zorder=3)
+                    ax_main.plot(x_data, y_data, color="red", linewidth=2.5, zorder=3)
                 else:
-                    ax_joint.plot(x_sorted, y_sorted, color='gray', alpha=0.4, linewidth=1)
+                    ax_main.plot(x_data, y_data, color='gray', alpha=0.4, linewidth=1)
 
-        # KDE of observational data
-        mask = np.isfinite(Fe_H) & np.isfinite(obs_data)
+        # Clean obs data
+        obs_data = np.where((obs_data >= -2.0) & (obs_data <= 2.0), obs_data, np.nan)
+
+        # Color by average of all four elements
+        color_array = (Mg_Fe + Si_Fe + Ca_Fe + Ti_Fe) / 4
+        mask = np.isfinite(Fe_H) & np.isfinite(obs_data) & np.isfinite(color_array)
         if np.sum(mask) > 10:
             x = Fe_H[mask]
             y = obs_data[mask]
-            xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            z = color_array[mask]
             idxs = np.argsort(z)
-            ax_joint.scatter(x[idxs], y[idxs], c=z[idxs], cmap='viridis', s=20, zorder=2, edgecolor='none')
+            ax_main.scatter(x[idxs], y[idxs], c=z[idxs], cmap='viridis', s=20, zorder=2, edgecolor='none')
 
-        # Marginal histograms
-        ax_marg_x.hist(Fe_H, bins=30, color='gray', alpha=0.7)
-        ax_marg_y.hist(obs_data, bins=30, orientation='horizontal', color='gray', alpha=0.7)
+        # KDEs
+        joint_mask = np.isfinite(obs_data) & np.isfinite(Fe_H)
+        y_vals = np.linspace(-0.8, 1.0, 200)
 
-        # Labels and ticks
-        ax_joint.set_xlim(-2, 1)
-        ax_joint.set_ylim(-0.8, 1)
-        ax_joint.set_xlabel("[Fe/H]")
-        ax_joint.set_ylabel(f"[{element}/Fe]")
-        ax_joint.text(-1.8, 0.85, element, fontsize=14, weight='bold')
+        if np.sum(joint_mask) > 2:
+            kde_obs_y = gaussian_kde(obs_data[joint_mask])
+            kde_y = kde_obs_y(y_vals)
+            kde_y /= np.max(kde_y)
+            ax_kde.plot(kde_y, y_vals, color='gray')
+            ax_kde.fill_betweenx(y_vals, 0, kde_y, color='gray', alpha=0.3)
 
-        plt.setp(ax_marg_x.get_xticklabels(), visible=False)
-        plt.setp(ax_marg_y.get_yticklabels(), visible=False)
-        ax_marg_x.tick_params(axis='x', which='both', bottom=False)
-        ax_marg_y.tick_params(axis='y', which='both', left=False)
+        best_y_model = None
+        for alpha_arrs, _, res in zip(GalGA.alpha_data, GalGA.labels, GalGA.results):
+            params = (res[5], res[7], res[9])
+            if all(abs(p - b) < 1e-5 for p, b in zip(params, best_params)) and idx < len(alpha_arrs):
+                best_y_model = np.array(alpha_arrs[idx][1])
+                break
 
-    plt.tight_layout()
+        if best_y_model is not None:
+            kde_model_y = gaussian_kde(best_y_model[np.isfinite(best_y_model)])
+            kde_model = kde_model_y(y_vals)
+            kde_model /= np.max(kde_model)
+            ax_kde.plot(kde_model, y_vals, color='red', linestyle='--')
+            ax_kde.fill_betweenx(y_vals, 0, kde_model, color='red', alpha=0.2)
+
+        #ax_main.set_xlim(-2, 1)
+        #ax_main.set_ylim(-0.8, 1)
+        ax_main.set_xlabel("[Fe/H]")
+        ax_main.set_ylabel(f"[{element}/Fe]")
+        ax_main.text(-1.8, 0.85, element, fontsize=14, weight='bold')
+
+        # Move top row x-axis to top
+        if row == 0:
+            ax_main.xaxis.set_ticks_position('top')
+            ax_main.xaxis.set_label_position('top')
+
+        # Clean KDE axis
+        ax_kde.set_xticks([])
+        ax_kde.set_yticks([])
+        ax_kde.tick_params(left=False, bottom=False)
+
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"Density-enhanced four-panel alpha plot saved to {save_path}")
 
 
+
 def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png'):
     """
     Enhanced Age vs [Fe/H] plot with:
     - Model lines (gray + red for best)
-    - Observational data (Joyce, Bensby)
-    - Linear fits to data with faint shaded difference
-    - Reversed axes and improved layout
+    - Polynomial fits to Joyce & Bensby
+    - Faint fillbetween for difference
+    - Axes swapped: Age on X, [Fe/H] on Y
     """
-    # Check if we have age data
     if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
         print("No age data available for plotting")
         return None
 
-    plt.figure(figsize=(18, 12))
+    plt.figure(figsize=(14, 10))
     ax = plt.gca()
 
-    # Determine best model parameters
+    # Ensure array typing for safe masking
+    Fe_H = np.asarray(Fe_H)
+    age_Joyce = np.asarray(age_Joyce)
+    age_Bensby = np.asarray(age_Bensby)
+
+    # Determine best model
     if results_df is not None and not results_df.empty:
         bm = results_df.iloc[0]
         best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
@@ -850,56 +907,59 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
         best_params = (r[5], r[7], r[9])
 
     best_plotted = False
-    for i, (age_data, label, res) in enumerate(zip(GalGA.age_data, GalGA.labels, GalGA.results)):
+    for age_data, label, res in zip(GalGA.age_data, GalGA.labels, GalGA.results):
         params = (res[5], res[7], res[9])
         is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
 
-        # Transform model age
         x_age_raw, y_feh = age_data
-        x_age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
+        age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
 
         if is_best and not best_plotted:
-            pieces = [f"• {p.strip()}" for p in label.split(',')]
-            pretty_label = "\n".join(pieces) + "\n• (BEST)"
-            ax.plot(y_feh, x_age_gyr, color="red", linewidth=2, zorder=3, label=pretty_label)
+            label_lines = [f"• {p.strip()}" for p in label.split(',')]
+            pretty_label = "\n".join(label_lines) + "\n• (BEST)"
+            ax.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
             best_plotted = True
         else:
-            ax.plot(y_feh, x_age_gyr, color='gray', alpha=0.5, zorder=1)
+            ax.plot(age_gyr, y_feh, color='gray', alpha=0.2, linewidth=1, zorder=1)
 
-    # Plot observational data
-    ax.scatter(Fe_H, age_Joyce, marker='*', s=150, color='blue', label='Joyce et al.', zorder=2)
-    ax.scatter(Fe_H, age_Bensby, marker='^', s=150, color='orange', label='Bensby et al.', zorder=2)
+    # Scatter real data
+    ax.scatter(age_Joyce, Fe_H, marker='*', s=100, color='blue', label='Joyce et al.', zorder=2)
+    ax.scatter(age_Bensby, Fe_H, marker='^', s=100, color='orange', label='Bensby et al.', zorder=2)
 
-    # Linear fits
-    mask_joyce = np.isfinite(Fe_H) & np.isfinite(age_Joyce)
-    mask_bensby = np.isfinite(Fe_H) & np.isfinite(age_Bensby)
+    # Polynomial fits (degree=3)
+    mask_joyce = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
+    mask_bensby = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
 
-    if np.sum(mask_joyce) > 1 and np.sum(mask_bensby) > 1:
-        slope_joyce, intercept_joyce, *_ = linregress(Fe_H[mask_joyce], age_Joyce[mask_joyce])
-        slope_bensby, intercept_bensby, *_ = linregress(Fe_H[mask_bensby], age_Bensby[mask_bensby])
 
-        x_vals = np.linspace(-2, 1, 500)
-        y_joyce = slope_joyce * x_vals + intercept_joyce
-        y_bensby = slope_bensby * x_vals + intercept_bensby
+    if np.sum(mask_joyce) > 3 and np.sum(mask_bensby) > 3:
+        sort_J = np.argsort(age_Joyce[mask_joyce])
+        sort_B = np.argsort(age_Bensby[mask_bensby])
+
+        s_joyce = UnivariateSpline(age_Joyce[mask_joyce][sort_J], Fe_H[mask_joyce][sort_J], k=3, s=0.5)
+        s_bensby = UnivariateSpline(age_Bensby[mask_bensby][sort_B], Fe_H[mask_bensby][sort_B], k=3, s=0.5)
+
+        x_vals = age_gyr
+        y_joyce = s_joyce(x_vals)
+        y_bensby = s_bensby(x_vals)
+
 
         ax.plot(x_vals, y_joyce, color='blue', linestyle='--', lw=2, zorder=4)
         ax.plot(x_vals, y_bensby, color='orange', linestyle='--', lw=2, zorder=4)
-        ax.fill_between(x_vals, y_joyce, y_bensby, color='purple', alpha=0.1, zorder=0)
+        ax.fill_between(x_vals, y_joyce, y_feh, color='purple', alpha=0.1, zorder=0)
+        ax.fill_between(x_vals, y_feh, y_bensby, color='purple', alpha=0.1, zorder=0)
 
-    # Flip axes
-    ax.invert_yaxis()
-    ax.invert_xaxis()
-
-    ax.set_xlabel("[Fe/H]", fontsize=16)
-    ax.set_ylabel("Age (Gyr)", fontsize=16)
-    ax.set_xlim(1, -2)
-    ax.set_ylim(0, 14)
+    # Axis control
+    ax.set_xlim(0, 14)
+    ax.set_ylim(-2, 1)
+    ax.set_xlabel("Age (Gyr)", fontsize=16)
+    ax.set_ylabel("[Fe/H]", fontsize=16)
     ax.set_title("Age vs [Fe/H] with Model + Observational Fit Comparison")
 
     ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches="tight", dpi=300)
     return plt.gcf()
+
 
 
 def extract_metrics(results_file):
@@ -937,7 +997,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     """Generate all plots from GalGA results including four-panel alpha plot"""
     
     # Load observational alpha element data
-    f = open('Bensby_Data.tsv')
+    f = open('data/Bensby_Data.tsv')
     lines = f.readlines()
     Fe_H = []
     Fe_H_err = []
@@ -1012,8 +1072,18 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     print("Generating AGE  plot...")
     plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
 
-    # 3. Plot 3D scatter plots for various metrics
 
+    # 4. Plot 2D scatter plots
+    print("Generating 2D scatter plots...")
+    for metric_name, metric_vals in metrics_dict.items():
+        plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_in2', xlabel='t_2', ylabel='infall_2')
+        plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_in2', xlabel='t_1', ylabel='infall_2')
+        plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_sfe_in2', xlabel='sfe', ylabel='infall_2')
+        plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='sfe', ylabel='sigma_2')
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='sfe', ylabel='t_2')
+        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='delta sfe', ylabel='t_2')
+        plot_2d_scatter(delta_sfe_vals, sfe_vals, metric_vals, metric_name + '_deltasfe_sfe', xlabel='delta sfe', ylabel='sfe')
+    
 
     print("Generating 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
@@ -1023,26 +1093,14 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_tti', xlabel='t_1', ylabel='t_2', zlabel='infall_2')
         plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='delta sfe', ylabel='t_2', zlabel='infall_2')
     
-    # 4. Plot 2D scatter plots
-    print("Generating 2D scatter plots...")
-    for metric_name, metric_vals in metrics_dict.items():
-        plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_in2', xlabel='t_2', ylabel='infall_2')
-        plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_in2', xlabel='t_1', ylabel='infall_2')
-        plot_2d_scatter(t_1_vals, t__2_vals, metric_vals, metric_name + '_sfe_in2', xlabel='sfe', ylabel='infall_2')
-        plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='sfe', ylabel='sigma_2')
-        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='sfe', ylabel='t_2')
-        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='delta sfe', ylabel='t_2')
-        plot_2d_scatter(delta_sfe_vals, sfe_vals, metric_vals, metric_name + '_deltasfe_sfe', xlabel='delta sfe', ylabel='sfe')
-    
-
 
     
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")
+
     param_names = ["sigma_2", "t_2", "infall_2", "sfe", "delta_sfe"]
     # Indices of the parameters in the GA individual's gene list
-    # sigma_2 -> index 5, t_2 -> index 7, infall_2 -> index 9
-    param_indices = [5, 7, 9]
+    param_indices = [5, 7, 9, 10, 11]
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
     
     # 6. Plot loss history for each walker

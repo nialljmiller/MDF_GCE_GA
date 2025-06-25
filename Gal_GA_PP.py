@@ -343,43 +343,56 @@ class GalacticEvolutionGA:
 
 
     def prevent_duplicates(self, offspring, toolbox, max_attempts=5):
-        """Replace duplicate individuals by jittering them, not re-drawing from scratch."""
+        """Replace duplicate individuals with controlled perturbations"""
         unique_keys = set()
         distinct_offspring = []
 
         for ind in offspring:
-            # build a hashable key from the genome
             key = tuple(round(x, 6) if isinstance(x, float) else x for x in ind)
 
             if key in unique_keys:
-                # duplicate: clone the Individual (so we keep .fitness, etc.)
                 new_ind = toolbox.clone(ind)
                 attempt = 0
 
                 while attempt < max_attempts:
-                    toolbox.mutate(new_ind, base_sigma_scale = 1.0)              # use your GA mutation
-                    toolbox.mutate(new_ind)              # use your GA mutation
-                    toolbox.mutate(new_ind)              # use your GA mutation
-                    del new_ind.fitness.values           # force re-evaluation
+                    # Use a single, varied perturbation instead of multiple mutations
+                    self.controlled_perturbation(new_ind, strength=0.1 + 0.2 * random.random())
+                    del new_ind.fitness.values
 
-                    new_key = tuple(round(x, 6) if isinstance(x, float) else x
-                                    for x in new_ind)
+                    new_key = tuple(round(x, 6) if isinstance(x, float) else x for x in new_ind)
                     if new_key not in unique_keys:
                         key = new_key
                         break
-
                     attempt += 1
 
                 distinct_offspring.append(new_ind)
                 unique_keys.add(key)
-
             else:
-                # first time: just keep the original individual
                 unique_keys.add(key)
                 distinct_offspring.append(ind)
 
         return distinct_offspring
 
+    def controlled_perturbation(self, individual, strength=0.1):
+        """Apply a controlled perturbation with varied step sizes"""
+        for i in range(len(individual)):
+            if i in self.categorical_indices:
+                # Small chance to change categorical parameters
+                if random.random() < 0.05:
+                    param_name = self.index_to_param_map[i]
+                    num_categories = len(getattr(self, param_name))
+                    individual[i] = random.randint(0, num_categories - 1)
+            else:
+                # Varied continuous perturbations
+                min_bound, max_bound = self.get_param_bounds(i)
+                range_size = max_bound - min_bound
+                
+                # Random step size between 0.5% and 10% of range, scaled by strength
+                step_fraction = (0.005 + 0.095 * random.random()) * strength
+                sigma = range_size * step_fraction
+                
+                individual[i] += random.gauss(0, sigma)
+                individual[i] = min(max(individual[i], min_bound), max_bound)
 
 
 
@@ -471,44 +484,65 @@ class GalacticEvolutionGA:
 
 
 
-
     def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2):
-            
-        """Mutation that creates small, connected steps"""
+        """Mutation with anti-oscillation and varied step sizes"""
+        
+        # Store previous values if available (you'd need to track this)
+        if hasattr(individual, 'prev_values'):
+            prev_values = individual.prev_values
+        else:
+            prev_values = None
+        
+        current_values = individual[:]
+        
         for i in range(len(individual)):
             if random.random() < indpb:
                 if i in self.categorical_indices:
-                    # Only change categorical with low probability
-                    if random.random() < 0.1:  # 10% chance
+                    if random.random() < 0.1:
                         param_name = self.index_to_param_map[i]
                         num_categories = len(getattr(self, param_name))
                         individual[i] = random.randint(0, num_categories - 1)
                 else:
-                    # Very small mutations for continuous parameters
                     min_bound, max_bound = self.get_param_bounds(i)
                     range_size = max_bound - min_bound
                     
-                    # Start with 2% of range, decay to 0.5%
+                    # Adaptive step size based on generation progress
                     if hasattr(self, 'gen') and hasattr(self, 'num_generations'):
                         progress = self.gen / self.num_generations
-                        sigma_scale = base_sigma_scale * (1 - 0.75 * progress)  # 2% -> 0.5%
+                        # Start larger, get smaller, but maintain some diversity
+                        base_scale = base_sigma_scale * (1 - 0.5 * progress)
                     else:
-                        sigma_scale = base_sigma_scale
+                        base_scale = base_sigma_scale
                     
-                    sigma = range_size * sigma_scale
-                    individual[i] += random.gauss(0, sigma)
+                    # Add randomness to step size (prevents uniform steps)
+                    step_multiplier = 0.5 + 1.5 * random.random()  # 0.5x to 2x variation
+                    sigma = range_size * base_scale * step_multiplier
                     
-                    # Reflect at boundaries instead of clamping
-                    if individual[i] < min_bound:
-                        individual[i] = min_bound + (min_bound - individual[i])
-                    elif individual[i] > max_bound:
-                        individual[i] = max_bound - (individual[i] - max_bound)
+                    # Anti-oscillation: if we're moving back toward previous value, 
+                    # sometimes force movement in same direction
+                    new_value = individual[i] + random.gauss(0, sigma)
                     
-                    # Final clamp if reflection goes out of bounds
-                    individual[i] = min(max(individual[i], min_bound), max_bound)
+                    if prev_values is not None and i < len(prev_values):
+                        # Check if we're oscillating
+                        current_direction = individual[i] - prev_values[i]
+                        new_direction = new_value - individual[i]
+                        
+                        # If directions are opposite (oscillation), sometimes force same direction
+                        if (current_direction * new_direction < 0 and 
+                            abs(current_direction) > range_size * 0.01 and
+                            random.random() < 0.3):  # 30% chance to prevent oscillation
+                            
+                            # Force movement in same direction as before
+                            new_value = individual[i] + abs(new_value - individual[i]) * np.sign(current_direction)
+                    
+                    # Apply bounds
+                    new_value = min(max(new_value, min_bound), max_bound)
+                    individual[i] = new_value
+        
+        # Store current values as previous for next mutation
+        individual.prev_values = current_values[:]
         
         return individual,
-
 
 
 

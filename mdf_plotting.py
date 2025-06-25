@@ -188,7 +188,7 @@ def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2'
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_zlabel(zlabel)
-    ax.set_title(f'3D Parameter Space Colored by {label}')
+    ax.set_title(f'{label}')
     plt.savefig(f'GA/loss/{label}_loss_3d.png', bbox_inches='tight')
     plt.close()
     
@@ -301,7 +301,6 @@ def create_3d_animation(walker_history):
         ax.set_xlabel("Generation")
         ax.set_ylabel("tmax_2")
         ax.set_zlabel("infall_2")
-        ax.set_title("Walker Evolution in 3D")
         ax.view_init(elev=20, azim=num)  # Rotate by 1 degree per frame
     
         for i, (walker_id, history) in enumerate(walker_history.items()):
@@ -432,7 +431,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
                         marker='o', label=f"Walker {walker_id}" if walker_id < 5 else "")
     
     # Add plot details
-    plt.title(f"{loss_metric.upper()} Loss Over Generations")
+    plt.title(f"{loss_metric.upper()}")
     plt.xlabel("Generation")
     plt.ylabel(f"{loss_metric.upper()} Loss")
     plt.grid(True, alpha=0.3)
@@ -630,7 +629,6 @@ def plot_mutation_info_3D(GA, population, fitnesses, base_sigma=1.0, mutation_ty
                 ax.plot(x, y, z, color=color, linestyle='--', alpha=0.5)
 
         # Customize plot
-        ax.set_title("3D Scatter Plot of Individuals with Gene Bounds")
         ax.set_xlabel(gene_names[0])
         ax.set_ylabel(gene_names[1])
         ax.set_zlabel(gene_names[2])
@@ -765,15 +763,12 @@ def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_ty
                                        edgecolor=color, fill=False, linestyle='--', alpha=0.5))
 
         # Customize plot
-        ax.set_title("2D Scatter Plot of Individuals with Gene Bounds")
         ax.set_xlabel(gene_names[0])
         ax.set_ylabel(gene_names[1])
         #ax.legend()
         plt.tight_layout()
         plt.savefig('GA/MDF_individuals_2D.png', bbox_inches='tight')
         print('...2D plot made!')
-
-
 
 
 def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path='GA/Four_Panel_Alpha.png'):
@@ -793,18 +788,21 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
         best_params = (r[5], r[7], r[9])
 
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12), sharex=False, sharey=False)
-    fig.subplots_adjust(hspace=0.0, wspace=0.4)
+    fig.subplots_adjust(hspace=0.1, wspace=0.4, left=0.1)  # Add left margin for y-axis labels
 
     for idx, (element, obs_data) in enumerate(zip(element_names, observational_data)):
         row, col = divmod(idx, 2)
         ax_main = axes[row, col]
 
-        # Position for marginal KDE plot
+        # Position for marginal KDE plot (DO NOT use sharey=ax_main)
         rect = ax_main.get_position()
-        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.1, rect.height], sharey=ax_main)
+        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.1, rect.height])
 
-        # Always show y-ticks and labels
-        ax_main.tick_params(axis='y', which='both', left=True, labelleft=True)
+        # Ensure y-axis is visible on main plots
+        ax_main.tick_params(axis='y', which='both', left=True, labelleft=True, right=False, labelright=False)
+        ax_main.yaxis.set_ticks_position('left')
+        ax_main.yaxis.set_label_position('left')
+        ax_main.spines['left'].set_visible(True)  # Force left spine visible
 
         # Draw all model curves
         for alpha_arrs, _, res in zip(GalGA.alpha_data, GalGA.labels, GalGA.results):
@@ -855,8 +853,9 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
             ax_kde.plot(kde_model, y_vals, color='red', linestyle='--')
             ax_kde.fill_betweenx(y_vals, 0, kde_model, color='red', alpha=0.2)
 
-        #ax_main.set_xlim(-2, 1)
-        #ax_main.set_ylim(-0.8, 1)
+        # Set limits and labels for main plot
+        ax_main.set_xlim(-2, 1)
+        ax_main.set_ylim(-0.8, 1)
         ax_main.set_xlabel("[Fe/H]")
         ax_main.set_ylabel(f"[{element}/Fe]")
         ax_main.text(-1.8, 0.85, element, fontsize=14, weight='bold')
@@ -866,10 +865,13 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
             ax_main.xaxis.set_ticks_position('top')
             ax_main.xaxis.set_label_position('top')
 
-        # Clean KDE axis
+        # Clean KDE axis - no numbers on histogram
         ax_kde.set_xticks([])
         ax_kde.set_yticks([])
-        ax_kde.tick_params(left=False, bottom=False)
+        ax_kde.set_xlabel('')
+        ax_kde.set_ylabel('')
+        ax_kde.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+        ax_kde.set_ylim(-0.8, 1.0)  # Match main plot y-limits
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -878,26 +880,43 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
 
 
 
-def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png'):
+
+def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png', n_bins=10):
     """
     Enhanced Age vs [Fe/H] plot with:
     - Model lines (gray + red for best)
     - Polynomial fits to Joyce & Bensby
     - Faint fillbetween for difference
-    - Axes swapped: Age on X, [Fe/H] on Y
+    - Marginal KDE histogram on the right
+    - Binned observational data as lines
+    - Axes: Age on X, [Fe/H] on Y
     """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.interpolate import UnivariateSpline
+    from scipy.stats import gaussian_kde, binned_statistic
+    import os
+    
     if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
         print("No age data available for plotting")
         return None
-
-    plt.figure(figsize=(14, 10))
-    ax = plt.gca()
-
+    
+    # Create main figure with proper layout
+    fig = plt.figure(figsize=(18, 10))
+    
+    # Create gridspec for proper alignment
+    from matplotlib import gridspec
+    gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.0, 
+                          left=0.08, right=0.95, top=0.95, bottom=0.1)
+    
+    ax_main = fig.add_subplot(gs[0])
+    ax_kde = fig.add_subplot(gs[1], sharey=ax_main)
+    
     # Ensure array typing for safe masking
     Fe_H = np.asarray(Fe_H)
     age_Joyce = np.asarray(age_Joyce)
     age_Bensby = np.asarray(age_Bensby)
-
+    
     # Determine best model
     if results_df is not None and not results_df.empty:
         bm = results_df.iloc[0]
@@ -905,60 +924,159 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     else:
         r = GalGA.results[0]
         best_params = (r[5], r[7], r[9])
-
+    
     best_plotted = False
+    best_model_feh = None
+    
+    # Plot model lines
     for age_data, label, res in zip(GalGA.age_data, GalGA.labels, GalGA.results):
         params = (res[5], res[7], res[9])
         is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-
+        
         x_age_raw, y_feh = age_data
         age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
-
+        
         if is_best and not best_plotted:
             label_lines = [f"• {p.strip()}" for p in label.split(',')]
             pretty_label = "\n".join(label_lines) + "\n• (BEST)"
-            ax.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
+            ax_main.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
+            best_model_feh = np.array(y_feh)
             best_plotted = True
         else:
-            ax.plot(age_gyr, y_feh, color='gray', alpha=0.2, linewidth=1, zorder=1)
-
-    # Scatter real data
-    ax.scatter(age_Joyce, Fe_H, marker='*', s=100, color='blue', label='Joyce et al.', zorder=2)
-    ax.scatter(age_Bensby, Fe_H, marker='^', s=100, color='orange', label='Bensby et al.', zorder=2)
-
-    # Polynomial fits (degree=3)
+            ax_main.plot(age_gyr, y_feh, color='gray', alpha=0.2, linewidth=1, zorder=1)
+    
+    # Create age bins for observational data
+    age_bins = np.linspace(0, 14, n_bins + 1)
+    bin_centers = (age_bins[:-1] + age_bins[1:]) / 2
+    
+    # Bin Joyce data
     mask_joyce = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
+    if np.sum(mask_joyce) > 0:
+        bin_means_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
+                                               statistic='mean', bins=age_bins)
+        bin_stds_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
+                                              statistic='std', bins=age_bins)
+        
+        # Plot binned Joyce data as line with error bars
+        valid_joyce = np.isfinite(bin_means_joyce)
+        ax_main.plot(bin_centers[valid_joyce], bin_means_joyce[valid_joyce], 
+                    color='blue', linewidth=3, linestyle='-', 
+                    label='Joyce (binned)', zorder=5)
+        ax_main.errorbar(bin_centers[valid_joyce], bin_means_joyce[valid_joyce], 
+                        yerr=bin_stds_joyce[valid_joyce], 
+                        color='blue', alpha=0.3, capsize=3, zorder=4)
+    
+    # Bin Bensby data
     mask_bensby = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
+    if np.sum(mask_bensby) > 0:
+        bin_means_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
+                                                statistic='mean', bins=age_bins)
+        bin_stds_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
+                                               statistic='std', bins=age_bins)
+        
+        # Plot binned Bensby data as line with error bars
+        valid_bensby = np.isfinite(bin_means_bensby)
+        ax_main.plot(bin_centers[valid_bensby], bin_means_bensby[valid_bensby], 
+                    color='orange', linewidth=3, linestyle='-', 
+                    label='Bensby (binned)', zorder=5)
+        ax_main.errorbar(bin_centers[valid_bensby], bin_means_bensby[valid_bensby], 
+                        yerr=bin_stds_bensby[valid_bensby], 
+                        color='orange', alpha=0.3, capsize=3, zorder=4)
+    
+    # Scatter real data (raw points)
+    ax_main.scatter(age_Joyce, Fe_H, marker='*', s=50, color='blue', 
+                   alpha=0.6, label='Joyce et al. (raw)', zorder=2)
+    ax_main.scatter(age_Bensby, Fe_H, marker='^', s=50, color='orange', 
+                   alpha=0.6, label='Bensby et al. (raw)', zorder=2)
+    
 
 
+    
+    # Polynomial fits (degree=3) - keeping your original spline fits
     if np.sum(mask_joyce) > 3 and np.sum(mask_bensby) > 3:
         sort_J = np.argsort(age_Joyce[mask_joyce])
         sort_B = np.argsort(age_Bensby[mask_bensby])
-
+        
         s_joyce = UnivariateSpline(age_Joyce[mask_joyce][sort_J], Fe_H[mask_joyce][sort_J], k=3, s=0.5)
         s_bensby = UnivariateSpline(age_Bensby[mask_bensby][sort_B], Fe_H[mask_bensby][sort_B], k=3, s=0.5)
-
-        x_vals = age_gyr
+        
+        x_vals = np.linspace(0, 14, 100)
         y_joyce = s_joyce(x_vals)
         y_bensby = s_bensby(x_vals)
-
-
-        ax.plot(x_vals, y_joyce, color='blue', linestyle='--', lw=2, zorder=4)
-        ax.plot(x_vals, y_bensby, color='orange', linestyle='--', lw=2, zorder=4)
-        ax.fill_between(x_vals, y_joyce, y_feh, color='purple', alpha=0.1, zorder=0)
-        ax.fill_between(x_vals, y_feh, y_bensby, color='purple', alpha=0.1, zorder=0)
-
-    # Axis control
-    ax.set_xlim(0, 14)
-    ax.set_ylim(-2, 1)
-    ax.set_xlabel("Age (Gyr)", fontsize=16)
-    ax.set_ylabel("[Fe/H]", fontsize=16)
-    ax.set_title("Age vs [Fe/H] with Model + Observational Fit Comparison")
-
-    ax.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False)
+        
+        ax_main.plot(x_vals, y_joyce, color='blue', linestyle='--', lw=2, zorder=4, alpha=0.7)
+        ax_main.plot(x_vals, y_bensby, color='orange', linestyle='--', lw=2, zorder=4, alpha=0.7)
+        
+        if best_model_feh is not None:
+            # Interpolate best model to match x_vals length
+            from scipy.interpolate import interp1d
+            age_gyr_model = np.linspace(0, 14, len(best_model_feh))
+            f_model = interp1d(age_gyr_model, best_model_feh, kind='linear', 
+                              bounds_error=False, fill_value='extrapolate')
+            y_model_interp = f_model(x_vals)
+            
+            ax_main.fill_between(x_vals, y_joyce, y_model_interp, color='purple', alpha=0.1, zorder=0)
+            ax_main.fill_between(x_vals, y_model_interp, y_bensby, color='purple', alpha=0.1, zorder=0)
+    
+    # Create KDE plots on the right margin
+    feh_vals = np.linspace(-2, 1, 200)
+    
+    # KDE for Joyce data
+    mask_joyce_kde = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
+    if np.sum(mask_joyce_kde) > 2:
+        joyce_feh_data = Fe_H[mask_joyce_kde]
+        kde_joyce = gaussian_kde(joyce_feh_data)
+        kde_j = kde_joyce(feh_vals)
+        kde_j_norm = kde_j / np.max(kde_j) if np.max(kde_j) > 0 else kde_j
+        ax_kde.plot(kde_j_norm, feh_vals, color='blue', linewidth=4, label='Joyce')
+        ax_kde.fill_betweenx(feh_vals, 0, kde_j_norm, color='blue', alpha=0.3)
+    
+    # KDE for Bensby data  
+    mask_bensby_kde = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
+    if np.sum(mask_bensby_kde) > 2:
+        bensby_feh_data = Fe_H[mask_bensby_kde]
+        kde_bensby = gaussian_kde(bensby_feh_data)
+        kde_b = kde_bensby(feh_vals)
+        kde_b_norm = kde_b / np.max(kde_b) if np.max(kde_b) > 0 else kde_b
+        ax_kde.plot(kde_b_norm, feh_vals, color='orange', linewidth=4, label='Bensby')
+        ax_kde.fill_betweenx(feh_vals, 0, kde_b_norm, color='orange', alpha=0.3)
+    
+    # KDE for best model
+    if best_model_feh is not None and len(best_model_feh) > 2:
+        finite_model = best_model_feh[np.isfinite(best_model_feh)]
+        if len(finite_model) > 2:
+            kde_model = gaussian_kde(finite_model)
+            kde_m = kde_model(feh_vals)
+            kde_m_norm = kde_m / np.max(kde_m) if np.max(kde_m) > 0 else kde_m
+            ax_kde.plot(kde_m_norm, feh_vals, color='red', linestyle='--', linewidth=4, label='Best Model')
+    
+    # Set reasonable limits
+    ax_kde.set_xlim(0, 1.2)
+    
+    # Axis control for main plot
+    ax_main.set_xlim(0, 14)
+    ax_main.set_ylim(-2, 1)
+    ax_main.set_xlabel("Age (Gyr)", fontsize=16)
+    ax_main.set_ylabel("[Fe/H]", fontsize=16)
+    ax_main.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False, fontsize=10)
+    
+    # Clean up KDE axis
+    ax_kde.set_xticks([])
+    ax_kde.set_xlabel('')
+    ax_kde.set_ylabel('')
+    ax_kde.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False, 
+                       right=False, labelright=False)
+    ax_kde.spines['left'].set_visible(False)
+    ax_kde.spines['right'].set_visible(False)
+    ax_kde.spines['top'].set_visible(False)
+    ax_kde.spines['bottom'].set_visible(False)
+    
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, bbox_inches="tight", dpi=300)
-    return plt.gcf()
+    plt.close(fig)
+    print(f"Enhanced age-metallicity plot with KDE and binning saved to {save_path}")
+    return fig
 
 
 
@@ -990,6 +1108,9 @@ def extract_metrics(results_file):
             metrics_dict[metric] = df[metric].values
     
     return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
+
+
+
 
 
 # Update the generate_all_plots function to include the four-panel alpha plot
@@ -1083,6 +1204,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='sfe', ylabel='t_2')
         plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='delta sfe', ylabel='t_2')
         plot_2d_scatter(delta_sfe_vals, sfe_vals, metric_vals, metric_name + '_deltasfe_sfe', xlabel='delta sfe', ylabel='sfe')
+        plot_2d_scatter(nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF')
     
 
     print("Generating 3D scatter plots...")
@@ -1092,6 +1214,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_3d_scatter(sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='delta sfe', zlabel='infall_2')
         plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_tti', xlabel='t_1', ylabel='t_2', zlabel='infall_2')
         plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='delta sfe', ylabel='t_2', zlabel='infall_2')
+        plot_3d_scatter(nb_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_nti', xlabel='SN1a per Solar Mass', ylabel='IMF', zlabel='infall_2')
     
 
     

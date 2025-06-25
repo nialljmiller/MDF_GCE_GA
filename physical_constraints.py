@@ -99,38 +99,87 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
                     is_physical = False
                     return is_physical, penalty_factor
             
-            # Check for alpha enhancement at low [Fe/H] (very liberal check)
-            # Look for points with [Fe/H] < -1.0
-            low_feh_mask = alpha_x < -1.0
-            if np.sum(low_feh_mask) > 0:
-                low_feh_alpha = alpha_y[low_feh_mask]
-                # At least some points should show enhancement (>-0.2)
-                if np.any(low_feh_alpha < 0.1):
+            # *** FIXED: Check for metal-poor stars with [Fe/H] < -0.5 ***
+            metal_poor_mask = alpha_x < -0.5
+            if np.sum(metal_poor_mask) > 0:  # FIX: Check if ANY points exist (not > 0.05!)
+                metal_poor_alpha = alpha_y[metal_poor_mask]
+                
+                # STRICT: NO alpha values <= 0 allowed for metal-poor stars
+                if np.any(metal_poor_alpha <= 0.0):
                     if liberal:
-                        penalty_factor *= 1.2
+                        penalty_factor *= 100.0  # Massive penalty
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+                
+                # Additional check: mean should be substantially positive
+                if np.mean(metal_poor_alpha) < 0.1:
+                    if liberal:
+                        penalty_factor *= 20.0
+                    else:
+                        penalty_factor *= 10.0
+                        
+                # Minimum value should be well above zero
+                if np.min(metal_poor_alpha) < 0.05:
+                    penalty_factor *= 50.0
+
+            # *** FIXED: Even stricter for very metal-poor stars [Fe/H] < -1.0 ***
+            very_metal_poor_mask = alpha_x < -1.0
+            if np.sum(very_metal_poor_mask) > 0:  # FIX: Check if ANY points exist (not > 0.2!)
+                very_metal_poor_alpha = alpha_y[very_metal_poor_mask]
+                
+                # These MUST be significantly alpha-enhanced
+                if np.any(very_metal_poor_alpha <= 0.0):
+                    if liberal:
+                        penalty_factor *= 200.0  # Even more massive penalty
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+                
+                # Stronger requirement for very metal-poor stars
+                if np.mean(very_metal_poor_alpha) < 0.2:
+                    if liberal:
+                        penalty_factor *= 30.0
+                    else:
+                        penalty_factor *= 15.0
+                        
+                # Minimum should be even higher for very metal-poor
+                if np.min(very_metal_poor_alpha) < 0.1:
+                    penalty_factor *= 25.0
+
+            # Check for alpha enhancement at very low [Fe/H] (very liberal check)
+            # Look for points with [Fe/H] < -1.0
+            very_low_feh_mask = alpha_x < -1.0
+            if np.sum(very_low_feh_mask) > 0:
+                very_low_feh_alpha = alpha_y[very_low_feh_mask]
+                # These should be even more enhanced
+                if np.any(very_low_feh_alpha < 0.15):
+                    if liberal:
+                        penalty_factor *= 15.0  # Increased from 5.0
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
 
-
+            # Check that metal-rich stars ([Fe/H] > 0) don't have excessive alpha enhancement
             high_feh_mask = alpha_x > 0.0
             if np.sum(high_feh_mask) > 0:
                 high_feh_alpha = alpha_y[high_feh_mask]
-                # At least some points should show enhancement (>-0.2)
-                if np.any(high_feh_alpha > 0.2):
+                # Metal-rich stars should have lower alpha abundances
+                if np.any(high_feh_alpha > 0.3):
                     if liberal:
-                        penalty_factor *= 1.2
+                        penalty_factor *= 2.0
+                    else:
+                        penalty_factor *= 1.5
+            
+            # Check that the overall median alpha is positive (alpha-enhanced galaxy)
+            if np.median(alpha_y) < 0.05:  # Require substantial positive median
+                penalty_factor *= 15.0
+                if np.median(alpha_y) < 0.0:
+                    if liberal:
+                        penalty_factor *= 50.0
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
-    
-            if np.median(alpha_y) < 0.0:
-                penalty_factor *= 1.2
-                if np.median(alpha_y) < -0.1:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            
-
 
     # ===============================
     # 3. AGE-METALLICITY CHECKS
@@ -214,9 +263,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     
     if not is_physical:
         # Return a very high loss for unphysical models
-        return 100.0
+        return 1000.0  # High penalty for complete rejection
     else:
         # Apply penalty factor
         return loss_value * penalty_factor
-
-

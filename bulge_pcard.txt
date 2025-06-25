@@ -34,7 +34,7 @@ popsize: 128
 
 #How many generations (/epochs) are performed. 
 
-generations: 1000
+generations: 999999
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
@@ -143,8 +143,7 @@ imf_array: ['salpeter']
 # Default value: 50.
 #
 ############################################################
-imf_upper_limits: [50]
-
+imf_upper_limits: [30, 100]  # Allow more massive stars
 #imf_upper_limits: [50,100]
 
 
@@ -184,7 +183,7 @@ mgal_values: [2.0e9]
 # Sweep values between 1e-4 and 1e-2 for better constraints.
 #
 ############################################################
-nb_array: [1e-3]
+nb_array: [3e-4, 3e-3]  # Sweep SN1a frequency
 
 
 ############################################################

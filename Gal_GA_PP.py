@@ -482,7 +482,30 @@ class GalacticEvolutionGA:
         
         return individual,
 
-
+    def adaptive_mutation_rate(self, individual, population):
+        """Calculate adaptive mutation rate based on fitness rank"""
+        
+        # Get fitness values and sort
+        fitnesses = [ind.fitness.values[0] for ind in population if ind.fitness.valid]
+        if not fitnesses:
+            return self.mutpb
+        
+        fitnesses.sort()
+        
+        if individual.fitness.valid:
+            current_fitness = individual.fitness.values[0]
+            
+            # Find percentile rank (0 = best, 1 = worst)
+            rank = sum(1 for f in fitnesses if f < current_fitness) / len(fitnesses)
+            
+            # High-fitness individuals get lower mutation rates
+            # Low-fitness individuals get higher mutation rates
+            base_rate = self.mutpb
+            fitness_factor = 0.5 + 1.5 * rank  # 0.5x to 2x multiplier
+            
+            return min(base_rate * fitness_factor, 0.8)  # Cap at 80%
+        
+        return self.mutpb
 
     def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2):
         """Mutation with anti-oscillation and varied step sizes"""
@@ -819,6 +842,14 @@ class GalacticEvolutionGA:
             for idx, ind in enumerate(population):
                 self.walker_history[idx].append(list(ind))
             population[:] = offspring
+
+            # Apply adaptive mutation rates
+            for mutant in offspring:
+                adaptive_rate = self.adaptive_mutation_rate(mutant, population)
+                if random.random() < adaptive_rate:
+                    toolbox.mutate(mutant)
+                    del mutant.fitness.values
+
 
             gc.collect()  # clean up
 

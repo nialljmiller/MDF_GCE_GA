@@ -507,52 +507,65 @@ class GalacticEvolutionGA:
         
         return self.mutpb
 
-
-
-
-    def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2, momentum=0.7):
-        """Mutation with momentum for smoother transitions"""
+    def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2):
+        """Mutation with anti-oscillation and varied step sizes"""
         
-        # Get previous values with momentum
-        if hasattr(individual, 'prev_values') and hasattr(individual, 'velocity'):
+        # Store previous values if available (you'd need to track this)
+        if hasattr(individual, 'prev_values'):
             prev_values = individual.prev_values
-            velocity = individual.velocity
         else:
             prev_values = None
-            velocity = [0.0] * len(individual)
         
         current_values = individual[:]
-        new_velocity = []
         
         for i in range(len(individual)):
-            if random.random() < indpb and i not in self.categorical_indices:
-                min_bound, max_bound = self.get_param_bounds(i)
-                range_size = max_bound - min_bound
-                
-                # Smaller, more consistent step sizes
-                base_scale = base_sigma_scale * (0.8 + 0.4 * (1 - self.gen / self.num_generations))
-                step_multiplier = 0.8 + 0.4 * random.random()  # Reduce from 0.5-2x to 0.8-1.2x
-                sigma = range_size * base_scale * step_multiplier
-                
-                # Add momentum for smoother transitions
-                mutation_step = random.gauss(0, sigma)
-                momentum_step = momentum * velocity[i] if velocity else 0
-                total_step = mutation_step + momentum_step
-                
-                new_value = individual[i] + total_step
-                new_value = min(max(new_value, min_bound), max_bound)
-                
-                individual[i] = new_value
-                new_velocity.append(total_step * 0.8)  # Damped velocity
-            else:
-                new_velocity.append(velocity[i] * 0.9 if velocity else 0)  # Decay velocity
+            if random.random() < indpb:
+                if i in self.categorical_indices:
+                    if random.random() < 0.1:
+                        param_name = self.index_to_param_map[i]
+                        num_categories = len(getattr(self, param_name))
+                        individual[i] = random.randint(0, num_categories - 1)
+                else:
+                    min_bound, max_bound = self.get_param_bounds(i)
+                    range_size = max_bound - min_bound
+                    
+                    # Adaptive step size based on generation progress
+                    if hasattr(self, 'gen') and hasattr(self, 'num_generations'):
+                        progress = self.gen / self.num_generations
+                        # Start larger, get smaller, but maintain some diversity
+                        base_scale = base_sigma_scale * (1 - 0.5 * progress)
+                    else:
+                        base_scale = base_sigma_scale
+                    
+                    # Add randomness to step size (prevents uniform steps)
+                    step_multiplier = 0.1 + 1.5 * random.random()  # 0.5x to 2x variation
+                    sigma = range_size * base_scale * step_multiplier
+                    
+                    # Anti-oscillation: if we're moving back toward previous value, 
+                    # sometimes force movement in same direction
+                    new_value = individual[i] + random.gauss(0, sigma)
+                    
+                    if prev_values is not None and i < len(prev_values):
+                        # Check if we're oscillating
+                        current_direction = individual[i] - prev_values[i]
+                        new_direction = new_value - individual[i]
+                        
+                        # If directions are opposite (oscillation), sometimes force same direction
+                        if (current_direction * new_direction < 0 and 
+                            abs(current_direction) > range_size * 0.01 and
+                            random.random() < 0.3):  # 30% chance to prevent oscillation
+                            
+                            # Force movement in same direction as before
+                            new_value = individual[i] + abs(new_value - individual[i]) * np.sign(current_direction)
+                    
+                    # Apply bounds
+                    new_value = min(max(new_value, min_bound), max_bound)
+                    individual[i] = new_value
         
-        # Store for next iteration
+        # Store current values as previous for next mutation
         individual.prev_values = current_values[:]
-        individual.velocity = new_velocity
         
         return individual,
-
 
 
 

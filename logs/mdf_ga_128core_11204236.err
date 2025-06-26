@@ -1,0 +1,3 @@
+/cluster/medbow/project/joycelab-niall/MDF_GCE_GA/mdf_plotting.py:89: SyntaxWarning: invalid escape sequence '\o'
+  ax.axhline(2e10, ls='--', color='k', label='Reference 2e10 $M_\odot$')
+slurmstepd: error: *** JOB 11204236 ON mbcpu-017 CANCELLED AT 2025-06-25T17:50:29 ***

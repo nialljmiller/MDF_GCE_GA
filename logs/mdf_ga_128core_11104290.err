@@ -48,3 +48,4 @@
   plt.tight_layout()
 /cluster/medbow/project/joycelab-niall/MDF_GCE_GA/mdf_plotting.py:1074: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
   plt.tight_layout()
+slurmstepd: error: *** JOB 11104290 ON mbcpu-001 CANCELLED AT 2025-06-26T11:34:57 ***

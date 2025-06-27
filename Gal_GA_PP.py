@@ -799,14 +799,12 @@ class GalacticEvolutionGA:
 
 
         # Apply physics penalty
-        print("Checking physics...")
         primary_loss_value = apply_physics_penalty(
             primary_loss_value, 
             MDF_x_data, MDF_y_data, 
             alpha_arrs, 
             age_x_data, age_y_data
         )
-        print("...physics cehcked! :)")
 
         # Return the result with a detailed label
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '
@@ -878,12 +876,20 @@ class GalacticEvolutionGA:
             offspring = toolbox.select(population)
             offspring = list(map(toolbox.clone, offspring))
 
-            # Apply mutation
+
+            # Identify the fittest walker in the current population
+            best_walker = tools.selBest(population, 1)[0]
+
+            # Apply targeted improvement for poorly performing walkers
             for mutant in offspring:
-                if mutant.fitness.values[0] > 10.0:
+                if mutant.fitness.values[0] > 100.0:
                     toolbox.mutate(mutant)
                     toolbox.mutate(mutant)
+                    best_clone = toolbox.clone(best_walker)
+                    child, _ = toolbox.mate(mutant, best_clone)
+                    mutant[:] = child
                     del mutant.fitness.values
+
 
             # Step 3: Apply crossover and mutation
             # Apply crossover first

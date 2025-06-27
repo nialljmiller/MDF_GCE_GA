@@ -1,4 +1,161 @@
 import numpy as np
+from scipy.stats import gaussian_kde
+
+def check_alpha_distribution_properties(alpha_arrs, liberal=False):
+    """
+    Check alpha abundance distribution properties: peak location and FWHM.
+    
+    Parameters:
+    -----------
+    alpha_arrs : list of [x_data, y_data] pairs
+        Alpha element abundances vs [Fe/H] for [Mg/Fe], [Si/Fe], [Ca/Fe], [Ti/Fe]
+    liberal : bool
+        If True, use penalties instead of hard rejection
+        
+    Returns:
+    --------
+    is_physical : bool
+        True if model passes all checks
+    penalty_factor : float
+        Multiplier for loss function (1.0 = no penalty, >1.0 = penalty)
+    """
+    
+    penalty_factor = 1.0
+    is_physical = True
+    
+    if len(alpha_arrs) < 4:  # Need all 4 alpha elements
+        return True, 1.0
+    
+    element_names = ['Mg', 'Si', 'Ca', 'Ti']
+    
+    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs[:4]):
+        alpha_x = np.array(alpha_x)
+        alpha_y = np.array(alpha_y)
+        
+        # Skip if no data
+        if len(alpha_x) == 0 or len(alpha_y) == 0:
+            continue
+            
+        # Skip if all NaN or infinite
+        valid_mask = np.isfinite(alpha_x) & np.isfinite(alpha_y)
+        if np.sum(valid_mask) < 10:  # Need at least 10 points for distribution analysis
+            continue
+            
+        alpha_values = alpha_y[valid_mask]
+        
+        # Remove extreme outliers for distribution analysis
+        Q1, Q3 = np.percentile(alpha_values, [25, 75])
+        IQR = Q3 - Q1
+        outlier_mask = (alpha_values >= Q1 - 3*IQR) & (alpha_values <= Q3 + 3*IQR)
+        alpha_clean = alpha_values[outlier_mask]
+        
+        if len(alpha_clean) < 5:
+            continue
+            
+        # =====================================
+        # 1. PEAK LOCATION CHECK
+        # =====================================
+        
+        # Use kernel density estimation to find peak
+        try:
+            kde = gaussian_kde(alpha_clean)
+            test_points = np.linspace(alpha_clean.min(), alpha_clean.max(), 200)
+            density = kde(test_points)
+            peak_idx = np.argmax(density)
+            peak_location = test_points[peak_idx]
+            
+            # Check if peak is between -0.3 and +0.3
+            if not (-0.3 <= peak_location <= 0.3):
+                violation_severity = abs(peak_location) - 0.3
+                if liberal:
+                    penalty_factor *= (1 + 10 * violation_severity)
+                else:
+                    #print(f"REJECTED: {element_names[i]} peak at {peak_location:.3f} (outside [-0.3, 0.3])")
+                    is_physical = False
+                    return is_physical, penalty_factor
+                    
+        except Exception:
+            # Fallback to simple median if KDE fails
+            peak_location = np.median(alpha_clean)
+            if not (-0.3 <= peak_location <= 0.3):
+                if liberal:
+                    penalty_factor *= 5.0
+                else:
+                    is_physical = False
+                    return is_physical, penalty_factor
+        
+        # =====================================
+        # 2. FWHM CHECK
+        # =====================================
+        
+        try:
+            # Calculate FWHM from KDE
+            max_density = np.max(density)
+            half_max = max_density / 2.0
+            
+            # Find points where density crosses half maximum
+            above_half_max = density >= half_max
+            if np.any(above_half_max):
+                indices_above = np.where(above_half_max)[0]
+                left_idx = indices_above[0]
+                right_idx = indices_above[-1]
+                
+                fwhm = test_points[right_idx] - test_points[left_idx]
+                
+                # Check if FWHM is less than 1.0
+                if fwhm >= 1.0:
+                    violation_severity = fwhm - 1.0
+                    if liberal:
+                        penalty_factor *= (1 + 5 * violation_severity)
+                    else:
+                        #print(f"REJECTED: {element_names[i]} FWHM = {fwhm:.3f} (>= 1.0)")
+                        is_physical = False
+                        return is_physical, penalty_factor
+                        
+        except Exception:
+            # Fallback to standard deviation-based width estimate
+            std_dev = np.std(alpha_clean)
+            fwhm_approx = 2.355 * std_dev  # FWHM ≈ 2.355 * σ for Gaussian
+            
+            if fwhm_approx >= 1.0:
+                if liberal:
+                    penalty_factor *= 3.0
+                else:
+                    is_physical = False
+                    return is_physical, penalty_factor
+        
+        # =====================================
+        # 3. ADDITIONAL DISTRIBUTION CHECKS
+        # =====================================
+        
+        # Check that distribution isn't too narrow (avoid delta functions)
+        std_dev = np.std(alpha_clean)
+        if std_dev < 0.01:  # Too narrow
+            if liberal:
+                penalty_factor *= 10.0
+            else:
+                #print(f"REJECTED: {element_names[i]} distribution too narrow (σ = {std_dev:.4f})")
+                is_physical = False
+                return is_physical, penalty_factor
+        
+        # Check that distribution isn't bimodal in an unphysical way
+        # (This is a simple check - more sophisticated methods exist)
+        hist, bin_edges = np.histogram(alpha_clean, bins=20)
+        peaks = []
+        for j in range(1, len(hist)-1):
+            if hist[j] > hist[j-1] and hist[j] > hist[j+1] and hist[j] > 0.1 * np.max(hist):
+                peaks.append(j)
+        
+        if len(peaks) > 2:  # More than 2 significant peaks is suspicious
+            if liberal:
+                penalty_factor *= 2.0
+            else:
+                #print(f"REJECTED: {element_names[i]} has {len(peaks)} peaks (multimodal)")
+                is_physical = False
+                return is_physical, penalty_factor
+    
+    return is_physical, penalty_factor
+
 
 def check_simple_alpha_constraints(alpha_arrs, liberal=False):
     """
@@ -50,13 +207,10 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum(bin1_alpha <= 0.15)
             violation_fraction = violations / len(bin1_alpha)
             
-            #print(f"  {element_names[i]} Bin1 ([Fe/H] < -1.0): {violations}/{len(bin1_alpha)} violations ({violation_fraction:.2%})")
-            
             if violation_fraction > 0.05:  # More than 5% violations
                 if liberal:
                     penalty_factor *= (1 + 50 * violation_fraction)
                 else:
-                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin1_alpha)} points <= 0.15 for [Fe/H] < -1.0")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
@@ -69,13 +223,10 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.6))
             violation_fraction = violations / len(bin2_alpha)
             
-            #print(f"  {element_names[i]} Bin2 (-1.0 to -0.5): {violations}/{len(bin2_alpha)} violations ({violation_fraction:.2%})")
-            
             if violation_fraction > 0.10:  # More than 10% violations
                 if liberal:
                     penalty_factor *= (1 + 20 * violation_fraction)
                 else:
-                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin2_alpha)} points outside [0, 0.4] for -1.0 <= [Fe/H] < -0.5")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
@@ -88,26 +239,21 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum((bin3_alpha < -0.2) | (bin3_alpha > 0.2))
             violation_fraction = violations / len(bin3_alpha)
             
-            #print(f"  {element_names[i]} Bin3 ([Fe/H] > 0.0): {violations}/{len(bin3_alpha)} violations ({violation_fraction:.2%})")
-            #print(f"    Min: {np.min(bin3_alpha):.3f}, Max: {np.max(bin3_alpha):.3f}")
-            
             if violation_fraction > 0.10:  # More than 10% violations
                 if liberal:
                     penalty_factor *= (1 + 20 * violation_fraction)
                 else:
-                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin3_alpha)} points outside [-0.25, 0.25] for [Fe/H] > 0.0")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
                 penalty_factor *= (1 + 5 * violation_fraction)
     
-    #print(f"Alpha constraints penalty factor: {penalty_factor:.2f}")
     return is_physical, penalty_factor
 
 
 def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=False):
     """
-    Check if model outputs are physically plausible with simple alpha constraints.
+    Check if model outputs are physically plausible with both binned and distribution-based alpha constraints.
     """
     
     penalty_factor = 1.0
@@ -128,7 +274,6 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         if liberal:
             penalty_factor *= 20.0
         else:
-            #print("REJECTED: Negative MDF values")
             is_physical = False
             return is_physical, penalty_factor
     
@@ -141,23 +286,8 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 10.0
             else:
-                #print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
                 is_physical = False
                 return is_physical, penalty_factor
-
-    # Check MDF peak location (should be reasonable)
-    if len(MDF_y) > 0 and np.max(MDF_y) > 0:
-        peak_idx = np.argmax(MDF_y)
-        peak_feh = MDF_x[peak_idx]
-        
-        if not (-1.0 <= peak_feh <= 1.0):
-            if liberal:
-                penalty_factor *= 10.0
-            else:
-                #print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
-                is_physical = False
-                return is_physical, penalty_factor
-    
 
     # ===============================
     # 2. LOW [Fe/H] TAIL CHECK  
@@ -174,7 +304,6 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 5.0
             else:
-                #print(f"REJECTED: Low [Fe/H] tail too high (max = {max_tail_count:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
         
@@ -184,7 +313,6 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 3.0
             else:
-                #print(f"REJECTED: Low [Fe/H] tail mean too high (mean = {mean_tail_count:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
 
@@ -198,14 +326,13 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 10.0
             else:
-                #print(f"REJECTED: Extreme low [Fe/H] tail too high (max = {max_extreme_tail:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
+
     # ===============================
-    # 2. SIMPLE ALPHA ELEMENT CONSTRAINTS
+    # 3. ALPHA ELEMENT CONSTRAINTS (BINNED)
     # ===============================
     
-    #print("Checking alpha constraints:")
     alpha_is_physical, alpha_penalty = check_simple_alpha_constraints(alpha_arrs, liberal=liberal)
     
     if not alpha_is_physical:
@@ -214,7 +341,18 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     penalty_factor *= alpha_penalty
     
     # ===============================
-    # 3. BASIC AGE-METALLICITY CHECKS
+    # 4. ALPHA DISTRIBUTION PROPERTIES (NEW)
+    # ===============================
+    
+    alpha_dist_is_physical, alpha_dist_penalty = check_alpha_distribution_properties(alpha_arrs, liberal=liberal)
+    
+    if not alpha_dist_is_physical:
+        return False, penalty_factor
+    
+    penalty_factor *= alpha_dist_penalty
+    
+    # ===============================
+    # 5. BASIC AGE-METALLICITY CHECKS
     # ===============================
     
     if age_meta_check and len(age_x) > 0 and len(age_y) > 0:
@@ -230,12 +368,11 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 1.3
             else:
-                #print("REJECTED: Unreasonable age range")
                 is_physical = False
                 return is_physical, penalty_factor
     
     # ===============================
-    # 4. GLOBAL SANITY CHECKS
+    # 6. GLOBAL SANITY CHECKS
     # ===============================
     
     # Check for NaN or inf values anywhere
@@ -245,12 +382,10 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     
     for arr in all_arrays:
         if len(arr) > 0 and (np.any(np.isnan(arr)) or np.any(np.isinf(arr))):
-            #print("REJECTED: NaN or inf values found")
             is_physical = False
             penalty_factor *= 10.0
             return is_physical, penalty_factor
     
-    #print(f"Model PASSED with total penalty factor: {penalty_factor:.2f}")
     return is_physical, penalty_factor
 
 

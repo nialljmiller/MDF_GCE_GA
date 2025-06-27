@@ -371,6 +371,33 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
                 is_physical = False
                 return is_physical, penalty_factor
     
+
+        
+        # Check that young stars (age < 8 Gyr) have reasonable median metallicity
+        young_stars_mask = age_gyr < 8.0
+        if np.sum(young_stars_mask) > 0:
+            young_feh = age_y[young_stars_mask]
+            
+            # Remove any extreme outliers or invalid values
+            valid_young_feh = young_feh[np.isfinite(young_feh)]
+            
+            if len(valid_young_feh) > 0:
+                median_young_feh = np.median(valid_young_feh)
+                
+                # Check if median is between -0.5 and 0.6
+                if not (-0.5 <= median_young_feh <= 0.6):
+                    violation_severity = max(abs(median_young_feh + 0.5), abs(median_young_feh - 0.6)) - 0.5
+                    if violation_severity > 0:
+                        if liberal:
+                            penalty_factor *= (1 + 20 * violation_severity)
+                        else:
+                            #print(f"REJECTED: Young stars median [Fe/H] = {median_young_feh:.3f} (outside [-0.5, 0.6])")
+                            is_physical = False
+                            return is_physical, penalty_factor
+    
+
+
+    
     # ===============================
     # 6. GLOBAL SANITY CHECKS
     # ===============================

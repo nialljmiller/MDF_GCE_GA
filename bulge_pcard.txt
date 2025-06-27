@@ -30,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 128
+popsize: 8
 
 #How many generations (/epochs) are performed. 
 
@@ -73,14 +73,14 @@ shrink_range: 'False'
 # Set to 1e9 to suppress the first infall entirely.
 #
 ############################################################
-sigma_2_list: [0.1,10]
+sigma_2_list: [0.01,100]
 ############################################################
 #
 # Tmax 2 list: Time (in Gyr) after the universe's birth when the second infall occurs.
 # Default for thin disk: 8 Gyr ago (tmax_2 = 5 Gyr).
 #
 ############################################################
-tmax_1_list: [0.001,0.01] # for two infall scenario, sweep
+tmax_1_list: [0.001,2.0] # for two infall scenario, sweep
 #
 ## default thick disk assumption is 11 Gyr ago (+/- 3 Gyr) a bunch of [M/H] = -0.5 stuff fell in
 #
@@ -88,7 +88,7 @@ tmax_1_list: [0.001,0.01] # for two infall scenario, sweep
 #
 
 
-tmax_2_list: [0.1,15.0]
+tmax_2_list: [0.1,12.0]
 
 ############################################################
 #
@@ -96,12 +96,12 @@ tmax_2_list: [0.1,15.0]
 # Default for thin disk: 5 Gyr.
 # AKA tau2
 ############################################################
-infall_timescale_1_list: [0.0001,0.01] ## fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.0001,3.0] ## fix for single infall model; sweep otherwise
 ## if the bulge is being continuously fed by the disk, over all time, this should be  10 Gyr
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 
 
-infall_timescale_2_list: [0.1, 15.0]
+infall_timescale_2_list: [0.1, 10.0]
 
 
 
@@ -125,8 +125,8 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 #
 ############################################################
 #sfe_array: [0.02]
-sfe_array: [0.002, 10.0]
-delta_sfe_array: [-5.0,5.0]
+sfe_array: [0.00000000001, 0.4]
+delta_sfe_array: [-0.1,0.5]
 
 ############################################################
 #
@@ -183,7 +183,7 @@ mgal_values: [2.0e9]
 # Sweep values between 1e-4 and 1e-2 for better constraints.
 #
 ############################################################
-nb_array: [3e-4, 3e-3]  # Sweep SN1a frequency
+nb_array: [1e-4, 5e-3]  # Sweep SN1a frequency
 
 
 ############################################################

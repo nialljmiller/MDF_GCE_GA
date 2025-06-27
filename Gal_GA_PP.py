@@ -84,6 +84,18 @@ def print_population(GA, population, generation):
 
 
 
+def log_uniform(min_val, max_val):
+    """Sample uniformly in log space"""
+    log_min = np.log10(min_val)
+    log_max = np.log10(max_val)
+    return 10**random.uniform(log_min, log_max)
+
+def should_use_log(min_val, max_val, threshold=2.0):
+    """Check if parameter spans more than threshold orders of magnitude"""
+    if min_val <= 0 or max_val <= 0:
+        return False
+    return np.log10(max_val / min_val) >= threshold
+
 
 
 class GalacticEvolutionGA:
@@ -213,20 +225,88 @@ class GalacticEvolutionGA:
         toolbox.register("sn1a_attr", lambda: random.randint(0, len(self.sn1a_assumptions) - 1))
         toolbox.register("sy_attr", lambda: random.randint(0, len(self.stellar_yield_assumptions) - 1))
         toolbox.register("sn1a_rate_attr", lambda: random.randint(0, len(self.sn1a_rates) - 1))
-        
+                
+
         # Continuous parameters
-        toolbox.register("sigma_2_attr", random.uniform, min(self.sigma_2_list), max(self.sigma_2_list))
-        toolbox.register("t_1_attr", random.uniform, min(self.tmax_1_list), max(self.tmax_1_list))
-        toolbox.register("t_2_attr", random.uniform, min(self.tmax_2_list), max(self.tmax_2_list))
-        toolbox.register("infall_1_attr", random.uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
-        toolbox.register("infall_2_attr", random.uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
-        toolbox.register("sfe_attr", random.uniform, min(self.sfe_array), max(self.sfe_array))
+        # sigma_2
+        if should_use_log(min(self.sigma_2_list), max(self.sigma_2_list)):
+            print(f"Using LOG sampling for sigma_2: {min(self.sigma_2_list)} to {max(self.sigma_2_list)}")
+            toolbox.register("sigma_2_attr", log_uniform, min(self.sigma_2_list), max(self.sigma_2_list))
+        else:
+            print(f"Using LINEAR sampling for sigma_2: {min(self.sigma_2_list)} to {max(self.sigma_2_list)}")
+            toolbox.register("sigma_2_attr", random.uniform, min(self.sigma_2_list), max(self.sigma_2_list))
 
-        toolbox.register("delta_sfe_attr", random.uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
+        # t_1
+        if should_use_log(min(self.tmax_1_list), max(self.tmax_1_list)):
+            print(f"Using LOG sampling for t_1: {min(self.tmax_1_list)} to {max(self.tmax_1_list)}")
+            toolbox.register("t_1_attr", log_uniform, min(self.tmax_1_list), max(self.tmax_1_list))
+        else:
+            print(f"Using LINEAR sampling for t_1: {min(self.tmax_1_list)} to {max(self.tmax_1_list)}")
+            toolbox.register("t_1_attr", random.uniform, min(self.tmax_1_list), max(self.tmax_1_list))
 
-        toolbox.register("imf_upper_attr", random.uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
-        toolbox.register("mgal_attr", random.uniform, min(self.mgal_values), max(self.mgal_values))
-        toolbox.register("nb_attr", random.uniform, min(self.nb_array), max(self.nb_array))
+        # t_2
+        if should_use_log(min(self.tmax_2_list), max(self.tmax_2_list)):
+            print(f"Using LOG sampling for t_2: {min(self.tmax_2_list)} to {max(self.tmax_2_list)}")
+            toolbox.register("t_2_attr", log_uniform, min(self.tmax_2_list), max(self.tmax_2_list))
+        else:
+            print(f"Using LINEAR sampling for t_2: {min(self.tmax_2_list)} to {max(self.tmax_2_list)}")
+            toolbox.register("t_2_attr", random.uniform, min(self.tmax_2_list), max(self.tmax_2_list))
+
+        # infall_1
+        if should_use_log(min(self.infall_timescale_1_list), max(self.infall_timescale_1_list)):
+            print(f"Using LOG sampling for infall_1: {min(self.infall_timescale_1_list)} to {max(self.infall_timescale_1_list)}")
+            toolbox.register("infall_1_attr", log_uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
+        else:
+            print(f"Using LINEAR sampling for infall_1: {min(self.infall_timescale_1_list)} to {max(self.infall_timescale_1_list)}")
+            toolbox.register("infall_1_attr", random.uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
+
+        # infall_2
+        if should_use_log(min(self.infall_timescale_2_list), max(self.infall_timescale_2_list)):
+            print(f"Using LOG sampling for infall_2: {min(self.infall_timescale_2_list)} to {max(self.infall_timescale_2_list)}")
+            toolbox.register("infall_2_attr", log_uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
+        else:
+            print(f"Using LINEAR sampling for infall_2: {min(self.infall_timescale_2_list)} to {max(self.infall_timescale_2_list)}")
+            toolbox.register("infall_2_attr", random.uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
+
+        # sfe
+        if should_use_log(min(self.sfe_array), max(self.sfe_array)):
+            print(f"Using LOG sampling for sfe: {min(self.sfe_array)} to {max(self.sfe_array)}")
+            toolbox.register("sfe_attr", log_uniform, min(self.sfe_array), max(self.sfe_array))
+        else:
+            print(f"Using LINEAR sampling for sfe: {min(self.sfe_array)} to {max(self.sfe_array)}")
+            toolbox.register("sfe_attr", random.uniform, min(self.sfe_array), max(self.sfe_array))
+
+        # delta_sfe
+        if should_use_log(min(self.delta_sfe_array), max(self.delta_sfe_array)):
+            print(f"Using LOG sampling for delta_sfe: {min(self.delta_sfe_array)} to {max(self.delta_sfe_array)}")
+            toolbox.register("delta_sfe_attr", log_uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
+        else:
+            print(f"Using LINEAR sampling for delta_sfe: {min(self.delta_sfe_array)} to {max(self.delta_sfe_array)}")
+            toolbox.register("delta_sfe_attr", random.uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
+
+        # imf_upper
+        if should_use_log(min(self.imf_upper_limits), max(self.imf_upper_limits)):
+            print(f"Using LOG sampling for imf_upper: {min(self.imf_upper_limits)} to {max(self.imf_upper_limits)}")
+            toolbox.register("imf_upper_attr", log_uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
+        else:
+            print(f"Using LINEAR sampling for imf_upper: {min(self.imf_upper_limits)} to {max(self.imf_upper_limits)}")
+            toolbox.register("imf_upper_attr", random.uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
+
+        # mgal
+        if should_use_log(min(self.mgal_values), max(self.mgal_values)):
+            print(f"Using LOG sampling for mgal: {min(self.mgal_values)} to {max(self.mgal_values)}")
+            toolbox.register("mgal_attr", log_uniform, min(self.mgal_values), max(self.mgal_values))
+        else:
+            print(f"Using LINEAR sampling for mgal: {min(self.mgal_values)} to {max(self.mgal_values)}")
+            toolbox.register("mgal_attr", random.uniform, min(self.mgal_values), max(self.mgal_values))
+
+        # nb
+        if should_use_log(min(self.nb_array), max(self.nb_array)):
+            print(f"Using LOG sampling for nb: {min(self.nb_array)} to {max(self.nb_array)}")
+            toolbox.register("nb_attr", log_uniform, min(self.nb_array), max(self.nb_array))
+        else:
+            print(f"Using LINEAR sampling for nb: {min(self.nb_array)} to {max(self.nb_array)}")
+            toolbox.register("nb_attr", random.uniform, min(self.nb_array), max(self.nb_array))
 
         # Create an individual by combining all attributes
         toolbox.register("individual", tools.initCycle, creator.Individual,
@@ -719,12 +799,14 @@ class GalacticEvolutionGA:
 
 
         # Apply physics penalty
+        print("Checking physics...")
         primary_loss_value = apply_physics_penalty(
             primary_loss_value, 
             MDF_x_data, MDF_y_data, 
             alpha_arrs, 
             age_x_data, age_y_data
         )
+        print("...physics cehcked! :)")
 
         # Return the result with a detailed label
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '

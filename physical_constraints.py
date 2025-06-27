@@ -50,13 +50,13 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum(bin1_alpha <= 0.15)
             violation_fraction = violations / len(bin1_alpha)
             
-            print(f"  {element_names[i]} Bin1 ([Fe/H] < -1.0): {violations}/{len(bin1_alpha)} violations ({violation_fraction:.2%})")
+            #print(f"  {element_names[i]} Bin1 ([Fe/H] < -1.0): {violations}/{len(bin1_alpha)} violations ({violation_fraction:.2%})")
             
             if violation_fraction > 0.05:  # More than 5% violations
                 if liberal:
                     penalty_factor *= (1 + 50 * violation_fraction)
                 else:
-                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin1_alpha)} points <= 0.15 for [Fe/H] < -1.0")
+                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin1_alpha)} points <= 0.15 for [Fe/H] < -1.0")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
@@ -69,13 +69,13 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.6))
             violation_fraction = violations / len(bin2_alpha)
             
-            print(f"  {element_names[i]} Bin2 (-1.0 to -0.5): {violations}/{len(bin2_alpha)} violations ({violation_fraction:.2%})")
+            #print(f"  {element_names[i]} Bin2 (-1.0 to -0.5): {violations}/{len(bin2_alpha)} violations ({violation_fraction:.2%})")
             
             if violation_fraction > 0.10:  # More than 10% violations
                 if liberal:
                     penalty_factor *= (1 + 20 * violation_fraction)
                 else:
-                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin2_alpha)} points outside [0, 0.4] for -1.0 <= [Fe/H] < -0.5")
+                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin2_alpha)} points outside [0, 0.4] for -1.0 <= [Fe/H] < -0.5")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
@@ -88,20 +88,20 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
             violations = np.sum((bin3_alpha < -0.2) | (bin3_alpha > 0.2))
             violation_fraction = violations / len(bin3_alpha)
             
-            print(f"  {element_names[i]} Bin3 ([Fe/H] > 0.0): {violations}/{len(bin3_alpha)} violations ({violation_fraction:.2%})")
-            print(f"    Min: {np.min(bin3_alpha):.3f}, Max: {np.max(bin3_alpha):.3f}")
+            #print(f"  {element_names[i]} Bin3 ([Fe/H] > 0.0): {violations}/{len(bin3_alpha)} violations ({violation_fraction:.2%})")
+            #print(f"    Min: {np.min(bin3_alpha):.3f}, Max: {np.max(bin3_alpha):.3f}")
             
             if violation_fraction > 0.10:  # More than 10% violations
                 if liberal:
                     penalty_factor *= (1 + 20 * violation_fraction)
                 else:
-                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin3_alpha)} points outside [-0.25, 0.25] for [Fe/H] > 0.0")
+                    #print(f"REJECTED: {element_names[i]} has {violations}/{len(bin3_alpha)} points outside [-0.25, 0.25] for [Fe/H] > 0.0")
                     is_physical = False
                     return is_physical, penalty_factor
             elif violations > 0:
                 penalty_factor *= (1 + 5 * violation_fraction)
     
-    print(f"Alpha constraints penalty factor: {penalty_factor:.2f}")
+    #print(f"Alpha constraints penalty factor: {penalty_factor:.2f}")
     return is_physical, penalty_factor
 
 
@@ -128,7 +128,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         if liberal:
             penalty_factor *= 20.0
         else:
-            print("REJECTED: Negative MDF values")
+            #print("REJECTED: Negative MDF values")
             is_physical = False
             return is_physical, penalty_factor
     
@@ -141,7 +141,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 10.0
             else:
-                print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
+                #print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
                 is_physical = False
                 return is_physical, penalty_factor
 
@@ -154,7 +154,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 10.0
             else:
-                print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
+                #print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
                 is_physical = False
                 return is_physical, penalty_factor
     
@@ -174,7 +174,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 5.0
             else:
-                print(f"REJECTED: Low [Fe/H] tail too high (max = {max_tail_count:.3f})")
+                #print(f"REJECTED: Low [Fe/H] tail too high (max = {max_tail_count:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
         
@@ -184,7 +184,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 3.0
             else:
-                print(f"REJECTED: Low [Fe/H] tail mean too high (mean = {mean_tail_count:.3f})")
+                #print(f"REJECTED: Low [Fe/H] tail mean too high (mean = {mean_tail_count:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
 
@@ -198,14 +198,14 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 10.0
             else:
-                print(f"REJECTED: Extreme low [Fe/H] tail too high (max = {max_extreme_tail:.3f})")
+                #print(f"REJECTED: Extreme low [Fe/H] tail too high (max = {max_extreme_tail:.3f})")
                 is_physical = False
                 return is_physical, penalty_factor
     # ===============================
     # 2. SIMPLE ALPHA ELEMENT CONSTRAINTS
     # ===============================
     
-    print("Checking alpha constraints:")
+    #print("Checking alpha constraints:")
     alpha_is_physical, alpha_penalty = check_simple_alpha_constraints(alpha_arrs, liberal=liberal)
     
     if not alpha_is_physical:
@@ -230,7 +230,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
             if liberal:
                 penalty_factor *= 1.3
             else:
-                print("REJECTED: Unreasonable age range")
+                #print("REJECTED: Unreasonable age range")
                 is_physical = False
                 return is_physical, penalty_factor
     
@@ -245,12 +245,12 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     
     for arr in all_arrays:
         if len(arr) > 0 and (np.any(np.isnan(arr)) or np.any(np.isinf(arr))):
-            print("REJECTED: NaN or inf values found")
+            #print("REJECTED: NaN or inf values found")
             is_physical = False
             penalty_factor *= 10.0
             return is_physical, penalty_factor
     
-    print(f"Model PASSED with total penalty factor: {penalty_factor:.2f}")
+    #print(f"Model PASSED with total penalty factor: {penalty_factor:.2f}")
     return is_physical, penalty_factor
 
 
@@ -259,9 +259,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     Convenience function to apply physics penalty to a loss value.
     """
     
-    is_physical, penalty_factor = check_physical_plausibility(
-        MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False
-    )
+    is_physical, penalty_factor = check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=True)
     
     if not is_physical:
         # Return a very high loss for unphysical models

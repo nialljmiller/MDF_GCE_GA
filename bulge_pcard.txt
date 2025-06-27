@@ -30,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 8
+popsize: 128
 
 #How many generations (/epochs) are performed. 
 

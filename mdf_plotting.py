@@ -1127,7 +1127,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     
     # Define continuous parameter names and extract values
     continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
-                        'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb']
+                        'sfe', 'delta_sfe', 'imf_upper', 'nb']
     
     # Extract parameter matrix
     param_matrix = df[continuous_params].values
@@ -1154,7 +1154,6 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     bars = ax1.bar(range(len(explained_variance)), explained_variance, color='steelblue', alpha=0.7)
     ax1.set_xlabel('Principal Component')
     ax1.set_ylabel('Eigenvalue (Variance)')
-    ax1.set_title('PCA Eigenvalues\n(Small values = Degeneracies)')
     ax1.set_yscale('log')
     
     # Highlight small eigenvalues (degeneracies)
@@ -1169,8 +1168,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     cumulative_var = np.cumsum(explained_variance_ratio)
     ax2.plot(range(len(cumulative_var)), cumulative_var, 'o-', color='darkgreen', linewidth=2)
     ax2.set_xlabel('Number of Components')
-    ax2.set_ylabel('Cumulative Explained Variance')
-    ax2.set_title('Cumulative Variance Explained')
+    ax2.set_ylabel('Cumulative Variance')
     ax2.grid(True, alpha=0.3)
     ax2.axhline(0.95, color='red', linestyle='--', alpha=0.7, label='95%')
     ax2.legend()
@@ -1182,7 +1180,6 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax3.set_xticklabels(continuous_params, rotation=45, ha='right')
     ax3.set_yticks(range(6))
     ax3.set_yticklabels([f'PC{i+1}' for i in range(6)])
-    ax3.set_title('Principal Component Loadings\n(How parameters contribute to each PC)')
     plt.colorbar(im, ax=ax3, fraction=0.02)
     
     # Add text annotations for strong loadings
@@ -1202,7 +1199,6 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     scatter = ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)')
     ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
-    ax4.set_title('Population in PC Space\n(Elongation shows degeneracies)')
     plt.colorbar(scatter, ax=ax4, label='Fitness (WRMSE)')
     
     # PC2 vs PC3
@@ -1210,14 +1206,12 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax5.scatter(pca_result[:, 1], pca_result[:, 2], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax5.set_xlabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
     ax5.set_ylabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
-    ax5.set_title('PC2 vs PC3')
     
     # PC3 vs PC4
     ax6 = fig.add_subplot(gs[1, 2])
     ax6.scatter(pca_result[:, 2], pca_result[:, 3], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax6.set_xlabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
     ax6.set_ylabel(f'PC4 ({explained_variance_ratio[3]:.1%} variance)')
-    ax6.set_title('PC3 vs PC4')
     
     # 5. Example parameter pair showing degeneracy
     ax7 = fig.add_subplot(gs[1, 3])
@@ -1230,10 +1224,12 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     param1_name = continuous_params[param1_idx]
     param2_name = continuous_params[param2_idx]
     
-    ax7.scatter(df[param1_name], df[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20)
+    ax7.scatter(df[param1_name], df[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20, label=f'r = {param_corr[max_corr_idx]:.3f}')
     ax7.set_xlabel(param1_name)
     ax7.set_ylabel(param2_name)
-    ax7.set_title(f'Most Correlated Pair\n(r = {param_corr[max_corr_idx]:.3f})')
+    ax7.legend()
+
+    
     
     # 6. Parameter distributions along degenerate vs constrained directions
     ax8 = fig.add_subplot(gs[2, :2])
@@ -1246,7 +1242,6 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax8.hist(least_constrained, bins=30, alpha=0.7, label=f'Least constrained (PC{len(explained_variance)}, λ={explained_variance[-1]:.6f})', color='red')
     ax8.set_xlabel('Projection Value')
     ax8.set_ylabel('Count')
-    ax8.set_title('Population Spread: Constrained vs Degenerate Directions')
     ax8.legend()
     
     # 7. Degeneracy identification table
@@ -1285,13 +1280,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
             for j in range(len(row)):
                 table[(i, j)].set_facecolor('#ffcccc')
     
-    ax9.set_title('Parameter Degeneracy Summary')
-    
-    # Main title
-    fig.suptitle('PCA Analysis: Parameter Degeneracies and Constraints\n' + 
-                 f'Small eigenvalues indicate degenerate parameter combinations', 
-                 fontsize=16, fontweight='bold')
-    
+
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -1317,7 +1306,7 @@ def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', 
     
     df = pd.read_csv(results_file)
     continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
-                        'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb']
+                        'sfe', 'delta_sfe', 'imf_upper', 'nb']
     
     # Calculate correlation matrix
     corr_matrix = df[continuous_params].corr()
@@ -1329,9 +1318,7 @@ def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', 
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Show only lower triangle
     sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='RdBu_r', center=0,
                 square=True, linewidths=0.5, cbar_kws={"shrink": .8}, ax=ax)
-    
-    ax.set_title('Parameter Correlation Matrix\n(Strong correlations indicate potential degeneracies)', 
-                fontsize=14, fontweight='bold')
+
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')

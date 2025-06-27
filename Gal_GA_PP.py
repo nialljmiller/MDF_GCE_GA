@@ -147,7 +147,7 @@ class GalacticEvolutionGA:
             'mae': compute_mae,
             'mape': compute_mape,
             'huber': compute_huber,
-            'cosine_similarity': compute_cosine_similarity,
+            'cosine': compute_cosine_similarity,
             'ks': compute_ks_distance,
             'ensemble': compute_ensemble_metric,
             'log_cosh': compute_log_cosh
@@ -252,7 +252,7 @@ class GalacticEvolutionGA:
                 return self.uniform_mutate(individual)
             
         elif self.fancy_mutation.lower() == 'gaussian':
-            def mutate_with_population(individual, base_sigma_scale=0.01):
+            def mutate_with_population(individual, base_sigma_scale=0.1):
                 return self.gaussian_mutate(individual, base_sigma_scale=base_sigma_scale)
                 
 
@@ -414,7 +414,7 @@ class GalacticEvolutionGA:
         progress = generation / num_generations
         
         # If diversity is low, increase mutation rate to explore more
-        if diversity < 0.1 * (self.sigma_2_max - self.sigma_2_min):
+        if diversity < 0.2 * (self.sigma_2_max - self.sigma_2_min):
             self.mutpb = min(self.mutpb * 1.1, 0.7)  # Increase mutation rate
             self.cxpb = max(self.cxpb * 0.9, 0.3)    # Decrease crossover rate
         
@@ -538,7 +538,7 @@ class GalacticEvolutionGA:
                         base_scale = base_sigma_scale
                     
                     # Add randomness to step size (prevents uniform steps)
-                    step_multiplier = 0.1 + 1.5 * random.random()  # 0.5x to 2x variation
+                    step_multiplier = 0.1 + 2.0 * random.random()
                     sigma = range_size * base_scale * step_multiplier
                     
                     # Anti-oscillation: if we're moving back toward previous value, 
@@ -567,6 +567,70 @@ class GalacticEvolutionGA:
         
         return individual,
 
+
+
+
+
+
+
+    def GenAl(
+        self,
+        population_size,
+        num_generations,
+        population,
+        toolbox,
+        checkpoint_manager=None,
+        start_gen=0,
+        output_interval=None,
+    ):
+        total_eval_time = 0
+        total_eval_steps = 0
+        total_start_time = time.time()
+
+        # Define helper function for re-quantization
+        def requantize(ind):
+            ind[0] = min(self.sigma_2_list, key=lambda x: abs(x - ind[0]))  # Snap sigma_2 to nearest
+            ind[1] = min(self.tmax_2_list, key=lambda x: abs(x - ind[1]))   # Snap tmax_2 to nearest
+            ind[2] = min(self.infall_timescale_2_list, key=lambda x: abs(x - ind[2]))  # Snap infall_2 to nearest
+            return ind
+
+        # Use a context manager for the multiprocessing pool
+        if self.PP:
+
+            with Pool(processes=16) as pool:
+                toolbox.register("map", pool.map)
+                self._run_genetic_algorithm(
+                    population,
+                    toolbox,
+                    num_generations,
+                    requantize,
+                    start_gen=start_gen,
+                    checkpoint_manager=checkpoint_manager,
+                    output_interval=output_interval,
+                )
+        else:
+            self._run_genetic_algorithm(
+                population,
+                toolbox,
+                num_generations,
+                requantize,
+                start_gen=start_gen,
+                checkpoint_manager=checkpoint_manager,
+                output_interval=output_interval,
+            )
+
+        total_time = time.time() - total_start_time
+
+        # Calculate and print the average evaluation time per individual
+        if total_eval_steps > 0:
+            eff_avg_eval_time = total_time / total_eval_steps
+            overall_avg_eval_time = total_eval_time / total_eval_steps
+            print(f"Overall average evaluation time per individual: {overall_avg_eval_time:.4f} seconds.")
+            print(f"Effective overall average evaluation time per individual: {eff_avg_eval_time:.4f} seconds.")
+        else:
+            print("No evaluations were performed.")
+        
+        gc.collect()  # Final garbage collection
 
 
     def evaluate(self, individual):
@@ -690,71 +754,6 @@ class GalacticEvolutionGA:
         return (primary_loss_value,), result
 
 
-
-
-
-
-
-    def GenAl(
-        self,
-        population_size,
-        num_generations,
-        population,
-        toolbox,
-        checkpoint_manager=None,
-        start_gen=0,
-        output_interval=None,
-    ):
-        total_eval_time = 0
-        total_eval_steps = 0
-        total_start_time = time.time()
-
-        # Define helper function for re-quantization
-        def requantize(ind):
-            ind[0] = min(self.sigma_2_list, key=lambda x: abs(x - ind[0]))  # Snap sigma_2 to nearest
-            ind[1] = min(self.tmax_2_list, key=lambda x: abs(x - ind[1]))   # Snap tmax_2 to nearest
-            ind[2] = min(self.infall_timescale_2_list, key=lambda x: abs(x - ind[2]))  # Snap infall_2 to nearest
-            return ind
-
-        # Use a context manager for the multiprocessing pool
-        if self.PP:
-
-            with Pool(processes=16) as pool:
-                toolbox.register("map", pool.map)
-                self._run_genetic_algorithm(
-                    population,
-                    toolbox,
-                    num_generations,
-                    requantize,
-                    start_gen=start_gen,
-                    checkpoint_manager=checkpoint_manager,
-                    output_interval=output_interval,
-                )
-        else:
-            self._run_genetic_algorithm(
-                population,
-                toolbox,
-                num_generations,
-                requantize,
-                start_gen=start_gen,
-                checkpoint_manager=checkpoint_manager,
-                output_interval=output_interval,
-            )
-
-        total_time = time.time() - total_start_time
-
-        # Calculate and print the average evaluation time per individual
-        if total_eval_steps > 0:
-            eff_avg_eval_time = total_time / total_eval_steps
-            overall_avg_eval_time = total_eval_time / total_eval_steps
-            print(f"Overall average evaluation time per individual: {overall_avg_eval_time:.4f} seconds.")
-            print(f"Effective overall average evaluation time per individual: {eff_avg_eval_time:.4f} seconds.")
-        else:
-            print("No evaluations were performed.")
-        
-        gc.collect()  # Final garbage collection
-
-
     def _run_genetic_algorithm(
         self,
         population,
@@ -767,10 +766,12 @@ class GalacticEvolutionGA:
     ):
         if not hasattr(self, 'walker_history') or start_gen == 0:
             self.walker_history = {i: [] for i in range(len(population))}
+            
         for gen in range(start_gen, num_generations):
             print(f"-- Generation {gen + 1}/{num_generations} --")
             self.gen = gen
-            # Step 1: Evaluate individuals with invalid fitness
+            
+            # Step 1: Evaluate individuals with invalid fitness (initial population)
             invalid_ind = [ind for ind in population if not ind.fitness.valid]
             if invalid_ind:
                 if self.PP:
@@ -789,33 +790,40 @@ class GalacticEvolutionGA:
                     self.model_numbers.append(result['model_number'])
                     self.model_count += 1
 
-
             gc.collect()
 
             # Step 2: Select the next generation
-            offspring = toolbox.select(population)#, len(population))
+            offspring = toolbox.select(population)
             offspring = list(map(toolbox.clone, offspring))
 
-            # Step 3: Apply mutation and crossover
+            # Apply mutation
             for mutant in offspring:
-                if random.random() < self.mutpb:
+                if mutant.fitness.values[0] > 10.0:
+                    toolbox.mutate(mutant)
                     toolbox.mutate(mutant)
                     del mutant.fitness.values
 
+            # Step 3: Apply crossover and mutation
+            # Apply crossover first
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
                 if random.random() < self.cxpb:
                     toolbox.mate(child1, child2)
                     del child1.fitness.values
                     del child2.fitness.values
 
+            # Apply mutation
+            for mutant in offspring:
+                if random.random() < self.mutpb:
+                    toolbox.mutate(mutant)
+                    del mutant.fitness.values
+
+            # Step 4: Handle quantization and prevent duplicates
             if self.quant_individuals:
                 offspring = [requantize(ind) for ind in offspring]
+            
+            offspring = self.prevent_duplicates(offspring, toolbox)
 
-            if round(gen % (num_generations / 4)) == 0:
-                print_population(self, population, generation=gen)
-
-
-            # Step 4: Evaluate offspring with invalid fitness
+            # Step 5: Evaluate offspring with invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
             if invalid_ind:
                 if self.PP:
@@ -834,30 +842,29 @@ class GalacticEvolutionGA:
                     self.model_numbers.append(result['model_number'])
                     self.model_count += 1
 
-            # *** Here’s where we update the operator rates dynamically ***
-            self.update_operator_rates(population, gen, num_generations)
-            offspring = self.prevent_duplicates(offspring, toolbox)
-
-            # After evaluations, update population and move on to next generation
+            # Step 6: Record walker history for current population before replacement
             for idx, ind in enumerate(population):
                 self.walker_history[idx].append(list(ind))
+
+            # Step 7: Replace population with offspring
             population[:] = offspring
 
-            # Apply adaptive mutation rates
-            for mutant in offspring:
-                adaptive_rate = self.adaptive_mutation_rate(mutant, population)
-                if random.random() < adaptive_rate:
-                    toolbox.mutate(mutant)
-                    del mutant.fitness.values
+            # Step 8: Update operator rates for next generation
+            self.update_operator_rates(population, gen, num_generations)
 
+            # Step 9: Debug output and housekeeping
+            if round(gen % (num_generations / 4)) == 0:
+                print_population(self, population, generation=gen)
 
             gc.collect()  # clean up
 
+            # Step 10: Save checkpoints and partial results
             if checkpoint_manager:
                 checkpoint_manager.save(gen, population, self)
 
             if output_interval and ((gen + 1) % output_interval == 0 or gen == num_generations - 1):
                 self.save_partial_results(gen)
+
 
     def save_partial_results(self, generation):
         """Save results and generate plots for the current generation."""
@@ -879,3 +886,10 @@ class GalacticEvolutionGA:
         print(f"Results saved to: {results_file}")
 
         mdf_plotting.generate_all_plots(self, self.feh, self.normalized_count, results_file)
+
+
+
+
+
+
+

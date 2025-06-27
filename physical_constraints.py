@@ -1,28 +1,113 @@
 import numpy as np
 
-
-
-def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=False):
+def check_simple_alpha_constraints(alpha_arrs, liberal=False):
     """
-    Check if model outputs are physically plausible.
+    Simple three-bin check for alpha element abundances.
     
     Parameters:
     -----------
-    MDF_x_data, MDF_y_data : arrays
-        Metallicity distribution function
     alpha_arrs : list of [x_data, y_data] pairs
         Alpha element abundances vs [Fe/H] for [Mg/Fe], [Si/Fe], [Ca/Fe], [Ti/Fe]
-    age_x_data, age_y_data : arrays
-        Age vs [Fe/H] data
     liberal : bool
-        If True, use very loose constraints
+        If True, use penalties instead of hard rejection
         
     Returns:
     --------
     is_physical : bool
-        True if model passes all physical checks
+        True if model passes all checks
     penalty_factor : float
         Multiplier for loss function (1.0 = no penalty, >1.0 = penalty)
+    """
+    
+    penalty_factor = 1.0
+    is_physical = True
+    
+    if len(alpha_arrs) < 4:  # Need all 4 alpha elements
+        return True, 1.0
+    
+    element_names = ['Mg', 'Si', 'Ca', 'Ti']
+    
+    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs[:3]):
+        alpha_x = np.array(alpha_x)
+        alpha_y = np.array(alpha_y)
+        
+        # Skip if no data
+        if len(alpha_x) == 0 or len(alpha_y) == 0:
+            continue
+            
+        # Skip if all NaN or infinite
+        valid_mask = np.isfinite(alpha_x) & np.isfinite(alpha_y)
+        if np.sum(valid_mask) == 0:
+            continue
+            
+        alpha_x = alpha_x[valid_mask]
+        alpha_y = alpha_y[valid_mask]
+        
+        # Bin 1: [Fe/H] < -1.0 → alpha should be > 0.15
+        bin1_mask = alpha_x < -1.0
+        if np.sum(bin1_mask) > 0:
+            bin1_alpha = alpha_y[bin1_mask]
+            violations = np.sum(bin1_alpha <= 0.15)
+            violation_fraction = violations / len(bin1_alpha)
+            
+            print(f"  {element_names[i]} Bin1 ([Fe/H] < -1.0): {violations}/{len(bin1_alpha)} violations ({violation_fraction:.2%})")
+            
+            if violation_fraction > 0.05:  # More than 5% violations
+                if liberal:
+                    penalty_factor *= (1 + 50 * violation_fraction)
+                else:
+                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin1_alpha)} points <= 0.15 for [Fe/H] < -1.0")
+                    is_physical = False
+                    return is_physical, penalty_factor
+            elif violations > 0:
+                penalty_factor *= (1 + 10 * violation_fraction)
+        
+        # Bin 2: -1.0 <= [Fe/H] < -0.5 → alpha should be between 0 and 0.4
+        bin2_mask = (alpha_x >= -1.0) & (alpha_x < -0.5)
+        if np.sum(bin2_mask) > 0:
+            bin2_alpha = alpha_y[bin2_mask]
+            violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.6))
+            violation_fraction = violations / len(bin2_alpha)
+            
+            print(f"  {element_names[i]} Bin2 (-1.0 to -0.5): {violations}/{len(bin2_alpha)} violations ({violation_fraction:.2%})")
+            
+            if violation_fraction > 0.10:  # More than 10% violations
+                if liberal:
+                    penalty_factor *= (1 + 20 * violation_fraction)
+                else:
+                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin2_alpha)} points outside [0, 0.4] for -1.0 <= [Fe/H] < -0.5")
+                    is_physical = False
+                    return is_physical, penalty_factor
+            elif violations > 0:
+                penalty_factor *= (1 + 5 * violation_fraction)
+        
+        # Bin 3: [Fe/H] > 0.0 → alpha should be between -0.25 and 0.25
+        bin3_mask = alpha_x > 0.0
+        if np.sum(bin3_mask) > 0:
+            bin3_alpha = alpha_y[bin3_mask]
+            violations = np.sum((bin3_alpha < -0.2) | (bin3_alpha > 0.2))
+            violation_fraction = violations / len(bin3_alpha)
+            
+            print(f"  {element_names[i]} Bin3 ([Fe/H] > 0.0): {violations}/{len(bin3_alpha)} violations ({violation_fraction:.2%})")
+            print(f"    Min: {np.min(bin3_alpha):.3f}, Max: {np.max(bin3_alpha):.3f}")
+            
+            if violation_fraction > 0.10:  # More than 10% violations
+                if liberal:
+                    penalty_factor *= (1 + 20 * violation_fraction)
+                else:
+                    print(f"REJECTED: {element_names[i]} has {violations}/{len(bin3_alpha)} points outside [-0.25, 0.25] for [Fe/H] > 0.0")
+                    is_physical = False
+                    return is_physical, penalty_factor
+            elif violations > 0:
+                penalty_factor *= (1 + 5 * violation_fraction)
+    
+    print(f"Alpha constraints penalty factor: {penalty_factor:.2f}")
+    return is_physical, penalty_factor
+
+
+def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=False):
+    """
+    Check if model outputs are physically plausible with simple alpha constraints.
     """
     
     penalty_factor = 1.0
@@ -35,7 +120,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     age_y = np.array(age_y_data)
     
     # ===============================
-    # 1. MDF CHECKS
+    # 1. BASIC MDF CHECKS
     # ===============================
     
     # Check for negative MDF values
@@ -43,6 +128,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         if liberal:
             penalty_factor *= 20.0
         else:
+            print("REJECTED: Negative MDF values")
             is_physical = False
             return is_physical, penalty_factor
     
@@ -51,177 +137,102 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         peak_idx = np.argmax(MDF_y)
         peak_feh = MDF_x[peak_idx]
         
-        # Very liberal: peak should be between -2.5 and +1.0
         if not (-1.0 <= peak_feh <= 1.0):
             if liberal:
-                penalty_factor *= 10.5
+                penalty_factor *= 10.0
             else:
+                print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
                 is_physical = False
                 return is_physical, penalty_factor
-    
-    # Check MDF isn't too narrow (avoid delta functions)
-    if len(MDF_y) > 2:
-        # Find width at half maximum
-        half_max = np.max(MDF_y) / 20.0
-        above_half = MDF_y >= half_max
-        if np.sum(above_half) < 3:  # Less than 3 points above half max
-            if liberal:
-                penalty_factor *= 10.3
-            else:
-                is_physical = False
-                return is_physical, penalty_factor
-    
-    # ===============================
-    # 2. ALPHA ELEMENT CHECKS
-    # ===============================
-    
-    if len(alpha_arrs) >= 4:  # We expect [Mg/Fe], [Si/Fe], [Ca/Fe], [Ti/Fe]
+
+    # Check MDF peak location (should be reasonable)
+    if len(MDF_y) > 0 and np.max(MDF_y) > 0:
+        peak_idx = np.argmax(MDF_y)
+        peak_feh = MDF_x[peak_idx]
         
-        for i, (alpha_x, alpha_y) in enumerate(alpha_arrs[:4]):
-            alpha_x = np.array(alpha_x)
-            alpha_y = np.array(alpha_y)
-            
-            # Skip if no data
-            if len(alpha_x) == 0 or len(alpha_y) == 0:
-                continue
-                
-            # === CLIP alpha_y to physical range before checks
-            # Drop values outside ±2.0 (or whatever you define as "insane")
-            physical_mask = (alpha_y >= -2.0) & (alpha_y <= 2.0)
-            alpha_x = alpha_x[physical_mask]
-            alpha_y = alpha_y[physical_mask]
-
-            # Check for extreme alpha values
-            if np.any(alpha_y > 1.0) or np.any(alpha_y < -1.0):
-                if liberal:
-                    penalty_factor *= 1.2
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            
-            # *** FIXED: Check for metal-poor stars with [Fe/H] < -0.5 ***
-            metal_poor_mask = alpha_x < -0.5
-            if np.sum(metal_poor_mask) > 0:  # FIX: Check if ANY points exist (not > 0.05!)
-                metal_poor_alpha = alpha_y[metal_poor_mask]
-                
-                # STRICT: NO alpha values <= 0 allowed for metal-poor stars
-                if np.any(metal_poor_alpha <= 0.0):
-                    if liberal:
-                        penalty_factor *= 100.0  # Massive penalty
-                    else:
-                        is_physical = False
-                        return is_physical, penalty_factor
-                
-                # Additional check: mean should be substantially positive
-                if np.mean(metal_poor_alpha) < 0.1:
-                    if liberal:
-                        penalty_factor *= 20.0
-                    else:
-                        penalty_factor *= 10.0
-                        
-                # Minimum value should be well above zero
-                if np.min(metal_poor_alpha) < 0.05:
-                    penalty_factor *= 50.0
-
-            # *** FIXED: Even stricter for very metal-poor stars [Fe/H] < -1.0 ***
-            very_metal_poor_mask = alpha_x < -1.0
-            if np.sum(very_metal_poor_mask) > 0:  # FIX: Check if ANY points exist (not > 0.2!)
-                very_metal_poor_alpha = alpha_y[very_metal_poor_mask]
-                
-                # These MUST be significantly alpha-enhanced
-                if np.any(very_metal_poor_alpha <= 0.0):
-                    if liberal:
-                        penalty_factor *= 200.0  # Even more massive penalty
-                    else:
-                        is_physical = False
-                        return is_physical, penalty_factor
-                
-                # Stronger requirement for very metal-poor stars
-                if np.mean(very_metal_poor_alpha) < 0.2:
-                    if liberal:
-                        penalty_factor *= 30.0
-                    else:
-                        penalty_factor *= 15.0
-                        
-                # Minimum should be even higher for very metal-poor
-                if np.min(very_metal_poor_alpha) < 0.1:
-                    penalty_factor *= 25.0
-
-            # Check for alpha enhancement at very low [Fe/H] (very liberal check)
-            # Look for points with [Fe/H] < -1.0
-            very_low_feh_mask = alpha_x < -1.0
-            if np.sum(very_low_feh_mask) > 0:
-                very_low_feh_alpha = alpha_y[very_low_feh_mask]
-                # These should be even more enhanced
-                if np.any(very_low_feh_alpha < 0.15):
-                    if liberal:
-                        penalty_factor *= 15.0  # Increased from 5.0
-                    else:
-                        is_physical = False
-                        return is_physical, penalty_factor
-
-            # Check that metal-rich stars ([Fe/H] > 0) don't have excessive alpha enhancement
-            high_feh_mask = alpha_x > 0.0
-            if np.sum(high_feh_mask) > 0:
-                high_feh_alpha = alpha_y[high_feh_mask]
-                # Metal-rich stars should have lower alpha abundances
-                if np.any(high_feh_alpha > 0.3):
-                    if liberal:
-                        penalty_factor *= 2.0
-                    else:
-                        penalty_factor *= 1.5
-            
-            # Check that the overall median alpha is positive (alpha-enhanced galaxy)
-            if np.median(alpha_y) < 0.05:  # Require substantial positive median
-                penalty_factor *= 15.0
-                if np.median(alpha_y) < 0.0:
-                    if liberal:
-                        penalty_factor *= 50.0
-                    else:
-                        is_physical = False
-                        return is_physical, penalty_factor
+        if not (-1.0 <= peak_feh <= 1.0):
+            if liberal:
+                penalty_factor *= 10.0
+            else:
+                print(f"REJECTED: MDF peak at [Fe/H] = {peak_feh:.2f}")
+                is_physical = False
+                return is_physical, penalty_factor
+    
 
     # ===============================
-    # 3. AGE-METALLICITY CHECKS
+    # 2. LOW [Fe/H] TAIL CHECK  
+    # ===============================
+
+    # Check that very metal-poor stars ([Fe/H] < -1.0) have low number counts
+    very_metal_poor_mask = MDF_x < -1.0
+    if np.sum(very_metal_poor_mask) > 0:
+        low_feh_counts = MDF_y[very_metal_poor_mask]
+        
+        # Check maximum value in the tail
+        max_tail_count = np.max(low_feh_counts)
+        if max_tail_count > 0.1:  # Threshold for maximum allowed count in tail
+            if liberal:
+                penalty_factor *= 5.0
+            else:
+                print(f"REJECTED: Low [Fe/H] tail too high (max = {max_tail_count:.3f})")
+                is_physical = False
+                return is_physical, penalty_factor
+        
+        # Check mean value in the tail  
+        mean_tail_count = np.mean(low_feh_counts)
+        if mean_tail_count > 0.05:  # Threshold for mean count in tail
+            if liberal:
+                penalty_factor *= 3.0
+            else:
+                print(f"REJECTED: Low [Fe/H] tail mean too high (mean = {mean_tail_count:.3f})")
+                is_physical = False
+                return is_physical, penalty_factor
+
+    # Even stricter check for extremely metal-poor stars ([Fe/H] < -1.5)
+    extremely_metal_poor_mask = MDF_x < -1.5
+    if np.sum(extremely_metal_poor_mask) > 0:
+        extreme_low_feh_counts = MDF_y[extremely_metal_poor_mask]
+        max_extreme_tail = np.max(extreme_low_feh_counts)
+        
+        if max_extreme_tail > 0.03:  # Very strict threshold for extreme tail
+            if liberal:
+                penalty_factor *= 10.0
+            else:
+                print(f"REJECTED: Extreme low [Fe/H] tail too high (max = {max_extreme_tail:.3f})")
+                is_physical = False
+                return is_physical, penalty_factor
+    # ===============================
+    # 2. SIMPLE ALPHA ELEMENT CONSTRAINTS
     # ===============================
     
-    if age_meta_check:
-
-        if len(age_x) > 0 and len(age_y) > 0:
+    print("Checking alpha constraints:")
+    alpha_is_physical, alpha_penalty = check_simple_alpha_constraints(alpha_arrs, liberal=liberal)
+    
+    if not alpha_is_physical:
+        return False, penalty_factor
+    
+    penalty_factor *= alpha_penalty
+    
+    # ===============================
+    # 3. BASIC AGE-METALLICITY CHECKS
+    # ===============================
+    
+    if age_meta_check and len(age_x) > 0 and len(age_y) > 0:
+        
+        # Convert age from years to Gyr if needed
+        if np.max(age_x) > 100:
+            age_gyr = age_x / 1e9
+        else:
+            age_gyr = age_x
             
-            # Convert age from years to Gyr if needed
-            if np.max(age_x) > 100:  # Likely in years
-                age_gyr = age_x / 1e9
+        # Check for reasonable age range
+        if np.any(age_gyr < 0) or np.any(age_gyr > 15):
+            if liberal:
+                penalty_factor *= 1.3
             else:
-                age_gyr = age_x
-                
-            # Check for reasonable age range
-            if np.any(age_gyr < 0) or np.any(age_gyr > 15):
-                if liberal:
-                    penalty_factor *= 1.3
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            
-            # Very loose check: old stars shouldn't all be super metal-rich
-            if len(age_gyr) > 5:
-                old_stars = age_gyr > 10  # Stars older than 10 Gyr
-                if np.sum(old_stars) > 0:
-                    old_feh = age_y[old_stars]
-                    # If ALL old stars have [Fe/H] > 0, that's suspicious
-                    if np.all(old_feh > 0.2):
-                        if liberal:
-                            penalty_factor *= 1.2
-                        else:
-                            is_physical = False
-                            return is_physical, penalty_factor
-                    
-                    if np.all(old_feh < 0.0):
-                        if liberal:
-                            penalty_factor *= 1.2
-                        else:
-                            is_physical = False
-                            return is_physical, penalty_factor                            
+                print("REJECTED: Unreasonable age range")
+                is_physical = False
+                return is_physical, penalty_factor
     
     # ===============================
     # 4. GLOBAL SANITY CHECKS
@@ -234,27 +245,18 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     
     for arr in all_arrays:
         if len(arr) > 0 and (np.any(np.isnan(arr)) or np.any(np.isinf(arr))):
+            print("REJECTED: NaN or inf values found")
             is_physical = False
             penalty_factor *= 10.0
             return is_physical, penalty_factor
     
+    print(f"Model PASSED with total penalty factor: {penalty_factor:.2f}")
     return is_physical, penalty_factor
 
 
 def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data):
     """
     Convenience function to apply physics penalty to a loss value.
-    
-    Parameters:
-    -----------
-    loss_value : float
-        Original loss value
-    ... : model outputs (same as check_physical_plausibility)
-        
-    Returns:
-    --------
-    penalized_loss : float
-        Loss value with physics penalty applied
     """
     
     is_physical, penalty_factor = check_physical_plausibility(
@@ -263,7 +265,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     
     if not is_physical:
         # Return a very high loss for unphysical models
-        return 1000.0  # High penalty for complete rejection
+        return 1000.0
     else:
         # Apply penalty factor
         return loss_value * penalty_factor

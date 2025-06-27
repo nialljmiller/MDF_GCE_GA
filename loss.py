@@ -42,17 +42,32 @@ def loss_compute(y_true, y_pred, delta=1.0):
 
 def compute_ensemble_metric(GA_class, theory_count_array):
     """
-    Weighted combination of Huber loss and (1 - cosine_similarity).
+    Weighted ensemble of WRMSE, Huber, Cosine Similarity, with KS penalty.
+    All components are minimized.
     """
-    alpha = 0.7  # Adjust weighting as you like
-    beta = 0.3
+    # Core loss terms
+    wrmse_val = compute_wrmse(GA_class, theory_count_array)
+    huber_val = compute_huber(GA_class, theory_count_array)
+    cosine_val = compute_cosine_similarity(GA_class, theory_count_array)
+
+    # KS distance: used as binary or continuous penalty
+    ks_val = compute_ks_distance(GA_class, theory_count_array)
     
-    # Evaluate the existing metrics
-    huber_val = compute_huber(GA_class, theory_count_array)            # lower = better
-    cos_val   = compute_cosine_similarity(GA_class, theory_count_array) # higher = better
-    
-    # Combine them so lower is better overall
-    return alpha * huber_val + beta * (1.0 - cos_val)
+    # ---- Weighted sum ----
+    alpha = 0.7  # WRMSE
+    beta = 0.2   # Cosine
+    gamma = 0.1  # Huber
+
+    base_loss = alpha * wrmse_val + beta * cosine_val + gamma * huber_val
+
+    # ---- KS penalty ----
+    ks_threshold = 0.2  # If KS > this, trigger penalty
+    if ks_val > ks_threshold:
+        penalty_scale = 1.0 + 2.5 * (ks_val - ks_threshold)
+        base_loss *= penalty_scale
+
+    return base_loss
+
 
 def compute_wrmse(GA_class, theory_count_array):
     return wrmse_compute(theory_count_array, GA_class.normalized_count, GA_class.placeholder_sigma_array)
@@ -67,7 +82,7 @@ def compute_huber(GA_class, theory_count_array):
     return np.mean(huber_loss(GA_class.normalized_count, theory_count_array))
 
 def compute_cosine_similarity(GA_class, theory_count_array):
-    return np.dot(GA_class.normalized_count, theory_count_array) / (np.linalg.norm(GA_class.normalized_count) * np.linalg.norm(theory_count_array))
+    return 1 - np.dot(GA_class.normalized_count, theory_count_array) / (np.linalg.norm(GA_class.normalized_count) * np.linalg.norm(theory_count_array))
 
 def compute_log_cosh(GA_class, theory_count_array):
     return np.mean(np.log(np.cosh(theory_count_array - GA_class.normalized_count)))

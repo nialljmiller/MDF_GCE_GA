@@ -30,15 +30,15 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 128
+popsize: 8
 
 #How many generations (/epochs) are performed. 
 
-generations: 999999
+generations: 32
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 50
+output_interval: 4
 
 
 #probability an individual will make babies. 
@@ -59,8 +59,8 @@ selection_threshold: -1
 #a high tournament size will be more likely to focus on faster and simpler solutions to this problem.
 tournament_size: 4
 
-#how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine_similarity','log_cosh','wrmse'
-loss_metric: 'mae'
+#how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
+loss_metric: 'ensemble'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'
@@ -125,8 +125,8 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 #
 ############################################################
 #sfe_array: [0.02]
-sfe_array: [0.002, 5.0]
-delta_sfe_array: [0.0,2.0]
+sfe_array: [0.002, 10.0]
+delta_sfe_array: [-5.0,5.0]
 
 ############################################################
 #

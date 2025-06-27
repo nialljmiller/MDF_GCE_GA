@@ -13,8 +13,9 @@
 *.sqlite
 *.log
 *.out
+*.err
 #*.dat
-
+bu_*
 # Ignore images and binary data
 #*.png
 #*.jpg

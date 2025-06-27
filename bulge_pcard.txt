@@ -30,15 +30,15 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 8
+popsize: 128
 
 #How many generations (/epochs) are performed. 
 
-generations: 32
+generations: 512
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 4
+output_interval: 8
 
 
 #probability an individual will make babies. 

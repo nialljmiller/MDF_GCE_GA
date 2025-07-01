@@ -26,9 +26,9 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
     if len(alpha_arrs) < 4:  # Need all 4 alpha elements
         return True, 1.0
     
-    element_names = ['Mg', 'Si', 'Ca', 'Ti']
+    element_names = ['Si', 'Ca', 'Mg', 'Ti']
     
-    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs[:4]):
+    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs):#[:4]):
         alpha_x = np.array(alpha_x)
         alpha_y = np.array(alpha_y)
         
@@ -124,35 +124,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
                     is_physical = False
                     return is_physical, penalty_factor
         
-        # =====================================
-        # 3. ADDITIONAL DISTRIBUTION CHECKS
-        # =====================================
-        
-        # Check that distribution isn't too narrow (avoid delta functions)
-        std_dev = np.std(alpha_clean)
-        if std_dev < 0.01:  # Too narrow
-            if liberal:
-                penalty_factor *= 10.0
-            else:
-                #print(f"REJECTED: {element_names[i]} distribution too narrow (σ = {std_dev:.4f})")
-                is_physical = False
-                return is_physical, penalty_factor
-        
-        # Check that distribution isn't bimodal in an unphysical way
-        # (This is a simple check - more sophisticated methods exist)
-        hist, bin_edges = np.histogram(alpha_clean, bins=20)
-        peaks = []
-        for j in range(1, len(hist)-1):
-            if hist[j] > hist[j-1] and hist[j] > hist[j+1] and hist[j] > 0.1 * np.max(hist):
-                peaks.append(j)
-        
-        if len(peaks) > 2:  # More than 2 significant peaks is suspicious
-            if liberal:
-                penalty_factor *= 2.0
-            else:
-                #print(f"REJECTED: {element_names[i]} has {len(peaks)} peaks (multimodal)")
-                is_physical = False
-                return is_physical, penalty_factor
+
     
     return is_physical, penalty_factor
 
@@ -220,7 +192,7 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
         bin2_mask = (alpha_x >= -1.0) & (alpha_x < -0.5)
         if np.sum(bin2_mask) > 0:
             bin2_alpha = alpha_y[bin2_mask]
-            violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.6))
+            violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.4))
             violation_fraction = violations / len(bin2_alpha)
             
             if violation_fraction > 0.10:  # More than 10% violations
@@ -397,7 +369,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     
 
 
-    
+
     # ===============================
     # 6. GLOBAL SANITY CHECKS
     # ===============================

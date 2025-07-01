@@ -332,7 +332,7 @@ class GalacticEvolutionGA:
                 return self.uniform_mutate(individual)
             
         elif self.fancy_mutation.lower() == 'gaussian':
-            def mutate_with_population(individual, base_sigma_scale=0.1):
+            def mutate_with_population(individual, base_sigma_scale=0.01):
                 return self.gaussian_mutate(individual, base_sigma_scale=base_sigma_scale)
                 
 
@@ -436,7 +436,7 @@ class GalacticEvolutionGA:
 
                 while attempt < max_attempts:
                     # Use a single, varied perturbation instead of multiple mutations
-                    self.controlled_perturbation(new_ind, strength=0.1 + 0.2 * random.random())
+                    self.controlled_perturbation(new_ind, strength=0.05 + 0.05 * random.random())
                     del new_ind.fitness.values
 
                     new_key = tuple(round(x, 6) if isinstance(x, float) else x for x in new_ind)
@@ -774,7 +774,7 @@ class GalacticEvolutionGA:
         MDF_y_data = np.array(MDF_y_data)
 
 
-        elements = ['[Mg/Fe]','[Si/Fe]','[Ca/Fe]','[Ti/Fe]']
+        elements = ['[Si/Fe]','[Ca/Fe]']#,'[Mg/Fe]','[Ti/Fe]']
         alpha_arrs = []
         for el in elements:
             alpha_x_data, alpha_y_data = GCE_model.inner.plot_spectro(xaxis='[Fe/H]', yaxis=el, return_x_y=True)

@@ -784,7 +784,7 @@ class GalacticEvolutionGA:
         MDF_y_data = np.array(MDF_y_data)
 
 
-        elements = ['[Si/Fe]','[Ca/Fe]']#,'[Mg/Fe]','[Ti/Fe]']
+        elements = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]','[Ti/Fe]']
         alpha_arrs = []
         for el in elements:
             alpha_x_data, alpha_y_data = GCE_model.inner.plot_spectro(xaxis='[Fe/H]', yaxis=el, return_x_y=True)

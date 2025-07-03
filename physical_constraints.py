@@ -26,104 +26,107 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
     if len(alpha_arrs) < 4:  # Need all 4 alpha elements
         return True, 1.0
     
-    element_names = ['Si', 'Ca', 'Mg', 'Ti']
-    
+    element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]','[Ti/Fe]']
+    do_element_names = ['[Si/Fe]','[Ca/Fe]']
+
     for i, (alpha_x, alpha_y) in enumerate(alpha_arrs):#[:4]):
         alpha_x = np.array(alpha_x)
         alpha_y = np.array(alpha_y)
         
-        # Skip if no data
-        if len(alpha_x) == 0 or len(alpha_y) == 0:
-            continue
-            
-        # Skip if all NaN or infinite
-        valid_mask = np.isfinite(alpha_x) & np.isfinite(alpha_y)
-        if np.sum(valid_mask) < 10:  # Need at least 10 points for distribution analysis
-            continue
-            
-        alpha_values = alpha_y[valid_mask]
-        
-        # Remove extreme outliers for distribution analysis
-        Q1, Q3 = np.percentile(alpha_values, [25, 75])
-        IQR = Q3 - Q1
-        outlier_mask = (alpha_values >= Q1 - 3*IQR) & (alpha_values <= Q3 + 3*IQR)
-        alpha_clean = alpha_values[outlier_mask]
-        
-        if len(alpha_clean) < 5:
-            continue
-            
-        # =====================================
-        # 1. PEAK LOCATION CHECK
-        # =====================================
-        
-        # Use kernel density estimation to find peak
-        try:
-            kde = gaussian_kde(alpha_clean)
-            test_points = np.linspace(alpha_clean.min(), alpha_clean.max(), 200)
-            density = kde(test_points)
-            peak_idx = np.argmax(density)
-            peak_location = test_points[peak_idx]
-            
-            # Check if peak is between -0.3 and +0.3
-            if not (-0.3 <= peak_location <= 0.3):
-                violation_severity = abs(peak_location) - 0.3
-                if liberal:
-                    penalty_factor *= (1 + 10 * violation_severity)
-                else:
-                    #print(f"REJECTED: {element_names[i]} peak at {peak_location:.3f} (outside [-0.3, 0.3])")
-                    is_physical = False
-                    return is_physical, penalty_factor
-                    
-        except Exception:
-            # Fallback to simple median if KDE fails
-            peak_location = np.median(alpha_clean)
-            if not (-0.3 <= peak_location <= 0.3):
-                if liberal:
-                    penalty_factor *= 5.0
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-        
-        # =====================================
-        # 2. FWHM CHECK
-        # =====================================
-        
-        try:
-            # Calculate FWHM from KDE
-            max_density = np.max(density)
-            half_max = max_density / 2.0
-            
-            # Find points where density crosses half maximum
-            above_half_max = density >= half_max
-            if np.any(above_half_max):
-                indices_above = np.where(above_half_max)[0]
-                left_idx = indices_above[0]
-                right_idx = indices_above[-1]
+        if element_names[i] in do_element_names:
+
+            # Skip if no data
+            if len(alpha_x) == 0 or len(alpha_y) == 0:
+                continue
                 
-                fwhm = test_points[right_idx] - test_points[left_idx]
+            # Skip if all NaN or infinite
+            valid_mask = np.isfinite(alpha_x) & np.isfinite(alpha_y)
+            if np.sum(valid_mask) < 10:  # Need at least 10 points for distribution analysis
+                continue
                 
-                # Check if FWHM is less than 1.0
-                if fwhm >= 1.0:
-                    violation_severity = fwhm - 1.0
+            alpha_values = alpha_y[valid_mask]
+            
+            # Remove extreme outliers for distribution analysis
+            Q1, Q3 = np.percentile(alpha_values, [25, 75])
+            IQR = Q3 - Q1
+            outlier_mask = (alpha_values >= Q1 - 3*IQR) & (alpha_values <= Q3 + 3*IQR)
+            alpha_clean = alpha_values[outlier_mask]
+            
+            if len(alpha_clean) < 5:
+                continue
+                
+            # =====================================
+            # 1. PEAK LOCATION CHECK
+            # =====================================
+            
+            # Use kernel density estimation to find peak
+            try:
+                kde = gaussian_kde(alpha_clean)
+                test_points = np.linspace(alpha_clean.min(), alpha_clean.max(), 200)
+                density = kde(test_points)
+                peak_idx = np.argmax(density)
+                peak_location = test_points[peak_idx]
+                
+                # Check if peak is between -0.3 and +0.3
+                if not (-0.3 <= peak_location <= 0.3):
+                    violation_severity = abs(peak_location) - 0.3
                     if liberal:
-                        penalty_factor *= (1 + 5 * violation_severity)
+                        penalty_factor *= (1 + 10 * violation_severity)
                     else:
-                        #print(f"REJECTED: {element_names[i]} FWHM = {fwhm:.3f} (>= 1.0)")
+                        #print(f"REJECTED: {element_names[i]} peak at {peak_location:.3f} (outside [-0.3, 0.3])")
                         is_physical = False
                         return is_physical, penalty_factor
                         
-        except Exception:
-            # Fallback to standard deviation-based width estimate
-            std_dev = np.std(alpha_clean)
-            fwhm_approx = 2.355 * std_dev  # FWHM ≈ 2.355 * σ for Gaussian
+            except Exception:
+                # Fallback to simple median if KDE fails
+                peak_location = np.median(alpha_clean)
+                if not (-0.3 <= peak_location <= 0.3):
+                    if liberal:
+                        penalty_factor *= 5.0
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
             
-            if fwhm_approx >= 1.0:
-                if liberal:
-                    penalty_factor *= 3.0
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-        
+            # =====================================
+            # 2. FWHM CHECK
+            # =====================================
+            
+            try:
+                # Calculate FWHM from KDE
+                max_density = np.max(density)
+                half_max = max_density / 2.0
+                
+                # Find points where density crosses half maximum
+                above_half_max = density >= half_max
+                if np.any(above_half_max):
+                    indices_above = np.where(above_half_max)[0]
+                    left_idx = indices_above[0]
+                    right_idx = indices_above[-1]
+                    
+                    fwhm = test_points[right_idx] - test_points[left_idx]
+                    
+                    # Check if FWHM is less than 1.0
+                    if fwhm >= 1.0:
+                        violation_severity = fwhm - 1.0
+                        if liberal:
+                            penalty_factor *= (1 + 5 * violation_severity)
+                        else:
+                            #print(f"REJECTED: {element_names[i]} FWHM = {fwhm:.3f} (>= 1.0)")
+                            is_physical = False
+                            return is_physical, penalty_factor
+                            
+            except Exception:
+                # Fallback to standard deviation-based width estimate
+                std_dev = np.std(alpha_clean)
+                fwhm_approx = 2.355 * std_dev  # FWHM ≈ 2.355 * σ for Gaussian
+                
+                if fwhm_approx >= 1.0:
+                    if liberal:
+                        penalty_factor *= 3.0
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+            
 
     
     return is_physical, penalty_factor
@@ -154,9 +157,10 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
     if len(alpha_arrs) < 4:  # Need all 4 alpha elements
         return True, 1.0
     
-    element_names = ['Mg', 'Si', 'Ca', 'Ti']
-    
-    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs[:3]):
+    element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]','[Ti/Fe]']
+    do_element_names = ['[Si/Fe]','[Ca/Fe]']
+
+    for i, (alpha_x, alpha_y) in enumerate(alpha_arrs):
         alpha_x = np.array(alpha_x)
         alpha_y = np.array(alpha_y)
         
@@ -172,53 +176,54 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
         alpha_x = alpha_x[valid_mask]
         alpha_y = alpha_y[valid_mask]
         
-        # Bin 1: [Fe/H] < -1.0 → alpha should be > 0.15
-        bin1_mask = alpha_x < -1.0
-        if np.sum(bin1_mask) > 0:
-            bin1_alpha = alpha_y[bin1_mask]
-            violations = np.sum(bin1_alpha <= 0.15)
-            violation_fraction = violations / len(bin1_alpha)
+        if element_names[i] in do_element_names:
+            # Bin 1: [Fe/H] < -1.0 → alpha should be > 0.15
+            bin1_mask = alpha_x < -1.0
+            if np.sum(bin1_mask) > 0:
+                bin1_alpha = alpha_y[bin1_mask]
+                violations = np.sum(bin1_alpha <= 0.15)
+                violation_fraction = violations / len(bin1_alpha)
+                
+                if violation_fraction > 0.05:  # More than 5% violations
+                    if liberal:
+                        penalty_factor *= (1 + 50 * violation_fraction)
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+                elif violations > 0:
+                    penalty_factor *= (1 + 10 * violation_fraction)
             
-            if violation_fraction > 0.05:  # More than 5% violations
-                if liberal:
-                    penalty_factor *= (1 + 50 * violation_fraction)
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            elif violations > 0:
-                penalty_factor *= (1 + 10 * violation_fraction)
-        
-        # Bin 2: -1.0 <= [Fe/H] < -0.5 → alpha should be between 0 and 0.4
-        bin2_mask = (alpha_x >= -1.0) & (alpha_x < -0.5)
-        if np.sum(bin2_mask) > 0:
-            bin2_alpha = alpha_y[bin2_mask]
-            violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.4))
-            violation_fraction = violations / len(bin2_alpha)
+            # Bin 2: -1.0 <= [Fe/H] < -0.5 → alpha should be between 0 and 0.4
+            bin2_mask = (alpha_x >= -1.0) & (alpha_x < -0.5)
+            if np.sum(bin2_mask) > 0:
+                bin2_alpha = alpha_y[bin2_mask]
+                violations = np.sum((bin2_alpha < 0.05) | (bin2_alpha > 0.4))
+                violation_fraction = violations / len(bin2_alpha)
+                
+                if violation_fraction > 0.10:  # More than 10% violations
+                    if liberal:
+                        penalty_factor *= (1 + 20 * violation_fraction)
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+                elif violations > 0:
+                    penalty_factor *= (1 + 5 * violation_fraction)
             
-            if violation_fraction > 0.10:  # More than 10% violations
-                if liberal:
-                    penalty_factor *= (1 + 20 * violation_fraction)
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            elif violations > 0:
-                penalty_factor *= (1 + 5 * violation_fraction)
-        
-        # Bin 3: [Fe/H] > 0.0 → alpha should be between -0.25 and 0.25
-        bin3_mask = alpha_x > 0.0
-        if np.sum(bin3_mask) > 0:
-            bin3_alpha = alpha_y[bin3_mask]
-            violations = np.sum((bin3_alpha < -0.2) | (bin3_alpha > 0.2))
-            violation_fraction = violations / len(bin3_alpha)
-            
-            if violation_fraction > 0.10:  # More than 10% violations
-                if liberal:
-                    penalty_factor *= (1 + 20 * violation_fraction)
-                else:
-                    is_physical = False
-                    return is_physical, penalty_factor
-            elif violations > 0:
-                penalty_factor *= (1 + 5 * violation_fraction)
+            # Bin 3: [Fe/H] > 0.0 → alpha should be between -0.25 and 0.25
+            bin3_mask = alpha_x > 0.0
+            if np.sum(bin3_mask) > 0:
+                bin3_alpha = alpha_y[bin3_mask]
+                violations = np.sum((bin3_alpha < -0.2) | (bin3_alpha > 0.2))
+                violation_fraction = violations / len(bin3_alpha)
+                
+                if violation_fraction > 0.10:  # More than 10% violations
+                    if liberal:
+                        penalty_factor *= (1 + 20 * violation_fraction)
+                    else:
+                        is_physical = False
+                        return is_physical, penalty_factor
+                elif violations > 0:
+                    penalty_factor *= (1 + 5 * violation_fraction)
     
     return is_physical, penalty_factor
 

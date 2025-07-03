@@ -46,7 +46,7 @@ crossover_probability: 0.5
 
 #probability that any given invdividual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.5
+mutation_probability: 0.7
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -57,10 +57,10 @@ selection_threshold: -1
 #example : fitting a straight line to a sigmoid. The fastest good enough convergence will be a straight line. 
 #What happens in the likely scenario if the straight line appears in the sample of individuals without a more sophisticated sigmoid guess? i.e. a low order poly will appear before a high order in the evolutionary steps (assuming a nieve prior).
 #a high tournament size will be more likely to focus on faster and simpler solutions to this problem.
-tournament_size: 4
+tournament_size: 2
 
 #how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
-loss_metric: 'ensemble'
+loss_metric: 'wrmse'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'
@@ -69,13 +69,13 @@ fancy_mutation: 'gaussian'
 shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
-gaussian_sigma_scale: 0.01
+gaussian_sigma_scale: 0.05
 
 # Fraction of the difference between parents used as noise during crossover
 crossover_noise_fraction: 0.05
 
 # Base strength for controlled perturbations applied to duplicate individuals
-perturbation_strength: 0.1
+perturbation_strength: 0.2
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.

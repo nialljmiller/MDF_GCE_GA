@@ -67,6 +67,15 @@ fancy_mutation: 'gaussian'
 
 #if the range of future individuals should be restricted iteravitely. if True - faster convergence on minima but less confidence on global minima.
 shrink_range: 'False'
+
+# Controls the scale of gaussian mutations relative to each parameter's range
+gaussian_sigma_scale: 0.01
+
+# Fraction of the difference between parents used as noise during crossover
+crossover_noise_fraction: 0.05
+
+# Base strength for controlled perturbations applied to duplicate individuals
+perturbation_strength: 0.1
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.

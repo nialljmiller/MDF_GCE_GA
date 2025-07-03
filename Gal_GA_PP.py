@@ -100,8 +100,9 @@ def should_use_log(min_val, max_val, threshold=2.0):
 
 class GalacticEvolutionGA:
 
-    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits, 
-                 sn1a_assumptions, stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, loss_metric='huber', fancy_mutation = 'gaussian', shrink_range = False, tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5,  PP = False):
+    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits,
+                 sn1a_assumptions, stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, loss_metric='huber', fancy_mutation = 'gaussian', shrink_range = False,
+                 tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, PP = False):
         # Initialize parameters as instance variables
         self.sn1a_header = sn1a_header
         self.iniab_header = iniab_header
@@ -148,6 +149,9 @@ class GalacticEvolutionGA:
 
         self.cxpb=cxpb
         self.mutpb=mutpb
+        self.gaussian_sigma_scale = gaussian_sigma_scale
+        self.crossover_noise_fraction = crossover_noise_fraction
+        self.perturbation_strength = perturbation_strength
         
         print('############################')
         print(f'Doing {self.fancy_mutation} mutations with {loss_metric} loss and parallel processing is {self.PP}')
@@ -332,8 +336,8 @@ class GalacticEvolutionGA:
                 return self.uniform_mutate(individual)
             
         elif self.fancy_mutation.lower() == 'gaussian':
-            def mutate_with_population(individual, base_sigma_scale=0.01):
-                return self.gaussian_mutate(individual, base_sigma_scale=base_sigma_scale)
+            def mutate_with_population(individual):
+                return self.gaussian_mutate(individual, base_sigma_scale=self.gaussian_sigma_scale)
                 
 
         toolbox.register("mutate", mutate_with_population)
@@ -393,7 +397,7 @@ class GalacticEvolutionGA:
         for i in continuous_indices:
             # Fitness-weighted average with small noise
             avg_val = weight1 * ind1[i] + weight2 * ind2[i]
-            noise_scale = abs(ind1[i] - ind2[i]) * 0.05  # 5% of parent difference
+            noise_scale = abs(ind1[i] - ind2[i]) * self.crossover_noise_fraction
             
             ind1_copy[i] = avg_val + random.gauss(0, noise_scale)
             ind2_copy[i] = avg_val + random.gauss(0, noise_scale)
@@ -436,7 +440,7 @@ class GalacticEvolutionGA:
 
                 while attempt < max_attempts:
                     # Use a single, varied perturbation instead of multiple mutations
-                    self.controlled_perturbation(new_ind, strength=0.05 + 0.05 * random.random())
+                    self.controlled_perturbation(new_ind, strength=self.perturbation_strength * (1 + random.random()))
                     del new_ind.fitness.values
 
                     new_key = tuple(round(x, 6) if isinstance(x, float) else x for x in new_ind)
@@ -453,8 +457,11 @@ class GalacticEvolutionGA:
 
         return distinct_offspring
 
-    def controlled_perturbation(self, individual, strength=0.1):
+    def controlled_perturbation(self, individual, strength=None):
         """Apply a controlled perturbation with varied step sizes"""
+
+        if strength is None:
+            strength = self.perturbation_strength
         for i in range(len(individual)):
             if i in self.categorical_indices:
                 # Small chance to change categorical parameters
@@ -587,8 +594,11 @@ class GalacticEvolutionGA:
         
         return self.mutpb
 
-    def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=0.2):
+    def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=None):
         """Mutation with anti-oscillation and varied step sizes"""
+
+        if base_sigma_scale is None:
+            base_sigma_scale = self.gaussian_sigma_scale
         
         # Store previous values if available (you'd need to track this)
         if hasattr(individual, 'prev_values'):

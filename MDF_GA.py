@@ -72,6 +72,11 @@ loss_metric = params['loss_metric']
 fancy_mutation = params['fancy_mutation']
 shrink_range = params['shrink_range']
 
+# Parameters controlling mutation and augmentation scales
+gaussian_sigma_scale = params.get('gaussian_sigma_scale', 0.01)
+crossover_noise_fraction = params.get('crossover_noise_fraction', 0.05)
+perturbation_strength = params.get('perturbation_strength', 0.1)
+
 
 # Load and normalize observational data
 feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
@@ -145,10 +150,13 @@ def run_ga(cp_manager):
         loss_metric=loss_metric,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
+        gaussian_sigma_scale=gaussian_sigma_scale,
+        crossover_noise_fraction=crossover_noise_fraction,
+        perturbation_strength=perturbation_strength,
         tournament_size=tournament_size,
         threshold=selection_threshold,
-        cxpb=crossover_probability, 
-        mutpb=mutation_probability, 
+        cxpb=crossover_probability,
+        mutpb=mutation_probability,
         PP=True
     )
 
@@ -246,10 +254,13 @@ def load_ga_for_plotting():
         loss_metric=loss_metric,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
+        gaussian_sigma_scale=gaussian_sigma_scale,
+        crossover_noise_fraction=crossover_noise_fraction,
+        perturbation_strength=perturbation_strength,
         tournament_size=tournament_size,
         threshold=selection_threshold,
-        cxpb=crossover_probability, 
-        mutpb=mutation_probability, 
+        cxpb=crossover_probability,
+        mutpb=mutation_probability,
         PP=False  # Don't use parallel processing for plot-only
     )
     

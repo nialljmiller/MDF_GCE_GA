@@ -30,11 +30,11 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 128
+popsize: 16
 
 #How many generations (/epochs) are performed. 
 
-generations: 512
+generations: 128
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
@@ -57,7 +57,7 @@ selection_threshold: -1
 #example : fitting a straight line to a sigmoid. The fastest good enough convergence will be a straight line. 
 #What happens in the likely scenario if the straight line appears in the sample of individuals without a more sophisticated sigmoid guess? i.e. a low order poly will appear before a high order in the evolutionary steps (assuming a nieve prior).
 #a high tournament size will be more likely to focus on faster and simpler solutions to this problem.
-tournament_size: 2
+tournament_size: 3
 
 #how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
 loss_metric: 'wrmse'
@@ -69,7 +69,7 @@ fancy_mutation: 'gaussian'
 shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
-gaussian_sigma_scale: 0.05
+gaussian_sigma_scale: 0.1
 
 # Fraction of the difference between parents used as noise during crossover
 crossover_noise_fraction: 0.05

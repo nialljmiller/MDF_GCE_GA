@@ -94,7 +94,7 @@ def should_use_log(min_val, max_val, threshold=2.0):
     """Check if parameter spans more than threshold orders of magnitude"""
     if min_val <= 0 or max_val <= 0:
         return False
-    return np.log10(max_val / min_val) >= threshold
+    return False#np.log10(max_val / min_val) >= threshold
 
 
 

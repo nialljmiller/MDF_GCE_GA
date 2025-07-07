@@ -71,7 +71,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
                 if not (-0.3 <= peak_location <= 0.3):
                     violation_severity = abs(peak_location) - 0.3
                     if liberal:
-                        penalty_factor *= (100 + 10 * violation_severity)
+                        penalty_factor *= (3 * violation_severity)
                     else:
                         #print(f"REJECTED: {element_names[i]} peak at {peak_location:.3f} (outside [-0.3, 0.3])")
                         is_physical = False
@@ -82,7 +82,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
                 peak_location = np.median(alpha_clean)
                 if not (-0.3 <= peak_location <= 0.3):
                     if liberal:
-                        penalty_factor *= 5.0
+                        penalty_factor *= 2.0
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
@@ -109,7 +109,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
                     if fwhm >= 1.0:
                         violation_severity = fwhm - 1.0
                         if liberal:
-                            penalty_factor *= (1 + 5 * violation_severity)
+                            penalty_factor *= (1 + 1 * violation_severity)
                         else:
                             #print(f"REJECTED: {element_names[i]} FWHM = {fwhm:.3f} (>= 1.0)")
                             is_physical = False
@@ -189,12 +189,12 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.05:  # More than 5% violations
                     if liberal:
-                        penalty_factor *= (10 + 50 * violation_fraction)
+                        penalty_factor *= (3 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
-                    penalty_factor *= (1 + 10 * violation_fraction)
+                    penalty_factor *= (3 * violation_fraction)
             
 
 
@@ -207,12 +207,12 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.10:  # More than 10% violations
                     if liberal:
-                        penalty_factor *= (10 + 20 * violation_fraction)
+                        penalty_factor *= (2 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
-                    penalty_factor *= (10 + 5 * violation_fraction)
+                    penalty_factor *= (2 * violation_fraction)
             
             # Bin 3: [Fe/H] > 0.0 → alpha should be between -0.25 and 0.25
             bin3_mask = alpha_x > 0.0
@@ -223,12 +223,12 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.10:  # More than 10% violations
                     if liberal:
-                        penalty_factor *= (10 + 20 * violation_fraction)
+                        penalty_factor *= (2 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
-                    penalty_factor *= (10 + 5 * violation_fraction)
+                    penalty_factor *= (10 * violation_fraction)
     
     return is_physical, penalty_factor
 
@@ -254,7 +254,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     # Check for negative MDF values
     if np.any(MDF_y < 0):
         if liberal:
-            penalty_factor *= 20.0
+            penalty_factor *= 4.0
         else:
             is_physical = False
             return is_physical, penalty_factor
@@ -266,7 +266,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         
         if not (-1.0 <= peak_feh <= 1.0):
             if liberal:
-                penalty_factor *= 10.0
+                penalty_factor *= 3.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -284,7 +284,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         max_tail_count = np.max(low_feh_counts)
         if max_tail_count > 0.1:  # Threshold for maximum allowed count in tail
             if liberal:
-                penalty_factor *= 5.0
+                penalty_factor *= 2.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -293,7 +293,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         mean_tail_count = np.mean(low_feh_counts)
         if mean_tail_count > 0.05:  # Threshold for mean count in tail
             if liberal:
-                penalty_factor *= 3.0
+                penalty_factor *= 2.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -306,7 +306,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         
         if max_extreme_tail > 0.03:  # Very strict threshold for extreme tail
             if liberal:
-                penalty_factor *= 10.0
+                penalty_factor *= 3.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -348,7 +348,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         # Check for reasonable age range
         if np.any(age_gyr < 0) or np.any(age_gyr > 15):
             if liberal:
-                penalty_factor *= 1.3
+                penalty_factor *= 3.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -356,7 +356,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
 
         if np.any(age_y > 0.7):
             if liberal:
-                penalty_factor *= 10.0
+                penalty_factor *= 3.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor
@@ -379,7 +379,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
                     violation_severity = max(abs(median_young_feh + 0.5), abs(median_young_feh - 0.6)) - 0.5
                     if violation_severity > 0:
                         if liberal:
-                            penalty_factor *= (1 + 20 * violation_severity)
+                            penalty_factor *= (1 + 3 * violation_severity)
                         else:
                             #print(f"REJECTED: Young stars median [Fe/H] = {median_young_feh:.3f} (outside [-0.5, 0.6])")
                             is_physical = False
@@ -400,7 +400,7 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
     for arr in all_arrays:
         if len(arr) > 0 and (np.any(np.isnan(arr)) or np.any(np.isinf(arr))):
             is_physical = False
-            penalty_factor *= 10.0
+            penalty_factor *= 3.0
             return is_physical, penalty_factor
     
     return is_physical, penalty_factor
@@ -411,7 +411,7 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     Convenience function to apply physics penalty to a loss value.
     """
     
-    is_physical, penalty_factor = check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=False, age_meta_check=True)
+    is_physical, penalty_factor = check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=True, age_meta_check=True)
     
     if not is_physical:
         # Return a very high loss for unphysical models

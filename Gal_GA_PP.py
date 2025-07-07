@@ -77,10 +77,10 @@ def parse_inlist(file_path):
 
 def print_population(GA, population, generation):
     """Helper function to print population details."""
-    print(f"\nGeneration {generation}:")
+    print(f"\nFitness:")
     for i, individual in enumerate(population):
         print(f"Individual {i}: {individual}, Fitness: {individual.fitness.values if individual.fitness.valid else 'Not evaluated'}")
-    print(f"\n---------------")
+    print(f"---------------\n")
 
 
 
@@ -503,14 +503,10 @@ class GalacticEvolutionGA:
         
         # If diversity is low, increase mutation rate to explore more
         if diversity < 0.2 * (self.sigma_2_max - self.sigma_2_min):
-            self.mutpb = min(self.mutpb * 1.1, 0.7)  # Increase mutation rate
-            self.cxpb = max(self.cxpb * 0.9, 0.3)    # Decrease crossover rate
-        
-        # If we're in later generations and diversity is still high, favor exploitation
-        elif progress > 0.8 and diversity > 0.3 * (self.sigma_2_max - self.sigma_2_min):
-            self.mutpb = max(self.mutpb * 0.9, 0.1)  # Decrease mutation rate
-            self.cxpb = min(self.cxpb * 1.1, 0.9)    # Increase crossover rate
-            
+            pass
+            #self.mutpb = min(self.mutpb * 1.1, 0.7)  # Increase mutation rate
+            #self.cxpb = max(self.cxpb * 0.9, 0.3)    # Decrease crossover rate
+
         print(f"Generation {generation}: diversity = {diversity:.4f}, " 
               f"mutpb = {self.mutpb:.2f}, cxpb = {self.cxpb:.2f}")
 

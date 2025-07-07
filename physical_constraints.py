@@ -402,7 +402,8 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     
     if not is_physical:
         # Return a very high loss for unphysical models
-        return 1000.0
+        #return 1000.0
+        return loss_value * penalty_factor        
     else:
         # Apply penalty factor
         return loss_value * penalty_factor

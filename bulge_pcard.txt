@@ -46,7 +46,7 @@ crossover_probability: 0.5
 
 #probability that any given invdividual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.7
+mutation_probability: 0.5
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -69,13 +69,13 @@ fancy_mutation: 'gaussian'
 shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
-gaussian_sigma_scale: 0.2
+gaussian_sigma_scale: 0.05
 
 # Fraction of the difference between parents used as noise during crossover
 crossover_noise_fraction: 0.05
 
 # Base strength for controlled perturbations applied to duplicate individuals
-perturbation_strength: 0.2
+perturbation_strength: 0.5
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.

@@ -185,9 +185,10 @@ def run_ga(cp_manager):
     # Define column names based on the structure of GalGA.results
     col_names = [
         'comp_idx', 'imf_idx', 'sn1a_idx', 'sy_idx', 'sn1ar_idx',
-        'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
+        'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
         'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
-        'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh'
+        'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber',
+        'cosine', 'log_cosh', 'fitness'
     ]
 
     # Create DataFrame from results

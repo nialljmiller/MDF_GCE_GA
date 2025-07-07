@@ -180,11 +180,30 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
 
 
 def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
-    """Plot 3D scatter plot with color indicating a specific metric"""
+    """Plot 3D scatter plot with color indicating a specific metric.
+
+    Parameters
+    ----------
+    x, y, z : array-like
+        Coordinates for the scatter plot.
+    color_metric : array-like
+        Values used for colouring the points.
+    label : str
+        Name of the metric. If this contains ``"fitness"`` the colour scale will
+        be logarithmic to better visualise the distribution.
+    """
+
+    # Apply log scaling if this is a fitness based plot
+    if 'fitness' in label.lower():
+        color_metric = np.log10(np.clip(color_metric, 1e-10, None))
+        cbar_label = f'log10({label})'
+    else:
+        cbar_label = label
+
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
     sc = ax.scatter(x, y, z, c=color_metric, cmap='brg')
-    plt.colorbar(sc, label=label)
+    plt.colorbar(sc, label=cbar_label)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_zlabel(zlabel)
@@ -198,10 +217,21 @@ def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2'
 
 
 def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
-    """Plot 2D scatter plot with color indicating a specific metric"""
+    """Plot 2D scatter plot with color indicating a specific metric.
+
+    Similar to :func:`plot_3d_scatter`, if ``label`` contains ``"fitness"`` the
+    colours are scaled in ``log10`` space.
+    """
+
+    if 'fitness' in label.lower():
+        color_metric = np.log10(np.clip(color_metric, 1e-10, None))
+        cbar_label = f'log10({label})'
+    else:
+        cbar_label = label
+
     plt.figure(figsize=(10, 8))
     sc = plt.scatter(x, y, c=color_metric, cmap='brg')
-    plt.colorbar(sc, label=label)
+    plt.colorbar(sc, label=cbar_label)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(f'{label} Loss')
@@ -408,6 +438,10 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
                 # Use the first match's loss value
                 loss_values[gen_idx] = matches.iloc[0][loss_metric]
         
+        # Apply log scaling for fitness if requested
+        if loss_metric == 'fitness':
+            loss_values = np.log10(np.clip(loss_values, 1e-10, None))
+
         # Plot the loss history for this walker
         generations = np.arange(num_generations)
         valid_indices = ~np.isnan(loss_values)
@@ -434,7 +468,10 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     # Add plot details
     plt.title(f"{loss_metric.upper()}")
     plt.xlabel("Generation")
-    plt.ylabel(f"{loss_metric.upper()} Loss")
+    if loss_metric == 'fitness':
+        plt.ylabel("log10(FITNESS) Loss")
+    else:
+        plt.ylabel(f"{loss_metric.upper()} Loss")
     plt.grid(True, alpha=0.3)
     
     # Only show legend for first few walkers to avoid clutter
@@ -535,15 +572,19 @@ def plot_mutation_info_3D(GA, population, fitnesses, base_sigma=1.0, mutation_ty
 
     # At the end of all generations, plot the accumulated data
     if GA.gen + 1 == GA.num_generations:
-        # Prepare the colormap for losses
+        # Prepare the colormap for losses in log space for better contrast
         all_losses = GA.all_losses_successful + GA.all_losses_unsuccessful
-        min_loss = GA.global_min_loss
-        max_loss = GA.global_max_loss
+        log_all = [np.log10(max(l, 1e-10)) for l in all_losses]
+        min_loss = min(log_all)
+        max_loss = max(log_all)
         loss_range = max_loss - min_loss if max_loss != min_loss else 1.0
 
-        # Normalize losses
-        losses_successful_norm = [(loss - min_loss) / loss_range for loss in GA.all_losses_successful]
-        losses_unsuccessful_norm = [(loss - min_loss) / loss_range for loss in GA.all_losses_unsuccessful]
+        losses_successful_norm = [
+            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_successful
+        ]
+        losses_unsuccessful_norm = [
+            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_unsuccessful
+        ]
 
         # Create colormap (darker color for lower loss)
         succmap = cm.get_cmap('YlGn')  # Reverse Greys for darker color at lower values
@@ -704,15 +745,19 @@ def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_ty
 
     # At the end of all generations, plot the accumulated data
     if GA.gen + 1 == GA.num_generations:
-        # Prepare the colormap for losses
+        # Prepare the colormap for losses using log scale
         all_losses = GA.all_losses_successful + GA.all_losses_unsuccessful
-        min_loss = GA.global_min_loss
-        max_loss = GA.global_max_loss
+        log_all = [np.log10(max(l, 1e-10)) for l in all_losses]
+        min_loss = min(log_all)
+        max_loss = max(log_all)
         loss_range = max_loss - min_loss if max_loss != min_loss else 1.0
 
-        # Normalize losses
-        losses_successful_norm = [(loss - min_loss) / loss_range for loss in GA.all_losses_successful]
-        losses_unsuccessful_norm = [(loss - min_loss) / loss_range for loss in GA.all_losses_unsuccessful]
+        losses_successful_norm = [
+            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_successful
+        ]
+        losses_unsuccessful_norm = [
+            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_unsuccessful
+        ]
 
         # Create colormaps
         succmap = cm.get_cmap('YlGn')
@@ -1193,15 +1238,18 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
                         color='white' if abs(components[i, j]) > 0.7 else 'black')
     
     # 4. 2D projections onto first few PCs
-    # Color points by fitness
-    colors = df['wrmse'].values if 'wrmse' in df.columns else np.ones(len(df))
+    # Color points by fitness; use log scale for clarity
+    if 'wrmse' in df.columns:
+        colors = np.log10(np.clip(df['wrmse'].values, 1e-10, None))
+    else:
+        colors = np.zeros(len(df))
     
     # PC1 vs PC2
     ax4 = fig.add_subplot(gs[1, 0])
     scatter = ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)')
     ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
-    plt.colorbar(scatter, ax=ax4, label='Fitness (WRMSE)')
+    plt.colorbar(scatter, ax=ax4, label='log10 Fitness (WRMSE)')
     
     # PC2 vs PC3
     ax5 = fig.add_subplot(gs[1, 1])

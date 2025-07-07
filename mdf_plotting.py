@@ -1104,7 +1104,8 @@ def extract_metrics(results_file):
 
     # Extract metrics
     metrics_dict = {}
-    for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble', 'fitness']:
+    #for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble', 'fitness']:
+    for metric in ['fitness']:
         if metric in df.columns:
             metrics_dict[metric] = df[metric].values
     

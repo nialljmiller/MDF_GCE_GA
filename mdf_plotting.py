@@ -161,8 +161,8 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
             ax.plot(x, y, color='gray', alpha=0.4)
 
     # observational data
-    ax.plot(best_x, best_y, color='C3', linewidth=2.5)
     ax.plot(feh, normalized_count, 'x', ms=8, color='k', label='Data')
+    ax.plot(best_x, best_y, color='C3', linewidth=2.5)
     ax.set_xlabel('[Fe/H]')
     ax.set_ylabel('Normalized Number Density')
     ax.set_xlim(-2, 1)

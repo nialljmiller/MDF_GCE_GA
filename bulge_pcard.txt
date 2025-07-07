@@ -30,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 16
+popsize: 32
 
 #How many generations (/epochs) are performed. 
 
@@ -69,7 +69,7 @@ fancy_mutation: 'gaussian'
 shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
-gaussian_sigma_scale: 0.1
+gaussian_sigma_scale: 0.2
 
 # Fraction of the difference between parents used as noise during crossover
 crossover_noise_fraction: 0.05
@@ -182,7 +182,7 @@ stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_
 # Determines the total mass of the galaxy (e.g., bulge).
 #
 ############################################################
-mgal_values: [2.0e9]
+mgal_values: [2.0e10]
 
 
 ############################################################

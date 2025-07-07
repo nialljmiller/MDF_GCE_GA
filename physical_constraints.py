@@ -27,7 +27,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
         return True, 1.0
     
     element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]','[Ti/Fe]']
-    do_element_names = ['[Si/Fe]','[Ca/Fe]']
+    do_element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]']
 
     for i, (alpha_x, alpha_y) in enumerate(alpha_arrs):#[:4]):
         alpha_x = np.array(alpha_x)
@@ -71,7 +71,7 @@ def check_alpha_distribution_properties(alpha_arrs, liberal=False):
                 if not (-0.3 <= peak_location <= 0.3):
                     violation_severity = abs(peak_location) - 0.3
                     if liberal:
-                        penalty_factor *= (1 + 10 * violation_severity)
+                        penalty_factor *= (100 + 10 * violation_severity)
                     else:
                         #print(f"REJECTED: {element_names[i]} peak at {peak_location:.3f} (outside [-0.3, 0.3])")
                         is_physical = False
@@ -158,7 +158,7 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
         return True, 1.0
     
     element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]','[Ti/Fe]']
-    do_element_names = ['[Si/Fe]','[Ca/Fe]']
+    do_element_names = ['[Si/Fe]','[Ca/Fe]','[Mg/Fe]']
 
     for i, (alpha_x, alpha_y) in enumerate(alpha_arrs):
         alpha_x = np.array(alpha_x)
@@ -177,6 +177,9 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
         alpha_y = alpha_y[valid_mask]
         
         if element_names[i] in do_element_names:
+
+
+
             # Bin 1: [Fe/H] < -1.0 → alpha should be > 0.15
             bin1_mask = alpha_x < -1.0
             if np.sum(bin1_mask) > 0:
@@ -186,13 +189,15 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.05:  # More than 5% violations
                     if liberal:
-                        penalty_factor *= (1 + 50 * violation_fraction)
+                        penalty_factor *= (10 + 50 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
                     penalty_factor *= (1 + 10 * violation_fraction)
             
+
+
             # Bin 2: -1.0 <= [Fe/H] < -0.5 → alpha should be between 0 and 0.4
             bin2_mask = (alpha_x >= -1.0) & (alpha_x < -0.5)
             if np.sum(bin2_mask) > 0:
@@ -202,12 +207,12 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.10:  # More than 10% violations
                     if liberal:
-                        penalty_factor *= (1 + 20 * violation_fraction)
+                        penalty_factor *= (10 + 20 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
-                    penalty_factor *= (1 + 5 * violation_fraction)
+                    penalty_factor *= (10 + 5 * violation_fraction)
             
             # Bin 3: [Fe/H] > 0.0 → alpha should be between -0.25 and 0.25
             bin3_mask = alpha_x > 0.0
@@ -218,12 +223,12 @@ def check_simple_alpha_constraints(alpha_arrs, liberal=False):
                 
                 if violation_fraction > 0.10:  # More than 10% violations
                     if liberal:
-                        penalty_factor *= (1 + 20 * violation_fraction)
+                        penalty_factor *= (10 + 20 * violation_fraction)
                     else:
                         is_physical = False
                         return is_physical, penalty_factor
                 elif violations > 0:
-                    penalty_factor *= (1 + 5 * violation_fraction)
+                    penalty_factor *= (10 + 5 * violation_fraction)
     
     return is_physical, penalty_factor
 
@@ -344,6 +349,14 @@ def check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, 
         if np.any(age_gyr < 0) or np.any(age_gyr > 15):
             if liberal:
                 penalty_factor *= 1.3
+            else:
+                is_physical = False
+                return is_physical, penalty_factor
+
+
+        if np.any(age_y > 0.7):
+            if liberal:
+                penalty_factor *= 10.0
             else:
                 is_physical = False
                 return is_physical, penalty_factor

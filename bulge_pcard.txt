@@ -30,7 +30,7 @@ sn1a_header: 'yield_tables/'
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize: 32
+popsize: 8
 
 #How many generations (/epochs) are performed. 
 
@@ -75,7 +75,7 @@ gaussian_sigma_scale: 0.05
 crossover_noise_fraction: 0.05
 
 # Base strength for controlled perturbations applied to duplicate individuals
-perturbation_strength: 0.5
+perturbation_strength: 1.0
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.
@@ -105,7 +105,7 @@ tmax_2_list: [0.1,12.0]
 # Default for thin disk: 5 Gyr.
 # AKA tau2
 ############################################################
-infall_timescale_1_list: [0.0001,3.0] ## fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.000001,0.000010] ## fix for single infall model; sweep otherwise
 ## if the bulge is being continuously fed by the disk, over all time, this should be  10 Gyr
 ## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
 ## default thin disk: 5 Gyr to fall in, coming in at solar composition 

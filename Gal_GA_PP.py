@@ -77,9 +77,10 @@ def parse_inlist(file_path):
 
 def print_population(GA, population, generation):
     """Helper function to print population details."""
-    print(f"\nGeneration {generation+1}:")
+    print(f"\nGeneration {generation}:")
     for i, individual in enumerate(population):
         print(f"Individual {i}: {individual}, Fitness: {individual.fitness.values if individual.fitness.valid else 'Not evaluated'}")
+    print(f"\n---------------")
 
 
 
@@ -864,7 +865,8 @@ class GalacticEvolutionGA:
             self.walker_history = {i: [] for i in range(len(population))}
             
         for gen in range(start_gen, num_generations):
-            print(f"-- Generation {gen + 1}/{num_generations} --")
+            print(f"-- =================== --")
+            print(f"-- Generation {gen}/{num_generations} --")
             self.gen = gen
             
             # Step 1: Evaluate individuals with invalid fitness (initial population)
@@ -957,7 +959,7 @@ class GalacticEvolutionGA:
             self.update_operator_rates(population, gen, num_generations)
 
             # Step 9: Debug output and housekeeping
-            if round(gen % (num_generations / 4)) == 0:
+            if output_interval and ((gen) % int(output_interval/2) == 0 or gen == num_generations - 1):
                 print_population(self, population, generation=gen)
 
             gc.collect()  # clean up
@@ -966,7 +968,7 @@ class GalacticEvolutionGA:
             if checkpoint_manager:
                 checkpoint_manager.save(gen, population, self)
 
-            if output_interval and ((gen + 1) % output_interval == 0 or gen == num_generations - 1):
+            if output_interval and ((gen) % output_interval == 0 or gen == num_generations - 1):
                 self.save_partial_results(gen)
 
 
@@ -986,7 +988,7 @@ class GalacticEvolutionGA:
         df.reset_index(drop=True, inplace=True)
 
         os.makedirs('GA', exist_ok=True)
-        results_file = f"GA/simulation_results_gen_{generation + 1}.csv"
+        results_file = f"GA/simulation_results_gen_{generation}.csv"
         df.to_csv(results_file, index=False)
         print(f"Results saved to: {results_file}")
 

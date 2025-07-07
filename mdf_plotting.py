@@ -354,14 +354,15 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     
     # Define column mapping based on your results structure
     loss_metrics = {
-        'ks': 14,
-        'ensemble': 15, 
-        'wrmse': 16, 
-        'mae': 17, 
-        'mape': 18, 
-        'huber': 19, 
-        'cosine': 20, 
-        'log_cosh': 21
+        'ks': 15,
+        'ensemble': 16,
+        'wrmse': 17,
+        'mae': 18,
+        'mape': 19,
+        'huber': 20,
+        'cosine': 21,
+        'log_cosh': 22,
+        'fitness': 23,
     }
     
     # Make sure the loss metric exists in our mapping
@@ -1103,7 +1104,7 @@ def extract_metrics(results_file):
 
     # Extract metrics
     metrics_dict = {}
-    for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble']:
+    for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble', 'fitness']:
         if metric in df.columns:
             metrics_dict[metric] = df[metric].values
     
@@ -1452,7 +1453,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
-    for metric in ['wrmse', 'huber', 'ks', 'cosine']:
+    for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
         
     # 7. Create 3D animation

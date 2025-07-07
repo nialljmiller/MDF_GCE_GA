@@ -823,12 +823,17 @@ class GalacticEvolutionGA:
                  f'sfe: {sfe_val:.5f}, delta_sfe: {delta_sfe_val:.3f}, imf_upper: {imf_upper:.1f}, '
                  f'mgal: {mgal:.2e}, nb: {nb:.2e}')
                  
-        # Create metrics list for results storage
-        metrics = [comp_idx, imf_idx, sn1a_idx, sy_idx, sn1ar_idx,
-                   sigma_2, t_1, t_2, infall_1, infall_2, 
-                   sfe_val, delta_sfe_val, imf_upper, mgal, nb,
-                   ks, ensemble, wrmse, mae, mape, huber, cos_similarity, log_cosh]
-        
+        # Create metrics list for results storage.  Include the final
+        # fitness value (after physics penalty) so it can be tracked
+        # alongside the other loss metrics.
+        metrics = [
+            comp_idx, imf_idx, sn1a_idx, sy_idx, sn1ar_idx,
+            sigma_2, t_1, t_2, infall_1, infall_2,
+            sfe_val, delta_sfe_val, imf_upper, mgal, nb,
+            ks, ensemble, wrmse, mae, mape, huber,
+            cos_similarity, log_cosh, primary_loss_value,
+        ]
+
         result = {
             'label': label,
             'MDF_x_data': MDF_x_data,
@@ -837,6 +842,7 @@ class GalacticEvolutionGA:
             'age_y_data': age_y_data,
             'alpha_arrs': alpha_arrs,
             'metrics': metrics,
+            'fitness': primary_loss_value,
             'cs_MDF': cs_MDF,
             'model_number': self.model_count
         }
@@ -970,7 +976,8 @@ class GalacticEvolutionGA:
             'comp_idx', 'imf_idx', 'sn1a_idx', 'sy_idx', 'sn1ar_idx',
             'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
             'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
-            'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh'
+            'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber',
+            'cosine', 'log_cosh', 'fitness'
         ]
 
         df = pd.DataFrame(self.results, columns=col_names)

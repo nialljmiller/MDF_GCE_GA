@@ -22,31 +22,29 @@ sn1a_header: 'yield_tables/'
 # Genetic Algorithm stuff!
 # Collection of hyperparams for GA
 #
-#work flow:
+# Work flow:
 # - We process {popsize} individuals
-# - each of those 
+# - each of those gets evaluated only if crossover/mutation occurs
 ############################################################
 
 #population size of the genetic algorithm. 
 #i.e how many individuals (/walkers/trials/iterations...) do we process per each generation
 #NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
-popsize:64 
+popsize:128 
 
 #How many generations (/epochs) are performed. 
-
 generations: 128
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 8
-
+output_interval: 4
 
 #probability an individual will make babies. 
 crossover_probability: 0.5
 
-#probability that any given invdividual is mutated by the GA
+#probability that any given individual is mutated by the GA
 #high probability = high genetic diversity but risks destroying the signal found with a good fit. 
-mutation_probability: 0.7
+mutation_probability: 0.5
 
 #the threshold at which a gene is considered sucessful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1
@@ -55,169 +53,215 @@ selection_threshold: -1
 #small tournament size - higher genetic diversity but slower convergence. Also a risk that convergence never happens increases. 
 #high tournament size - faster convergence as most likely that the population best is represented. this also reduces genetic diversity running the risk of only finding a local minima
 #example : fitting a straight line to a sigmoid. The fastest good enough convergence will be a straight line. 
-#What happens in the likely scenario if the straight line appears in the sample of individuals without a more sophisticated sigmoid guess? i.e. a low order poly will appear before a high order in the evolutionary steps (assuming a nieve prior).
+#What happens in the likely scenario if the straight line appears in the sample of individuals without a more sophisticated sigmoid guess? i.e. a low order poly will appear before a high order in the evolutionary steps (assuming a naive prior).
 #a high tournament size will be more likely to focus on faster and simpler solutions to this problem.
 tournament_size: 3
 
-#how the distance to the real data is caluclated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
-loss_metric: 'wrmse'
+#how the distance to the real data is calculated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
+loss_metric: 'ensemble'
 
 #the distribution used to draw the mutations from "Gaussian", "Uniform"
 fancy_mutation: 'gaussian'
 
-#if the range of future individuals should be restricted iteravitely. if True - faster convergence on minima but less confidence on global minima.
+#if the range of future individuals should be restricted iteratively. if True - faster convergence on minima but less confidence on global minima.
 shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
-gaussian_sigma_scale: 0.05
+gaussian_sigma_scale: 0.1
 
 # Fraction of the difference between parents used as noise during crossover
 crossover_noise_fraction: 0.05
 
 # Base strength for controlled perturbations applied to duplicate individuals
-perturbation_strength: 1.0
+perturbation_strength: 0.5
+
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.
-# Set to 1e9 to suppress the first infall entirely.
+# sigma_2 = c2/c1 (equations 5 and 6 in Spitoni et al. 2019)
+# 
+# Two scenarios: 
+# - one-infall model: sigma_2 = 1e9 to suppress first infall entirely
+# - two-infall model: sweep sigma_2 between reasonable values
 #
+# Setting the ratio to be outrageous (1e9) suppresses the first infall entirely
 ############################################################
 sigma_2_list: [0.01,100]
+
 ############################################################
 #
-# Tmax 2 list: Time (in Gyr) after the universe's birth when the second infall occurs.
-# Default for thin disk: 8 Gyr ago (tmax_2 = 5 Gyr).
+# Tmax lists: Time (in Gyr) after the universe's birth when infall occurs.
 #
+# tmax_1: First infall timing (for two-infall scenario, sweep; for single infall, fix)
+# tmax_2: Second infall timing
+#
+# Default thick disk assumption: 11 Gyr ago (+/- 3 Gyr) a bunch of [M/H] = -0.5 stuff fell in
+# Default thin disk assumption: 8 Gyr ago (+/- 5 Gyr) long, slow inflow at solar -- Gaia Enceladus Sausage
+#
+# Note: tmax_2 = 5 Gyr means 8 Gyr ago (thick disk argument)
+#       tmax_2 = 2 Gyr means 11 Gyr ago (thin disk argument)
 ############################################################
 tmax_1_list: [0.00001,0.01] # for two infall scenario, sweep
-#
-## default thick disk assumption is 11 Gyr ago (+/- 3 Gyr) a bunch of [M/H] = -0.5 stuff fell in
-#
-## default thin disk assumption is 8 Gyr ago (+/- 5 Gyr) long, slow inflow at solar -- Gaia Enceladus Sausage
-#
-
 
 tmax_2_list: [0.1,12.0]
 
 ############################################################
 #
-# Infall timescale list: Duration (in Gyr) of the second infall event.
-# Default for thin disk: 5 Gyr.
-# AKA tau2
+# Infall timescale list: Duration (in Gyr) of the infall events.
+# AKA tau1 and tau2
+#
+# infall_timescale_1: Duration of first infall 
+# infall_timescale_2: Duration of second infall
+#
+# If the bulge is being continuously fed by the disk over all time, this should be ~10 Gyr
+# Default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
+# Default thin disk: 5 Gyr to fall in, coming in at solar composition
 ############################################################
-infall_timescale_1_list: [0.001,0.010] ## fix for single infall model; sweep otherwise
-## if the bulge is being continuously fed by the disk, over all time, this should be  10 Gyr
-## default thick disk assumption: 3 Gyr to fall in, coming in at [Fe/H] -0.5  
-## default thin disk: 5 Gyr to fall in, coming in at solar composition 
+infall_timescale_1_list: [0.001,0.010] # fix for single infall model; sweep otherwise
 
 infall_timescale_2_list: [0.1, 10.0]
-
-
 
 ############################################################
 #
 # Component array: Files containing abundances and isotopes.
 # These files set the metallicity of the infall material.
+# All gas coming into the galaxy is from these compositions (not primordial by default)
 #
+# Available options from Christian's files:
+# - iniab_output_feh_p050.txt (+0.5 dex)
+# - iniab_output_feh_p000.txt (solar)
+# - iniab_output_feh_m050.txt (-0.5 dex)
+# - iniab_output_feh_m100.txt (-1.0 dex)
+# - iniab_output_feh_m150.txt (-1.5 dex)
+# - iniab_output_feh_m200.txt (-2.0 dex)
 ############################################################
-#comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt','iniab_output_feh_m200.txt'] 
-#comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt'] 
 comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt']
-#comp_array: ['iniab_output_feh_p000.txt']
-#comp_array: ['iniab_6.0E-03GN93.txt','iniab_FeH-1.5_GS98.txt']
-#comp_array: ['iniab_FeH-1.5_GS98.txt']
+
 ############################################################
 #
 # Star formation efficiency (SFE): Fraction of gas converted to stars.
-# Default value: 0.02.
-# Can be a single value or a list of values.
+# 
+# Reference: Grisoni et al. (2020), from Tejpreet: 20 x 10^-3
+# Default value should be 0.02
+# Original sweep range: np.arange(0.01, 0.035, 0.005)
 #
+# delta_sfe: Change in SFE that occurs at second infall time
 ############################################################
-#sfe_array: [0.02]
 sfe_array: [0.0005, 0.4]
-delta_sfe_array: [-0.1,0.5]
+delta_sfe_array: [-0.1,0.2]
 
 ############################################################
 #
 # Initial Mass Function (IMF): Describes the distribution of stellar masses.
 # Choose from 'kroupa', 'salpeter', or other predefined options.
-#
 ############################################################
 imf_array: ['salpeter']
-
 
 ############################################################
 #
 # IMF upper limit: The upper mass limit considered in the IMF.
-# Default value: 50.
 #
+# Limiting the upper mass of the IMF can be used as a proxy in the case that the yield set(s) 
+# do not include the treatment of failed supernovae that directly collapse to a BH,  
+# (see e.g., Pignatari+2023 on Planet-hosting stars).
+#
+# We ignore the yields of any stars above this mass limit
 ############################################################
 imf_upper_limits: [30, 100]  # Allow more massive stars
-#imf_upper_limits: [50,100]
-
 
 ############################################################
 #
 # SN1a assumptions: Files specifying contributions from Type Ia supernovae.
-#
+# 
+# Available options include:
+# - sn1a_Gronow.txt (Tom's choice)
+# - sn1a_ivo12_stable_z.txt
+# - sn1a_Leung2018_benchmark.txt
+# - sn1a_shen.txt
+# - sn1a_townsley.txt
 ############################################################
-#sn1a_assumptions: ['sn1a_Gronow.txt']
 sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
-
 
 ############################################################
 #
 # Stellar yield assumptions: Determines the chemical yields for stars.
 # Files include assumptions for AGB stars and massive stars.
 #
+# (1) Limongi Chieffi rotation variations:
+#     - agb_and_massive_stars_K10_LC18_Ravg.txt (average rotation)
+#     - agb_and_massive_stars_K10_LC18_R000.txt (no rotation)
+#     - agb_and_massive_stars_K10_LC18_R150.txt (fast rotation)
+#     - agb_and_massive_stars_K10_LC18_R300.txt (very fast rotation)
+# (2) Nomoto: agb_and_massive_stars_C15_N13_0_0_HNe.txt
 ############################################################
-#stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_Ravg.txt']
-
-#stellar_yield_assumptions:   ['agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_R300.txt']
-#stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt']
 stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt']
+
 ############################################################
 #
 # Galaxy mass values (total mass in solar masses): 
 # Determines the total mass of the galaxy (e.g., bulge).
 #
+# As reviewed elsewhere (e.g., paper by Gerhard), 
+# the mass of the Galactic bulge is rather poorly constrained. 
+# Most determinations cluster close to 1.5 × 10^10 M⊙, 
+# although a few authors find values as large 
+# as 2 × 10^10 M⊙ (Valenti et al. 2015) 
+# or as small as 6 × 10^9 M⊙ (Robin et al. 2012).
+#
+# Bounded by 3e10 strictly -- doesn't get added to dict above this
+# Below ~1e8 effects are minimal
+# Initial mass of the galaxy -- pristine gas/primordial abundance/zero metallicity
+#
+# Note: Sweep this and throw out any after simulation that do not correctly attain
+# the mass of the bulge within 5%
 ############################################################
 mgal_values: [6.0e9,2.0e10]
-
 
 ############################################################
 #
 # Nb array: Number of SN1a per solar mass formed.
-# Default value is 1e-3 (Cote et al. 2016).
+# 
+# Reference: Cote et al. 2016, Table 5 -- sweep the table
+# Default value is 1e-3 (Cote et al. 2016) -- default in OMEGA
 # Sweep values between 1e-4 and 1e-2 for better constraints.
-#
 ############################################################
 nb_array: [1e-4, 5e-3]  # Sweep SN1a frequency
-
 
 ############################################################
 #
 # SN1a rate models: Determines the delay-time distribution form for SN1a rates.
 # Available options include: 'power_law', 'gauss', 'exp', 'maoz'.
 #
+# Originally fixed to one delay-time distribution form: ['power_law']
 ############################################################
 sn1a_rates: ['power_law','gauss','exp']
-
 
 ############################################################
 #
 # Number of timesteps: Sets the number of time intervals in the simulation.
 # Higher values increase precision but take longer to compute.
-#
+# Original: 100 (commented out: 500)
 ############################################################
-timesteps: 500
-
+timesteps: 10
 
 ############################################################
 #
-# A2 parameter: Defines the normalization for the second infall.
-# This value is used in the infall equation to control how much gas is injected.
+# A1/A2 parameters: Defines the normalization for infall episodes.
+# 
+# A1: Normalization for first infall 
+# A2: Normalization for second infall
+# These values are used in the infall equation to control how much gas is injected.
 #
+# A2/A1 -- second accretion amount of material / first accretion amount of material 
+# Originally varied 0.01 to 100, sampled logarithmically but written linearly in plot legends
+# All gas coming into the galaxy is primordial (zero metallicity) by default
+# 
+# A2 = -1 overrides the default equation and tells OMEGA+ to instead try and reach the 
+# desired current day surface mass density, defined in another array
+# (this is specified inside the inflow array)
+#
+# For each infall episode, exp_infall --> [Norm, t_max, timescale]
+# 'exp_infall':[[-1, 0.1e9, 0.1e9], [A2, t_2*1e9, infall_2*1e9]]
 ############################################################
 A2: 1
 A1: -1

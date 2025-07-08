@@ -329,7 +329,7 @@ class GalacticEvolutionGA:
         toolbox.register("evaluate", self.evaluate)
 
         # Register genetic operations
-        toolbox.register("mate", self.crossover, max_bias=0.75)
+        toolbox.register("mate", self.crossover, max_bias=0.55)
 
         # Define different mutation functions based on fancy_mutation parameter
         if self.fancy_mutation.lower() == 'uniform':
@@ -483,34 +483,28 @@ class GalacticEvolutionGA:
                 individual[i] = min(max(individual[i], min_bound), max_bound)
 
 
-
     def update_operator_rates(self, population, generation, num_generations):
-        """Dynamically adjust operator rates based on progress and diversity"""
-        # Calculate population diversity
-        gene_array = np.array([ind for ind in population])
-        if len(gene_array) > 1:
-            # Calculate average pairwise distance
-            distances = []
-            for i in range(len(gene_array)):
-                for j in range(i+1, len(gene_array)):
-                    distances.append(np.linalg.norm(gene_array[i] - gene_array[j]))
-            diversity = np.mean(distances) if distances else 0
+        """Enhanced diversity preservation"""
+        progress = generation / num_generations
+        
+        # Calculate population diversity using continuous parameters only
+        continuous_genes = []
+        for ind in population:
+            continuous_genes.append(ind[5:])  # Skip categorical parameters
+        
+        if len(continuous_genes) > 1:
+            gene_array = np.array(continuous_genes)
+            diversity = np.mean(np.std(gene_array, axis=0))
         else:
             diversity = 0
         
-        # Get current progress through generations
-        progress = generation / num_generations
-        
-        # If diversity is low, increase mutation rate to explore more
-        if diversity < 0.2 * (self.sigma_2_max - self.sigma_2_min):
-            pass
-            #self.mutpb = min(self.mutpb * 1.1, 0.7)  # Increase mutation rate
-            #self.cxpb = max(self.cxpb * 0.9, 0.3)    # Decrease crossover rate
-
-        print(f"Generation {generation}: diversity = {diversity:.4f}, " 
-              f"mutpb = {self.mutpb:.2f}, cxpb = {self.cxpb:.2f}")
-
-
+        # Adaptive rates based on diversity
+        if diversity < 0.1:  # Low diversity = increase mutation
+            self.mutpb = min(0.9, self.mutpb * 1.2)
+            self.cxpb = max(0.2, self.cxpb * 0.8)
+        elif diversity > 0.5:  # High diversity = decrease mutation slightly
+            self.mutpb = max(0.3, self.mutpb * 0.95)
+            self.cxpb = min(0.6, self.cxpb * 1.05)
 
 
 

@@ -75,6 +75,8 @@ crossover_noise_fraction: 0.05
 # Base strength for controlled perturbations applied to duplicate individuals
 perturbation_strength: 1.0
 
+physical_constraints_freq = 3
+
 ############################################################
 #
 # Sigma 2 list: Controls the ratio of first to second infall rates.
@@ -242,7 +244,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Higher values increase precision but take longer to compute.
 # Original: 100 (commented out: 500)
 ############################################################
-timesteps: 100
+timesteps: 10
 
 ############################################################
 #

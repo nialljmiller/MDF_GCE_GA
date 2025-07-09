@@ -56,7 +56,7 @@ sn1a_rates = params['sn1a_rates']
 timesteps = params['timesteps']
 A2 = params['A2']
 A1 = params['A1']
-
+physical_constraints_freq = params['physical_constraints_freq']
 delta_sfe_array = params['delta_sfe_array']
 
 popsize = params['popsize']
@@ -157,6 +157,7 @@ def run_ga(cp_manager):
         threshold=selection_threshold,
         cxpb=crossover_probability,
         mutpb=mutation_probability,
+        physical_constraints_freq=physical_constraints_freq,
         PP=True
     )
 
@@ -262,6 +263,7 @@ def load_ga_for_plotting():
         threshold=selection_threshold,
         cxpb=crossover_probability,
         mutpb=mutation_probability,
+        physical_constraints_freq=physical_constraints_freq,
         PP=False  # Don't use parallel processing for plot-only
     )
     

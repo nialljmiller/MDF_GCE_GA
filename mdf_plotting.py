@@ -173,72 +173,69 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     return fig
 
 
-
-
-
-
-
-
 def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
-    """Plot 3D scatter plot with color indicating a specific metric.
-
-    Parameters
-    ----------
-    x, y, z : array-like
-        Coordinates for the scatter plot.
-    color_metric : array-like
-        Values used for colouring the points.
-    label : str
-        Name of the metric. If this contains ``"fitness"`` the colour scale will
-        be logarithmic to better visualise the distribution.
-    """
-
-    # Apply log scaling if this is a fitness based plot
-    if 'fitness' in label.lower():
-        color_metric = np.log10(np.clip(color_metric, 1e-10, None))
-        cbar_label = f'log10({label})'
-    else:
-        cbar_label = label
-
+    """Plot 3D scatter plot with color indicating a specific metric, scaled from 0 to 1.
+    Points are sorted so lowest loss points are plotted last (on top)."""
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    # Convert to numpy arrays for easier manipulation
+    x = np.array(x)
+    y = np.array(y) 
+    z = np.array(z)
+    color_metric = np.array(color_metric)
+    
+    # Sort by color_metric in descending order (highest loss first, lowest loss last)
+    sort_indices = np.argsort(color_metric)[::-1]
+    x_sorted = x[sort_indices]
+    y_sorted = y[sort_indices]
+    z_sorted = z[sort_indices]
+    color_sorted = color_metric[sort_indices]
+    
     fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection='3d')
-    sc = ax.scatter(x, y, z, c=color_metric, cmap='brg')
-    plt.colorbar(sc, label=cbar_label)
+    sc = ax.scatter(x_sorted, y_sorted, z_sorted, c=color_sorted, cmap='brg', vmin=0, vmax=1)
+    plt.colorbar(sc, label=label)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_zlabel(zlabel)
-    ax.set_title(f'{label}')
     plt.savefig(f'GA/loss/{label}_loss_3d.png', bbox_inches='tight')
     plt.close()
     
     return fig
 
-
-
-
 def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
-    """Plot 2D scatter plot with color indicating a specific metric.
-
-    Similar to :func:`plot_3d_scatter`, if ``label`` contains ``"fitness"`` the
-    colours are scaled in ``log10`` space.
-    """
-
-    if 'fitness' in label.lower():
-        color_metric = np.log10(np.clip(color_metric, 1e-10, None))
-        cbar_label = f'log10({label})'
-    else:
-        cbar_label = label
-
+    """Plot 2D scatter plot with color indicating a specific metric, scaled from 0 to 1.
+    Points are sorted so lowest loss points are plotted last (on top)."""
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    # Convert to numpy arrays for easier manipulation
+    x = np.array(x)
+    y = np.array(y)
+    color_metric = np.array(color_metric)
+    
+    # Sort by color_metric in descending order (highest loss first, lowest loss last)
+    sort_indices = np.argsort(color_metric)[::-1]
+    x_sorted = x[sort_indices]
+    y_sorted = y[sort_indices]
+    color_sorted = color_metric[sort_indices]
+    
     plt.figure(figsize=(10, 8))
-    sc = plt.scatter(x, y, c=color_metric, cmap='brg')
-    plt.colorbar(sc, label=cbar_label)
+    sc = plt.scatter(x_sorted, y_sorted, c=color_sorted, cmap='brg', vmin=0, vmax=1)
+    plt.colorbar(sc, label=label)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.title(f'{label} Loss')
     plt.savefig(f'GA/loss/{label}_loss_2d.png', bbox_inches='tight')
     plt.close()
     
     return plt.gcf()
+
+
+
+
 
 
 
@@ -925,8 +922,6 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
     print(f"Density-enhanced four-panel alpha plot saved to {save_path}")
 
 
-
-
 def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png', n_bins=10):
     """
     Enhanced Age vs [Fe/H] plot with:
@@ -939,8 +934,8 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     """
     import matplotlib.pyplot as plt
     import numpy as np
-    from scipy.interpolate import UnivariateSpline
-    from scipy.stats import gaussian_kde, binned_statistic
+    from scipy.interpolate import UnivariateSpline, interp1d
+    from scipy.stats import gaussian_kde, binned_statistic, ks_2samp
     import os
     
     if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
@@ -973,6 +968,18 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     
     best_plotted = False
     best_model_feh = None
+    best_model_age_gyr = None
+    
+    # Calculate average spacing of real data for model interpolation
+    all_real_ages = np.concatenate([age_Joyce[np.isfinite(age_Joyce)], 
+                                   age_Bensby[np.isfinite(age_Bensby)]])
+    if len(all_real_ages) > 1:
+        sorted_ages = np.sort(all_real_ages)
+        avg_spacing = np.mean(np.diff(sorted_ages))
+        # Create interpolation grid with similar spacing
+        age_interp_grid = np.arange(0, 14 + avg_spacing, avg_spacing)
+    else:
+        age_interp_grid = np.linspace(0, 14, 100)
     
     # Plot model lines
     for age_data, label, res in zip(GalGA.age_data, GalGA.labels, GalGA.results):
@@ -983,10 +990,20 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
         age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
         
         if is_best and not best_plotted:
-            label_lines = [f"• {p.strip()}" for p in label.split(',')]
-            pretty_label = "\n".join(label_lines) + "\n• (BEST)"
-            ax_main.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
-            best_model_feh = np.array(y_feh)
+            # Interpolate best model to match real data spacing
+            if len(age_gyr) > 1 and len(y_feh) > 1:
+                f_best = interp1d(age_gyr, y_feh, kind='linear', 
+                                bounds_error=False, fill_value='extrapolate')
+                best_model_age_gyr = age_interp_grid
+                best_model_feh = f_best(age_interp_grid)
+                
+                label_lines = [f"• {p.strip()}" for p in label.split(',')]
+                pretty_label = "\n".join(label_lines) + "\n• (BEST)"
+                ax_main.plot(best_model_age_gyr, best_model_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
+            else:
+                ax_main.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3)
+                best_model_feh = np.array(y_feh)
+                best_model_age_gyr = age_gyr
             best_plotted = True
         else:
             ax_main.plot(age_gyr, y_feh, color='gray', alpha=0.2, linewidth=1, zorder=1)
@@ -997,6 +1014,8 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     
     # Bin Joyce data
     mask_joyce = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
+    bin_means_joyce = None
+    bin_stds_joyce = None
     if np.sum(mask_joyce) > 0:
         bin_means_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
                                                statistic='mean', bins=age_bins)
@@ -1014,6 +1033,8 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     
     # Bin Bensby data
     mask_bensby = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
+    bin_means_bensby = None
+    bin_stds_bensby = None
     if np.sum(mask_bensby) > 0:
         bin_means_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
                                                 statistic='mean', bins=age_bins)
@@ -1035,8 +1056,35 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     ax_main.scatter(age_Bensby, Fe_H, marker='^', s=50, color='orange', 
                    alpha=0.6, label='Bensby et al. (raw)', zorder=2)
     
-
-
+    # Calculate WRMSE between best model and binned data
+    wrmse_text = ""
+    if (best_model_feh is not None and best_model_age_gyr is not None and 
+        bin_means_joyce is not None and bin_means_bensby is not None):
+        
+        # Interpolate best model to bin centers - make sure age ranges match
+        valid_age_range = (bin_centers >= np.min(best_model_age_gyr)) & (bin_centers <= np.max(best_model_age_gyr))
+        if np.any(valid_age_range):
+            f_model = interp1d(best_model_age_gyr, best_model_feh, kind='linear',
+                              bounds_error=False, fill_value=np.nan)
+            model_at_bins = f_model(bin_centers)
+            
+            # Calculate WRMSE for Joyce data
+            valid_joyce_bins = (np.isfinite(bin_means_joyce) & 
+                              np.isfinite(model_at_bins) & 
+                              valid_age_range)
+            if np.sum(valid_joyce_bins) > 0:
+                wrmse_joyce = np.sqrt(np.mean((model_at_bins[valid_joyce_bins] - 
+                                             bin_means_joyce[valid_joyce_bins])**2))
+                wrmse_text += f"WRMSE vs Joyce: {wrmse_joyce:.3f}\n"
+            
+            # Calculate WRMSE for Bensby data
+            valid_bensby_bins = (np.isfinite(bin_means_bensby) & 
+                               np.isfinite(model_at_bins) & 
+                               valid_age_range)
+            if np.sum(valid_bensby_bins) > 0:
+                wrmse_bensby = np.sqrt(np.mean((model_at_bins[valid_bensby_bins] - 
+                                              bin_means_bensby[valid_bensby_bins])**2))
+                wrmse_text += f"WRMSE vs Bensby: {wrmse_bensby:.3f}"
     
     # Polynomial fits (degree=3) - keeping your original spline fits
     if np.sum(mask_joyce) > 3 and np.sum(mask_bensby) > 3:
@@ -1055,9 +1103,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
         
         if best_model_feh is not None:
             # Interpolate best model to match x_vals length
-            from scipy.interpolate import interp1d
-            age_gyr_model = np.linspace(0, 14, len(best_model_feh))
-            f_model = interp1d(age_gyr_model, best_model_feh, kind='linear', 
+            f_model = interp1d(best_model_age_gyr, best_model_feh, kind='linear', 
                               bounds_error=False, fill_value='extrapolate')
             y_model_interp = f_model(x_vals)
             
@@ -1069,6 +1115,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     
     # KDE for Joyce data
     mask_joyce_kde = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
+    joyce_feh_data = None
     if np.sum(mask_joyce_kde) > 2:
         joyce_feh_data = Fe_H[mask_joyce_kde]
         kde_joyce = gaussian_kde(joyce_feh_data)
@@ -1079,6 +1126,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     
     # KDE for Bensby data  
     mask_bensby_kde = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
+    bensby_feh_data = None
     if np.sum(mask_bensby_kde) > 2:
         bensby_feh_data = Fe_H[mask_bensby_kde]
         kde_bensby = gaussian_kde(bensby_feh_data)
@@ -1087,14 +1135,52 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
         ax_kde.plot(kde_b_norm, feh_vals, color='orange', linewidth=4, label='Bensby')
         ax_kde.fill_betweenx(feh_vals, 0, kde_b_norm, color='orange', alpha=0.3)
     
-    # KDE for best model
-    if best_model_feh is not None and len(best_model_feh) > 2:
-        finite_model = best_model_feh[np.isfinite(best_model_feh)]
-        if len(finite_model) > 2:
-            kde_model = gaussian_kde(finite_model)
-            kde_m = kde_model(feh_vals)
-            kde_m_norm = kde_m / np.max(kde_m) if np.max(kde_m) > 0 else kde_m
-            ax_kde.plot(kde_m_norm, feh_vals, color='red', linestyle='--', linewidth=4, label='Best Model')
+    # KDE for best model - use MDF data instead of age-metallicity track
+    model_feh_data = None
+    if hasattr(GalGA, 'mdf_data') and len(GalGA.mdf_data) > 0:
+        # Find the MDF data for the best model
+        for mdf_data, res in zip(GalGA.mdf_data, GalGA.results):
+            params = (res[5], res[7], res[9])  # sigma_2, t_2, infall_2
+            is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+            if is_best:
+                mdf_x, mdf_y = mdf_data
+                # Convert MDF to sample points for KDE (sample according to MDF weights)
+                mdf_x = np.array(mdf_x)
+                mdf_y = np.array(mdf_y)
+                valid_mdf = np.isfinite(mdf_x) & np.isfinite(mdf_y) & (mdf_y > 0)
+                if np.sum(valid_mdf) > 0:
+                    mdf_x_valid = mdf_x[valid_mdf]
+                    mdf_y_valid = mdf_y[valid_mdf]
+                    # Sample from MDF to create synthetic data points for KDE
+                    n_samples = min(1000, int(np.sum(mdf_y_valid) * 1000))
+                    if n_samples > 10:
+                        # Create samples weighted by MDF
+                        samples = np.random.choice(mdf_x_valid, size=n_samples, 
+                                                 p=mdf_y_valid/np.sum(mdf_y_valid))
+                        model_feh_data = samples
+                break
+    
+    if model_feh_data is not None and len(model_feh_data) > 2:
+        kde_model = gaussian_kde(model_feh_data)
+        kde_m = kde_model(feh_vals)
+        kde_m_norm = kde_m / np.max(kde_m) if np.max(kde_m) > 0 else kde_m
+        ax_kde.plot(kde_m_norm, feh_vals, color='red', linestyle='--', linewidth=4, label='Best Model')
+    
+    # Calculate KS statistics and add to histogram plot
+    ks_text = ""
+    if joyce_feh_data is not None and model_feh_data is not None:
+        ks_stat_joyce, _ = ks_2samp(joyce_feh_data, model_feh_data)
+        ks_text += f"KS vs Joyce: {ks_stat_joyce:.3f}\n"
+    
+    if bensby_feh_data is not None and model_feh_data is not None:
+        ks_stat_bensby, _ = ks_2samp(bensby_feh_data, model_feh_data)
+        ks_text += f"KS vs Bensby: {ks_stat_bensby:.3f}"
+    
+    # Add KS text to histogram plot (top left)
+    if ks_text:
+        ax_kde.text(0.05, 0.95, ks_text.strip(), transform=ax_kde.transAxes, 
+                   fontsize=10, verticalalignment='top', 
+                   bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
     
     # Set reasonable limits
     ax_kde.set_xlim(0, 1.2)
@@ -1104,7 +1190,19 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     ax_main.set_ylim(-2, 1)
     ax_main.set_xlabel("Age (Gyr)", fontsize=16)
     ax_main.set_ylabel("[Fe/H]", fontsize=16)
-    ax_main.legend(loc="upper left", bbox_to_anchor=(-0.01, 1), frameon=False, fontsize=10)
+    
+    # Create legend with WRMSE info in lower left with faint white background
+    legend_text = wrmse_text if wrmse_text else ""
+    if legend_text:
+        # Add WRMSE as separate text
+        ax_main.text(0.02, 0.02, legend_text.strip(), transform=ax_main.transAxes,
+                    fontsize=9, verticalalignment='bottom',
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7))
+    
+    # Main legend
+    legend = ax_main.legend(loc="lower left", bbox_to_anchor=(0.02, 0.15), frameon=True, 
+                          fontsize=10, facecolor='white', edgecolor='gray')
+    legend.get_frame().set_alpha(0.8)
     
     # Clean up KDE axis
     ax_kde.set_xticks([])
@@ -1123,7 +1221,6 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     plt.close(fig)
     print(f"Enhanced age-metallicity plot with KDE and binning saved to {save_path}")
     return fig
-
 
 
 def extract_metrics(results_file):
@@ -1160,8 +1257,8 @@ def extract_metrics(results_file):
 
 def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv', save_path='GA/pca_degeneracy_analysis.png'):
     """
-    Perform PCA analysis on final population to reveal parameter degeneracies.
-    Shows how population spreads along degenerate manifolds vs constrained directions.
+    Perform PCA analysis on the fittest 10% of the population to reveal parameter degeneracies.
+    Shows how the best models spread along degenerate manifolds vs constrained directions.
     """
     import numpy as np
     import matplotlib.pyplot as plt
@@ -1172,12 +1269,30 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     # Load results and extract continuous parameters
     df = pd.read_csv(results_file)
     
+    # Sort by fitness (assuming lower is better) and take top 10%
+    if 'fitness' in df.columns:
+        fitness_col = 'fitness'
+    elif 'wrmse' in df.columns:
+        fitness_col = 'wrmse'
+    else:
+        # Fallback to first loss metric available
+        possible_metrics = ['ks', 'ensemble', 'mae', 'mape', 'huber', 'cosine', 'log_cosh']
+        fitness_col = next((col for col in possible_metrics if col in df.columns), df.columns[-1])
+    
+    df_sorted = df.sort_values(fitness_col, ascending=True)
+    top_10_percent = int(len(df_sorted) * 0.1)
+    df_top = df_sorted.head(top_10_percent)
+    
+    print(f"Analyzing top {top_10_percent} individuals ({10:.0f}%) out of {len(df)} total")
+    print(f"Using '{fitness_col}' as fitness metric")
+    print(f"Fitness range in top 10%: {df_top[fitness_col].min():.4f} to {df_top[fitness_col].max():.4f}")
+    
     # Define continuous parameter names and extract values
     continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
                         'sfe', 'delta_sfe', 'imf_upper', 'nb']
     
-    # Extract parameter matrix
-    param_matrix = df[continuous_params].values
+    # Extract parameter matrix from top 10%
+    param_matrix = df_top[continuous_params].values
     
     # Standardize the data (important for PCA)
     scaler = StandardScaler()
@@ -1196,12 +1311,16 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     fig = plt.figure(figsize=(20, 12))
     gs = plt.GridSpec(3, 4, figure=fig, hspace=0.3, wspace=0.3)
     
+    # Add title indicating this is top 10% analysis
+    fig.suptitle(f'PCA Degeneracy Analysis - Top 10% Fittest Models (n={top_10_percent})', fontsize=16, y=0.98)
+    
     # 1. Eigenvalue/Singular value plot
     ax1 = fig.add_subplot(gs[0, 0])
     bars = ax1.bar(range(len(explained_variance)), explained_variance, color='steelblue', alpha=0.7)
     ax1.set_xlabel('Principal Component')
     ax1.set_ylabel('Eigenvalue (Variance)')
     ax1.set_yscale('log')
+    ax1.set_title('Eigenvalues (Top 10%)')
     
     # Highlight small eigenvalues (degeneracies)
     threshold = np.max(explained_variance) * 0.01  # 1% of maximum
@@ -1216,6 +1335,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax2.plot(range(len(cumulative_var)), cumulative_var, 'o-', color='darkgreen', linewidth=2)
     ax2.set_xlabel('Number of Components')
     ax2.set_ylabel('Cumulative Variance')
+    ax2.set_title('Cumulative Variance')
     ax2.grid(True, alpha=0.3)
     ax2.axhline(0.95, color='red', linestyle='--', alpha=0.7, label='95%')
     ax2.legend()
@@ -1227,6 +1347,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax3.set_xticklabels(continuous_params, rotation=45, ha='right')
     ax3.set_yticks(range(6))
     ax3.set_yticklabels([f'PC{i+1}' for i in range(6)])
+    ax3.set_title('Principal Component Loadings')
     plt.colorbar(im, ax=ax3, fraction=0.02)
     
     # Add text annotations for strong loadings
@@ -1239,33 +1360,36 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     
     # 4. 2D projections onto first few PCs
     # Color points by fitness; use log scale for clarity
-    if 'wrmse' in df.columns:
-        colors = np.log10(np.clip(df['wrmse'].values, 1e-10, None))
+    if fitness_col in df_top.columns:
+        colors = np.log10(np.clip(df_top[fitness_col].values, 1e-10, None))
     else:
-        colors = np.zeros(len(df))
+        colors = np.zeros(len(df_top))
     
     # PC1 vs PC2
     ax4 = fig.add_subplot(gs[1, 0])
     scatter = ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)')
     ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
-    plt.colorbar(scatter, ax=ax4, label='log10 Fitness (WRMSE)')
+    ax4.set_title('PC1 vs PC2')
+    plt.colorbar(scatter, ax=ax4, label=f'log10 {fitness_col}')
     
     # PC2 vs PC3
     ax5 = fig.add_subplot(gs[1, 1])
     ax5.scatter(pca_result[:, 1], pca_result[:, 2], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax5.set_xlabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
     ax5.set_ylabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
+    ax5.set_title('PC2 vs PC3')
     
     # PC3 vs PC4
     ax6 = fig.add_subplot(gs[1, 2])
     ax6.scatter(pca_result[:, 2], pca_result[:, 3], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax6.set_xlabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
     ax6.set_ylabel(f'PC4 ({explained_variance_ratio[3]:.1%} variance)')
+    ax6.set_title('PC3 vs PC4')
     
     # 5. Example parameter pair showing degeneracy
     ax7 = fig.add_subplot(gs[1, 3])
-    # Find the most correlated parameter pair
+    # Find the most correlated parameter pair in top 10%
     param_corr = np.corrcoef(param_matrix_scaled.T)
     np.fill_diagonal(param_corr, 0)  # Remove self-correlation
     max_corr_idx = np.unravel_index(np.argmax(np.abs(param_corr)), param_corr.shape)
@@ -1274,12 +1398,10 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     param1_name = continuous_params[param1_idx]
     param2_name = continuous_params[param2_idx]
     
-    ax7.scatter(df[param1_name], df[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20, label=f'r = {param_corr[max_corr_idx]:.3f}')
+    ax7.scatter(df_top[param1_name], df_top[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20)
     ax7.set_xlabel(param1_name)
     ax7.set_ylabel(param2_name)
-    ax7.legend()
-
-    
+    ax7.set_title(f'Most Correlated Pair\nr = {param_corr[max_corr_idx]:.3f}')
     
     # 6. Parameter distributions along degenerate vs constrained directions
     ax8 = fig.add_subplot(gs[2, :2])
@@ -1292,6 +1414,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax8.hist(least_constrained, bins=30, alpha=0.7, label=f'Least constrained (PC{len(explained_variance)}, λ={explained_variance[-1]:.6f})', color='red')
     ax8.set_xlabel('Projection Value')
     ax8.set_ylabel('Count')
+    ax8.set_title('Parameter Distributions Along PC Directions')
     ax8.legend()
     
     # 7. Degeneracy identification table
@@ -1330,7 +1453,6 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
             for j in range(len(row)):
                 table[(i, j)].set_facecolor('#ffcccc')
     
-
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -1346,7 +1468,7 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
 
 def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', save_path='GA/parameter_correlations.png'):
     """
-    Create a correlation matrix heatmap showing parameter relationships.
+    Create a correlation matrix heatmap showing parameter relationships for the fittest 10% of individuals.
     Complements the PCA analysis by showing direct pairwise correlations.
     """
     import numpy as np
@@ -1355,26 +1477,48 @@ def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', 
     import seaborn as sns
     
     df = pd.read_csv(results_file)
+    
+    # Sort by fitness (assuming lower is better) and take top 10%
+    if 'fitness' in df.columns:
+        fitness_col = 'fitness'
+    elif 'wrmse' in df.columns:
+        fitness_col = 'wrmse'
+    else:
+        # Fallback to first loss metric available
+        possible_metrics = ['ks', 'ensemble', 'mae', 'mape', 'huber', 'cosine', 'log_cosh']
+        fitness_col = next((col for col in possible_metrics if col in df.columns), df.columns[-1])
+    
+    df_sorted = df.sort_values(fitness_col, ascending=True)
+    top_10_percent = int(len(df_sorted) * 0.1)
+    df_top = df_sorted.head(top_10_percent)
+    
     continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
                         'sfe', 'delta_sfe', 'imf_upper', 'nb']
     
-    # Calculate correlation matrix
-    corr_matrix = df[continuous_params].corr()
+    # Calculate correlation matrix for top 10%
+    corr_matrix = df_top[continuous_params].corr()
     
     # Create plot
     fig, ax = plt.subplots(figsize=(12, 10))
     
+    # Add title indicating this is top 10% analysis
+    fig.suptitle(f'Parameter Correlation Matrix - Top 10% Fittest Models (n={top_10_percent})', fontsize=14, y=0.95)
+    
     # Create heatmap
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Show only lower triangle
     sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='RdBu_r', center=0,
-                square=True, linewidths=0.5, cbar_kws={"shrink": .8}, ax=ax)
-
+                square=True, linewidths=0.5, cbar_kws={"shrink": .8}, ax=ax,
+                fmt='.3f')  # Show 3 decimal places
+    
+    # Add subtitle with fitness range
+    plt.figtext(0.5, 0.91, f'Fitness range: {df_top[fitness_col].min():.4f} to {df_top[fitness_col].max():.4f}', 
+                ha='center', fontsize=10, style='italic')
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Find strongest correlations
+    # Find strongest correlations in the top 10%
     corr_values = corr_matrix.values
     np.fill_diagonal(corr_values, 0)  # Remove self-correlations
     
@@ -1382,10 +1526,13 @@ def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', 
     max_pos_idx = np.unravel_index(np.argmax(corr_values), corr_values.shape)
     min_neg_idx = np.unravel_index(np.argmin(corr_values), corr_values.shape)
     
+    print(f"Correlation analysis for top {top_10_percent} individuals:")
     print(f"Strongest positive correlation: {continuous_params[max_pos_idx[0]]} - {continuous_params[max_pos_idx[1]]} (r = {corr_values[max_pos_idx]:.3f})")
     print(f"Strongest negative correlation: {continuous_params[min_neg_idx[0]]} - {continuous_params[min_neg_idx[1]]} (r = {corr_values[min_neg_idx]:.3f})")
     
     return fig
+
+
 
 # Update the generate_all_plots function to include the four-panel alpha plot
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):

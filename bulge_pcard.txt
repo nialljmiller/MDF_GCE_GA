@@ -217,7 +217,7 @@ stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_
 # Note: Sweep this and throw out any after simulation that do not correctly attain
 # the mass of the bulge within 5%
 ############################################################
-mgal_values: [6.0e9,2.0e10]
+mgal_values: [9.0e9]
 
 ############################################################
 #

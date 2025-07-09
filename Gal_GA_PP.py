@@ -103,7 +103,7 @@ class GalacticEvolutionGA:
 
     def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits,
                  sn1a_assumptions, stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, loss_metric='huber', fancy_mutation = 'gaussian', shrink_range = False,
-                 tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, PP = False):
+                 tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, PP = False):
         # Initialize parameters as instance variables
         self.sn1a_header = sn1a_header
         self.iniab_header = iniab_header
@@ -188,7 +188,8 @@ class GalacticEvolutionGA:
         self.tournament_size = tournament_size
         self.lambda_diversity = lambda_diversity #A higher value places more emphasis on diversity.
 
-
+        self.physics_timer = 0
+        self.physical_constraints_freq = physical_constraints_freq
         # Define which indices are categorical vs continuous
         self.categorical_indices = [0, 1, 2, 3, 4]  # comp, imf, sn1a, stellar_yield, sn1a_rate
         self.continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]  # sigma_2, t_1, t_2, etc.
@@ -403,11 +404,11 @@ class GalacticEvolutionGA:
             ind1_copy[i] = avg_val + random.gauss(0, noise_scale)
             ind2_copy[i] = avg_val + random.gauss(0, noise_scale)
             
-            # Ensure bounds
+            # Use reflection instead:
             min_bound, max_bound = self.get_param_bounds(i)
-            ind1_copy[i] = min(max(ind1_copy[i], min_bound), max_bound)
-            ind2_copy[i] = min(max(ind2_copy[i], min_bound), max_bound)
-        
+            ind1_copy[i] = self._reflect_at_bounds(ind1_copy[i], min_bound, max_bound)
+            ind2_copy[i] = self._reflect_at_bounds(ind2_copy[i], min_bound, max_bound)
+
         return ind1_copy, ind2_copy
 
 
@@ -459,8 +460,7 @@ class GalacticEvolutionGA:
         return distinct_offspring
 
     def controlled_perturbation(self, individual, strength=None):
-        """Apply a controlled perturbation with varied step sizes"""
-
+        """Apply a controlled perturbation with varied step sizes using reflection at boundaries"""
         if strength is None:
             strength = self.perturbation_strength
         for i in range(len(individual)):
@@ -471,17 +471,48 @@ class GalacticEvolutionGA:
                     num_categories = len(getattr(self, param_name))
                     individual[i] = random.randint(0, num_categories - 1)
             else:
-                # Varied continuous perturbations
+                # Varied continuous perturbations with reflection
                 min_bound, max_bound = self.get_param_bounds(i)
                 range_size = max_bound - min_bound
                 
                 # Random step size between 0.5% and 10% of range, scaled by strength
-                step_fraction = (0.005 + 0.095 * random.random()) * strength
+                step_fraction = (1.0 * random.random()) * strength
                 sigma = range_size * step_fraction
                 
-                individual[i] += random.gauss(0, sigma)
-                individual[i] = min(max(individual[i], min_bound), max_bound)
+                # Apply perturbation
+                new_value = individual[i] + random.gauss(0, sigma)
+                
+                # Reflect at boundaries to preserve perturbation magnitude
+                new_value = self._reflect_at_bounds(new_value, min_bound, max_bound)
+                individual[i] = new_value
 
+    def _reflect_at_bounds(self, value, min_bound, max_bound):
+        """Reflect value at boundaries to preserve perturbation magnitude"""
+        range_size = max_bound - min_bound
+        
+        if value < min_bound:
+            # Reflect below lower bound
+            excess = min_bound - value
+            # Handle multiple reflections for large perturbations
+            excess = excess % (2 * range_size)
+            if excess <= range_size:
+                return min_bound + excess
+            else:
+                return max_bound - (excess - range_size)
+        
+        elif value > max_bound:
+            # Reflect above upper bound  
+            excess = value - max_bound
+            # Handle multiple reflections for large perturbations
+            excess = excess % (2 * range_size)
+            if excess <= range_size:
+                return max_bound - excess
+            else:
+                return min_bound + (excess - range_size)
+        
+        else:
+            # Within bounds, no reflection needed
+            return value
 
     def update_operator_rates(self, population, generation, num_generations):
         """Enhanced diversity preservation"""
@@ -640,7 +671,7 @@ class GalacticEvolutionGA:
                             new_value = individual[i] + abs(new_value - individual[i]) * np.sign(current_direction)
                     
                     # Apply bounds
-                    new_value = min(max(new_value, min_bound), max_bound)
+                    new_value = self._reflect_at_bounds(new_value, min_bound, max_bound)
                     individual[i] = new_value
         
         # Store current values as previous for next mutation
@@ -800,12 +831,20 @@ class GalacticEvolutionGA:
 
 
         # Apply physics penalty
-        primary_loss_value = apply_physics_penalty(
-            primary_loss_value, 
-            MDF_x_data, MDF_y_data, 
-            alpha_arrs, 
-            age_x_data, age_y_data
-        )
+
+
+        if self.physics_timer < self.physical_constraints_freq:
+            self.physics_timer = self.physics_timer + 1
+
+        else:
+
+            self.physics_timer = 0
+            primary_loss_value = apply_physics_penalty(
+                primary_loss_value, 
+                MDF_x_data, MDF_y_data, 
+                alpha_arrs, 
+                age_x_data, age_y_data
+            )
 
         # Return the result with a detailed label
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '

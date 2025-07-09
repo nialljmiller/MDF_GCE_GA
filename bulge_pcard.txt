@@ -73,7 +73,7 @@ gaussian_sigma_scale: 0.1
 crossover_noise_fraction: 0.05
 
 # Base strength for controlled perturbations applied to duplicate individuals
-perturbation_strength: 0.5
+perturbation_strength: 1.0
 
 ############################################################
 #

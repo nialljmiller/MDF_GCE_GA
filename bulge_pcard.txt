@@ -330,7 +330,7 @@ sn1a_rates: ['power_law','gauss','exp','maoz']
 # Justification: Increased to 500 for finer resolution in rapid bulge phases; balances accuracy and speed.
 # References: Cote et al. (2016, ApJ, 825, 126) for OMEGA timestep convergence ~100-1000.
 ############################################################
-timesteps: 100
+timesteps: 500
 
 ############################################################
 #

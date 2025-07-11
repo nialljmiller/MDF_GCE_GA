@@ -1,3 +1,6 @@
+# Authors: N Miller
+
+
 #!/usr/bin/env python3
 
 '''

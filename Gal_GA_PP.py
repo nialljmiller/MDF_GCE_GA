@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.8
 ################################
-# Author: N Miller, M Joyce, (ChatGPT 4o for delint things)
+# Author: N Miller
 ################################
 #import imp
 import time
@@ -988,7 +988,7 @@ class GalacticEvolutionGA:
             self.update_operator_rates(population, gen, num_generations)
 
             # Step 9: Debug output and housekeeping
-            if output_interval and ((gen) % int(output_interval/2) == 0 or gen == num_generations - 1):
+            if output_interval and ((gen) % max(1,int(output_interval/2)) == 0 or gen == num_generations - 1):
                 print_population(self, population, generation=gen)
 
             gc.collect()  # clean up

@@ -1,3 +1,5 @@
+# Authors: N Miller
+
 import os
 import pickle
 

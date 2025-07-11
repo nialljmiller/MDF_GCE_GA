@@ -129,7 +129,7 @@ physical_constraints_freq: 3
 # Contentious: High ratios (>10) may over-dilute metals, but tested in recent simulations; typical bulge ratios 1-5, but up to 20 allows exploration of extreme dilution scenarios.
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ratios 1-10 in two-infall models; Spitoni et al. (2019, A&A, 632, A58) for 0.5-5 in bulge/disk transitions; Matteucci et al. (2024, A&A, 687, A11) for variable ratios up to ~20 in multi-population bulge evolution; Grisoni et al. (2020, MNRAS, 492, 2828) confirming 2-10 for chemical gradients.
 ############################################################
-sigma_2_list: [0.5, 20.0]
+sigma_2_list: [0.1, 50.0]
 
 ############################################################
 #
@@ -152,7 +152,7 @@ tmax_1_list: [0.001, 0.1] # for two infall scenario, sweep
 # Justification for tmax_2: 0.1-10.0 Gyr for delayed second infall matching observed bulge age spreads (2-10 Gyr) and bimodal populations; reduced upper from 15 to 10 as late delays (>10 Gyr) unlikely for bulge enrichment, focusing on plausible merger/dilution timings.
 # Contentious: Long delays (>8 Gyr) may underproduce metal-rich stars, debated in clumpy vs. secular evolution; typical 1-5 Gyr for "knee" in [α/Fe].
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ~4 Gyr delay; Valenti et al. (2016, A&A, 587, L6) for age spreads implying 0.1-12 Gyr, but up to 10 in models; Grisoni et al. (2017) for 0.1-8 Gyr; Matteucci et al. (2024, A&A, 687, A11) for 2-6 Gyr in multi-pop bulge.
-tmax_2_list: [0.1, 10.0]
+tmax_2_list: [0.1, 12.0]
 
 ############################################################
 #
@@ -174,7 +174,7 @@ infall_timescale_1_list: [0.001, 0.1] # fix for single infall model; sweep other
 # Justification for infall_timescale_2: 1.0-10.0 Gyr for slower second phase mimicking disk accretion and dilution; focused range to match disk formation without excessive late infall.
 # Contentious: Long tau2 (>10 Gyr) may cause under-enrichment or flat MDF; shorter (1-5 Gyr) preferred for bulge-disk transition, but up to 10 allows testing extended feeding.
 # References: Grand et al. (2018, MNRAS, 474, 3629) for 1-10 Gyr disk timescales; Chiappini et al. (2001) for 2-15 Gyr tau2; Matteucci et al. (2024, A&A, 687, A11) for 2-4 Gyr; Spitoni et al. (2019) for 3-7 Gyr in inner Galaxy.
-infall_timescale_2_list: [1.0, 10.0]
+infall_timescale_2_list: [0.1, 10.0]
 
 ############################################################
 #
@@ -238,7 +238,7 @@ imf_array: ['salpeter', 'chabrier', 'kroupa']
 # Contentious: >120 M_sun debated (pair-instability limit), but evidence for ~150; lower ~40 for metal-rich suppression.
 # References: Weidner et al. (2013, MNRAS, 434, 84) 30-150; Figer (2005, Nature, 434, 192) ~150 cutoff; Maíz Apellániz et al. (2007, A&A, 464, 83) 100-200 variations; Limongi & Chieffi (2018, ApJS, 237, 13) yields up to 120.
 ############################################################
-imf_upper_limits: [40, 150]  # Allow more massive stars
+imf_upper_limits: [30, 150]  # Allow more massive stars
 
 ############################################################
 #
@@ -295,7 +295,7 @@ stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_
 # Contentious: Definitions (bulge vs. bar/nuclear disk) vary; recent Gaia favors 1.5-2.0e10, but dynamical models differ by 20-30%.
 # References: Licquia & Newman (2015, ApJ, 806, 96) for 0.91e10; Valenti et al. (2016, A&A, 587, L6) for 2.0e10; Portail et al. (2017, MNRAS, 465, 1621) for 1.85e10; Wylie et al. (2024, MNRAS, 531, 386) Gaia DR3 ~1.5e10; Matteucci et al. (2024) using 1-2e10 in models.
 ############################################################
-mgal_values: [0.8e10, 2.5e10]
+mgal_values: [0.9e10, 2.0e10]
 
 ############################################################
 #
@@ -320,7 +320,7 @@ nb_array: [1e-4, 5e-3]  # Sweep SN1a frequency
 # Contentious: Power-law (t^{-1}) standard but gauss fits clusters; exp for single-degenerate; maoz for observed rates.
 # References: Greggio (2005, A&A, 441, 1055) power-law; Strolger et al. (2004, ApJ, 613, 200) gaussian; Matteucci et al. (2001, A&A, 370, 951) exponential; Maoz et al. (2014) for empirical DTD.
 ############################################################
-sn1a_rates: ['power_law','gauss','exp','maoz']
+sn1a_rates: ['power_law','gauss','exp']
 
 ############################################################
 #

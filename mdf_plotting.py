@@ -2203,11 +2203,10 @@ def plot_walker_evolution_combined(walker_history, param_names, param_indices, s
 
 
 
+# Replace the plotting section in generate_all_plots function with this expanded version:
 
-
-# Update the generate_all_plots function to include the four-panel alpha plot
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
-    """Generate all plots from GalGA results including four-panel alpha plot"""
+    """Generate all plots from GalGA results including comprehensive parameter combinations"""
     
     # Load observational alpha element data
     f = open('data/Bensby_Data.tsv')
@@ -2272,78 +2271,133 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     ensure_dirs()
     
     # Extract metrics for scatter plots
-    
-    sigma_2_vals,t_1_vals,t_2_vals,infall_1_vals,infall_2_vals,sfe_vals,delta_sfe_vals,imf_upper_vals,mgal_vals,nb_vals, metrics_dict, df = extract_metrics(results_file)
+    sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df = extract_metrics(results_file)
     
     # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
     
-    # 2. Plot Four-Panel Alpha Elements (NEW)
+    # 2. Plot Four-Panel Alpha Elements
     print("Generating Four-Panel Alpha Elements plot...")
     plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, df)
 
-    print("Generating AGE  plot...")
+    print("Generating Age-Metallicity plot...")
     plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
 
-
-    # 4. Plot 2D scatter plots
-    print("Generating 2D scatter plots...")
+    # 3. Comprehensive 2D scatter plots
+    print("Generating comprehensive 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
-        plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_in2', xlabel='t_2', ylabel='infall_2')
-        plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_in2', xlabel='t_1', ylabel='infall_2')
-        plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_t1_t2', xlabel='t_1', ylabel='t_2')
-        plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='sfe', ylabel='sigma_2')
-        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='sfe', ylabel='t_2')
-        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_deltasfe_t2', xlabel='delta sfe', ylabel='t_2')
-        plot_2d_scatter(delta_sfe_vals, sfe_vals, metric_vals, metric_name + '_deltasfe_sfe', xlabel='delta sfe', ylabel='sfe')
-        plot_2d_scatter(nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF')
-    
+        
+        # ========== INFALL PARAMETERS ==========
+        # Second infall episode (most important)
+        plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_infall2', xlabel='t_2 (Gyr)', ylabel='infall_2 (Gyr)')
+        plot_2d_scatter(sigma_2_vals, infall_2_vals, metric_vals, metric_name + '_sigma2_infall2', xlabel='sigma_2', ylabel='infall_2 (Gyr)')
+        plot_2d_scatter(sigma_2_vals, t_2_vals, metric_vals, metric_name + '_sigma2_t2', xlabel='sigma_2', ylabel='t_2 (Gyr)')
+        
+        # First infall episode
+        plot_2d_scatter(t_1_vals, infall_1_vals, metric_vals, metric_name + '_t1_infall1', xlabel='t_1 (Gyr)', ylabel='infall_1 (Gyr)')
+        plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_infall2', xlabel='t_1 (Gyr)', ylabel='infall_2 (Gyr)')
+        
+        # Cross-infall comparisons
+        plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_t1_t2', xlabel='t_1 (Gyr)', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(infall_1_vals, infall_2_vals, metric_vals, metric_name + '_infall1_infall2', xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)')
+        
+        # ========== STAR FORMATION EFFICIENCY ==========
+        plot_2d_scatter(sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_sfe_deltasfe', xlabel='SFE', ylabel='Delta SFE')
+        plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='SFE', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='SFE', ylabel='sigma_2')
+        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_deltasfe_t2', xlabel='Delta SFE', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_infall2', xlabel='Delta SFE', ylabel='infall_2 (Gyr)')
+        
+        # ========== GALAXY MASS RELATIONS ==========
+        plot_2d_scatter(mgal_vals, sfe_vals, metric_vals, metric_name + '_mgal_sfe', xlabel='M_gal (M_sun)', ylabel='SFE')
+        plot_2d_scatter(mgal_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_sigma2', xlabel='M_gal (M_sun)', ylabel='sigma_2')
+        plot_2d_scatter(mgal_vals, t_2_vals, metric_vals, metric_name + '_mgal_t2', xlabel='M_gal (M_sun)', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(mgal_vals, infall_2_vals, metric_vals, metric_name + '_mgal_infall2', xlabel='M_gal (M_sun)', ylabel='infall_2 (Gyr)')
+        
+        # ========== IMF AND STELLAR PARAMETERS ==========
+        plot_2d_scatter(imf_upper_vals, sfe_vals, metric_vals, metric_name + '_imf_sfe', xlabel='IMF Upper (M_sun)', ylabel='SFE')
+        plot_2d_scatter(imf_upper_vals, t_2_vals, metric_vals, metric_name + '_imf_t2', xlabel='IMF Upper (M_sun)', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(imf_upper_vals, mgal_vals, metric_vals, metric_name + '_imf_mgal', xlabel='IMF Upper (M_sun)', ylabel='M_gal (M_sun)')
+        plot_2d_scatter(nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF Upper (M_sun)')
+        
+        # ========== SN1A PARAMETERS ==========
+        plot_2d_scatter(nb_vals, sfe_vals, metric_vals, metric_name + '_nb_sfe', xlabel='SN1a per Solar Mass', ylabel='SFE')
+        plot_2d_scatter(nb_vals, t_2_vals, metric_vals, metric_name + '_nb_t2', xlabel='SN1a per Solar Mass', ylabel='t_2 (Gyr)')
+        plot_2d_scatter(nb_vals, mgal_vals, metric_vals, metric_name + '_nb_mgal', xlabel='SN1a per Solar Mass', ylabel='M_gal (M_sun)')
+        plot_2d_scatter(nb_vals, sigma_2_vals, metric_vals, metric_name + '_nb_sigma2', xlabel='SN1a per Solar Mass', ylabel='sigma_2')
 
-    print("Generating 3D scatter plots...")
+    # 4. Comprehensive 3D scatter plots
+    print("Generating comprehensive 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
-        plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name)
-        plot_3d_scatter(sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='t_1', zlabel='infall_2')
-        plot_3d_scatter(sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sii', xlabel='sfe', ylabel='delta sfe', zlabel='infall_2')
-        plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_tti', xlabel='t_1', ylabel='t_2', zlabel='infall_2')
-        plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_sti', xlabel='delta sfe', ylabel='t_2', zlabel='infall_2')
-        plot_3d_scatter(nb_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_nti', xlabel='SN1a per Solar Mass', ylabel='IMF', zlabel='infall_2')
-    
+        
+        # ========== INFALL-FOCUSED 3D PLOTS ==========
+        # Primary infall relationships
+        plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_infall2_complete', 
+                       xlabel='sigma_2', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_timing_comparison', 
+                       xlabel='t_1 (Gyr)', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(infall_1_vals, infall_2_vals, sigma_2_vals, metric_vals, metric_name + '_infall_timescales', 
+                       xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)', zlabel='sigma_2')
+        
+        # ========== SFE-FOCUSED 3D PLOTS ==========
+        plot_3d_scatter(sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sfe_evolution', 
+                       xlabel='SFE', ylabel='Delta SFE', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sfe_timing', 
+                       xlabel='SFE', ylabel='t_1 (Gyr)', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(sfe_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_infall2_params', 
+                       xlabel='SFE', ylabel='t_2 (Gyr)', zlabel='sigma_2')
+        plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_timing', 
+                       xlabel='Delta SFE', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
+        
+        # ========== GALAXY MASS-FOCUSED 3D PLOTS ==========
+        plot_3d_scatter(mgal_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_mgal_sfe_infall', 
+                       xlabel='M_gal (M_sun)', ylabel='SFE', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(mgal_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_infall2_params', 
+                       xlabel='M_gal (M_sun)', ylabel='t_2 (Gyr)', zlabel='sigma_2')
+        plot_3d_scatter(mgal_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_mgal_sfe_evolution', 
+                       xlabel='M_gal (M_sun)', ylabel='SFE', zlabel='Delta SFE')
+        
+        # ========== STELLAR/IMF-FOCUSED 3D PLOTS ==========
+        plot_3d_scatter(imf_upper_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_imf_sfe_infall', 
+                       xlabel='IMF Upper (M_sun)', ylabel='SFE', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(nb_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_stellar_params_infall', 
+                       xlabel='SN1a per Solar Mass', ylabel='IMF Upper (M_sun)', zlabel='infall_2 (Gyr)')
+        plot_3d_scatter(nb_vals, sfe_vals, t_2_vals, metric_vals, metric_name + '_sn1a_sfe_timing', 
+                       xlabel='SN1a per Solar Mass', ylabel='SFE', zlabel='t_2 (Gyr)')
+        
+        # ========== CROSS-PARAMETER EXPLORATION ==========
+        plot_3d_scatter(sigma_2_vals, sfe_vals, mgal_vals, metric_vals, metric_name + '_sigma_sfe_mgal', 
+                       xlabel='sigma_2', ylabel='SFE', zlabel='M_gal (M_sun)')
+        plot_3d_scatter(t_1_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_t1_sfe_evolution', 
+                       xlabel='t_1 (Gyr)', ylabel='SFE', zlabel='Delta SFE')
+        plot_3d_scatter(infall_1_vals, infall_2_vals, sfe_vals, metric_vals, metric_name + '_infall_timescales_sfe', 
+                       xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)', zlabel='SFE')
 
-    
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")
-
     param_names = ["sigma_2", "t_2", "infall_2", "sfe", "delta_sfe"]
-    # Indices of the parameters in the GA individual's gene list
     param_indices = [5, 7, 9, 10, 11]
     plot_walker_history(GalGA.walker_history, param_names, param_indices)
-        
+    
     # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
     for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
-
-    # NEW: Plot walker success rates
-    print("Generating walker success rate plots...")
-    plot_walker_success_rate(GalGA.walker_history, results_file, threshold=0.1, loss_metric='fitness')
-    plot_multiple_success_thresholds(GalGA.walker_history, results_file, thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='fitness')
-
+        
     # 7. Create 3D animation
     print("Generating 3D animation...")
-    #create_3d_animation(GalGA.walker_history)
+    # create_3d_animation(GalGA.walker_history)
     
-    # NEW: PCA degeneracy analysis
+    # 8. PCA degeneracy analysis
     print("Generating PCA degeneracy analysis...")
     plot_pca_degeneracy_analysis(GalGA, results_file)
     
     print("Generating parameter correlation matrix...")
     plot_parameter_correlation_matrix(results_file)
     
-    print("OMNI FIGURE....")
-    plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, feh, normalized_count, df)
-
     print("All plotting complete! Check the GA directory for results.")
+    print(f"Generated comprehensive parameter space exploration plots:")
+    print(f"- {len(metrics_dict)} metrics × 24 2D plots = {len(metrics_dict) * 24} 2D scatter plots")
+    print(f"- {len(metrics_dict)} metrics × 16 3D plots = {len(metrics_dict) * 16} 3D scatter plots")
+    print(f"- Plus walker evolution, loss history, PCA analysis, and correlation matrix plots")
     print(f"Loaded {len(Fe_H)} observational data points for individual alpha elements")
-
-
-    plot_walker_evolution_combined(GalGA.walker_history, param_names, param_indices, save_path='GA/walker_evolution_combined.png')

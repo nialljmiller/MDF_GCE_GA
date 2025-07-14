@@ -2291,10 +2291,10 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     for metric_name, metric_vals in metrics_dict.items():
         plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_in2', xlabel='t_2', ylabel='infall_2')
         plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_in2', xlabel='t_1', ylabel='infall_2')
-        plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_sfe_in2', xlabel='sfe', ylabel='infall_2')
+        plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_t1_t2', xlabel='t_1', ylabel='t_2')
         plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='sfe', ylabel='sigma_2')
         plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='sfe', ylabel='t_2')
-        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='delta sfe', ylabel='t_2')
+        plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_deltasfe_t2', xlabel='delta sfe', ylabel='t_2')
         plot_2d_scatter(delta_sfe_vals, sfe_vals, metric_vals, metric_name + '_deltasfe_sfe', xlabel='delta sfe', ylabel='sfe')
         plot_2d_scatter(nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF')
     
@@ -2325,15 +2325,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
 
     # NEW: Plot walker success rates
     print("Generating walker success rate plots...")
-    plot_walker_success_rate(GalGA.walker_history, results_file, threshold=0.1, loss_metric='wrmse')
-    plot_walker_success_rate(GalGA.walker_history, results_file, threshold=0.1, loss_metric='huber')
-    plot_walker_success_rate(GalGA.walker_history, results_file, threshold=0.05, loss_metric='wrmse')
+    plot_walker_success_rate(GalGA.walker_history, results_file, threshold=0.1, loss_metric='fitness')
+    plot_multiple_success_thresholds(GalGA.walker_history, results_file, thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='fitness')
 
-    # Plot multiple thresholds on one plot
-    plot_multiple_success_thresholds(GalGA.walker_history, results_file, 
-                                   thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='wrmse')
-    plot_multiple_success_thresholds(GalGA.walker_history, results_file, 
-                                   thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='huber')
     # 7. Create 3D animation
     print("Generating 3D animation...")
     #create_3d_animation(GalGA.walker_history)

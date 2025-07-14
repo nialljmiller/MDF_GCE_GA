@@ -56,9 +56,9 @@ def compute_ensemble_metric(GA_class, theory_count_array):
     ks_val = compute_ks_distance(GA_class, theory_count_array)
     
     # ---- Weighted sum ----
-    alpha = 0.7  # WRMSE
-    beta = 0.2   # Cosine
-    gamma = 0.1  # Huber
+    alpha = 0.9  # WRMSE
+    beta = 0.05   # Cosine
+    gamma = 0.05  # Huber
 
     base_loss = alpha * wrmse_val + beta * cosine_val + gamma * huber_val
 

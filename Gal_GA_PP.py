@@ -459,14 +459,23 @@ class GalacticEvolutionGA:
 
         return distinct_offspring
 
+
+
     def controlled_perturbation(self, individual, strength=None):
-        """Apply a controlled perturbation with varied step sizes using reflection at boundaries"""
+        """Apply a controlled perturbation with varied step sizes using reflection at boundaries, scaled by fitness"""
         if strength is None:
             strength = self.perturbation_strength
+        
+        # Get fitness-based scaling factor
+        fitness_scale = self.get_fitness_scale(individual)
+        
+        # Apply fitness scaling to strength
+        scaled_strength = strength * fitness_scale
+        
         for i in range(len(individual)):
             if i in self.categorical_indices:
-                # Small chance to change categorical parameters
-                if random.random() < 0.05:
+                # Small chance to change categorical parameters (also scaled by fitness)
+                if random.random() < (0.05 * fitness_scale):
                     param_name = self.index_to_param_map[i]
                     num_categories = len(getattr(self, param_name))
                     individual[i] = random.randint(0, num_categories - 1)
@@ -475,8 +484,8 @@ class GalacticEvolutionGA:
                 min_bound, max_bound = self.get_param_bounds(i)
                 range_size = max_bound - min_bound
                 
-                # Random step size between 0.5% and 10% of range, scaled by strength
-                step_fraction = (1.0 * random.random()) * strength
+                # Random step size between 0.5% and 10% of range, scaled by strength and fitness
+                step_fraction = (1.0 * random.random()) * scaled_strength
                 sigma = range_size * step_fraction
                 
                 # Apply perturbation
@@ -485,6 +494,28 @@ class GalacticEvolutionGA:
                 # Reflect at boundaries to preserve perturbation magnitude
                 new_value = self._reflect_at_bounds(new_value, min_bound, max_bound)
                 individual[i] = new_value
+
+    def get_fitness_scale(self, individual):
+        """Calculate fitness-based scaling factor with activation function"""
+        if not individual.fitness.valid:
+            return 1.0  # Default scaling if no fitness available
+        
+        fitness = individual.fitness.values[0]
+        
+        # Activation function: linear below 0.1, higher scaling above
+        if fitness < 0.1:
+            # Linear scaling below 0.1
+            scale = fitness
+        else:
+            # Higher scaling above 0.1: 0.1 + (fitness - 0.1)^1.5
+            scale = 0.1 + (fitness - 0.1) ** 1.5
+        
+        # Ensure minimum scaling to prevent zero perturbation
+        return max(scale, 0.01)
+
+
+
+
 
     def _reflect_at_bounds(self, value, min_bound, max_bound):
         """Reflect value at boundaries to preserve perturbation magnitude"""
@@ -534,8 +565,8 @@ class GalacticEvolutionGA:
             self.mutpb = min(0.9, self.mutpb * 1.2)
             self.cxpb = max(0.2, self.cxpb * 0.8)
         elif diversity > 0.5:  # High diversity = decrease mutation slightly
-            self.mutpb = max(0.3, self.mutpb * 0.95)
-            self.cxpb = min(0.6, self.cxpb * 1.05)
+            self.mutpb = max(0.1, self.mutpb * 0.95)
+            self.cxpb = min(0.7, self.cxpb * 1.05)
 
 
 
@@ -616,6 +647,8 @@ class GalacticEvolutionGA:
         
         return self.mutpb
 
+
+
     def gaussian_mutate(self, individual, indpb=1.0, base_sigma_scale=None):
         """Mutation with anti-oscillation and varied step sizes"""
 
@@ -630,6 +663,8 @@ class GalacticEvolutionGA:
         
         current_values = individual[:]
         
+        fitness_scale = self.get_fitness_scale(individual)
+
         for i in range(len(individual)):
             if random.random() < indpb:
                 if i in self.categorical_indices:
@@ -651,25 +686,14 @@ class GalacticEvolutionGA:
                     
                     # Add randomness to step size (prevents uniform steps)
                     step_multiplier = 0.1 + 2.0 * random.random()
-                    sigma = range_size * base_scale * step_multiplier
+                    sigma = range_size * base_scale * step_multiplier * fitness_scale
                     
                     # Anti-oscillation: if we're moving back toward previous value, 
                     # sometimes force movement in same direction
                     new_value = individual[i] + random.gauss(0, sigma)
                     
-                    if prev_values is not None and i < len(prev_values):
-                        # Check if we're oscillating
-                        current_direction = individual[i] - prev_values[i]
-                        new_direction = new_value - individual[i]
-                        
-                        # If directions are opposite (oscillation), sometimes force same direction
-                        if (current_direction * new_direction < 0 and 
-                            abs(current_direction) > range_size * 0.01 and
-                            random.random() < 0.3):  # 30% chance to prevent oscillation
-                            
-                            # Force movement in same direction as before
-                            new_value = individual[i] + abs(new_value - individual[i]) * np.sign(current_direction)
-                    
+
+
                     # Apply bounds
                     new_value = self._reflect_at_bounds(new_value, min_bound, max_bound)
                     individual[i] = new_value
@@ -678,6 +702,8 @@ class GalacticEvolutionGA:
         individual.prev_values = current_values[:]
         
         return individual,
+
+
 
 
 

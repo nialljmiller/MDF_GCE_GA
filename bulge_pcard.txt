@@ -84,7 +84,7 @@ selection_threshold: -1
 # Justification: Size 2 balances diversity and selection pressure.
 # References: Miller & Goldberg (1995, Evolutionary Computation) for tournament size 2-4 optimal.
 # Contentious: Larger (4+) faster but risks locals; 2 preferred for astro params.
-tournament_size: 2
+tournament_size: 3
 
 # How the distance to the real data is calculated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
 # Justification: 'ensemble' combines metrics for robust MDF fitting.
@@ -101,11 +101,11 @@ shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
 # Justification: 0.1 as fraction of range for adaptive steps.
-gaussian_sigma_scale: 0.1
+gaussian_sigma_scale: 0.01
 
 # Fraction of the difference between parents used as noise during crossover
 # Justification: 0.05 adds small variation for fine-tuning.
-crossover_noise_fraction: 0.05
+crossover_noise_fraction: 0.01
 
 # Base strength for controlled perturbations applied to duplicate individuals
 # Justification: 0.2 to break duplicates without large jumps.
@@ -152,7 +152,7 @@ tmax_1_list: [0.001, 0.1] # for two infall scenario, sweep
 # Justification for tmax_2: 0.1-10.0 Gyr for delayed second infall matching observed bulge age spreads (2-10 Gyr) and bimodal populations; reduced upper from 15 to 10 as late delays (>10 Gyr) unlikely for bulge enrichment, focusing on plausible merger/dilution timings.
 # Contentious: Long delays (>8 Gyr) may underproduce metal-rich stars, debated in clumpy vs. secular evolution; typical 1-5 Gyr for "knee" in [α/Fe].
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ~4 Gyr delay; Valenti et al. (2016, A&A, 587, L6) for age spreads implying 0.1-12 Gyr, but up to 10 in models; Grisoni et al. (2017) for 0.1-8 Gyr; Matteucci et al. (2024, A&A, 687, A11) for 2-6 Gyr in multi-pop bulge.
-tmax_2_list: [0.1, 12.0]
+tmax_2_list: [0.1, 13.0]
 
 ############################################################
 #
@@ -174,7 +174,7 @@ infall_timescale_1_list: [0.001, 0.1] # fix for single infall model; sweep other
 # Justification for infall_timescale_2: 1.0-10.0 Gyr for slower second phase mimicking disk accretion and dilution; focused range to match disk formation without excessive late infall.
 # Contentious: Long tau2 (>10 Gyr) may cause under-enrichment or flat MDF; shorter (1-5 Gyr) preferred for bulge-disk transition, but up to 10 allows testing extended feeding.
 # References: Grand et al. (2018, MNRAS, 474, 3629) for 1-10 Gyr disk timescales; Chiappini et al. (2001) for 2-15 Gyr tau2; Matteucci et al. (2024, A&A, 687, A11) for 2-4 Gyr; Spitoni et al. (2019) for 3-7 Gyr in inner Galaxy.
-infall_timescale_2_list: [0.1, 10.0]
+infall_timescale_2_list: [0.1, 13.0]
 
 ############################################################
 #
@@ -208,7 +208,7 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 # Contentious: High SFE (>0.5) debated for sustained periods (leads to rapid depletion), but observed in starbursts; typical bulge ~0.02-0.2.
 # References: Leroy et al. (2013, AJ, 146, 19) for 0.01-1 in dense environments; Bigiel et al. (2008, AJ, 136, 2846) 0.002-0.1; Kennicutt et al. (2021, ARA&A, 59, 319) up to 10 in bursts, but ~1 for bulges; Grisoni et al. (2020, MNRAS, 492, 2828) ~0.02 for bulge.
 ############################################################
-sfe_array: [0.01, 1.0]
+sfe_array: [0.01, 0.2]
 
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.
@@ -295,7 +295,7 @@ stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_
 # Contentious: Definitions (bulge vs. bar/nuclear disk) vary; recent Gaia favors 1.5-2.0e10, but dynamical models differ by 20-30%.
 # References: Licquia & Newman (2015, ApJ, 806, 96) for 0.91e10; Valenti et al. (2016, A&A, 587, L6) for 2.0e10; Portail et al. (2017, MNRAS, 465, 1621) for 1.85e10; Wylie et al. (2024, MNRAS, 531, 386) Gaia DR3 ~1.5e10; Matteucci et al. (2024) using 1-2e10 in models.
 ############################################################
-mgal_values: [0.9e10, 2.0e10]
+mgal_values: [0.9e10,2.0e10]
 
 ############################################################
 #
@@ -330,7 +330,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Justification: Increased to 500 for finer resolution in rapid bulge phases; balances accuracy and speed.
 # References: Cote et al. (2016, ApJ, 825, 126) for OMEGA timestep convergence ~100-1000.
 ############################################################
-timesteps: 500
+timesteps: 100
 
 ############################################################
 #

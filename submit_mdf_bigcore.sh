@@ -3,9 +3,9 @@
 #SBATCH --output=logs/mdf_ga_128core_%j.out
 #SBATCH --error=logs/mdf_ga_128core_%j.err
 #SBATCH --account=galacticbulge
-#SBATCH --nodes=1
-#SBATCH --ntasks=96
-#SBATCH --cpus-per-task=1
+#SBATCH --nodes=2
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=96
 #SBATCH --mem=128G
 #SBATCH --time=96:00:00
 

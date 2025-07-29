@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 ##module variables
-file_name = 'Christian_table2.dat'  ##change if csv file has a different name
+file_name = 'Christian_table2.dat'  
 feh_range = (-1.5, 1.0)
 bin_size = 0.08
 

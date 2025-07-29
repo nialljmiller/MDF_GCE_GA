@@ -18,7 +18,7 @@
 # Justification: Combines latitude-weighted bulge stars for robust MDF; spans -1.5 to +0.5 [Fe/H].
 # References: Johnson et al. (2022, ApJ, 931, 147) for APOGEE DR17 bulge data; Rich et al. (2023, AJ, 166, 18) for BDBS updates and metal-poor coverage.
 # Contentious: Weighting (50-50 blend) debated vs. pure spectroscopic; ensures balance of surveys' strengths.
-obs_file: 'data/best_mdf.dat'
+obs_file: 'data/equal_weight_mdf.dat'
 
 # Header for iniab tables (used for specifying isotope/element abundances; unchanged prefix)
 # Justification: Allows custom initial abundances; bulge models often start with near-solar or slightly depleted gas.
@@ -48,7 +48,7 @@ sn1a_header: 'yield_tables/'
 # NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
 # Justification: 128 allows diversity while feasible computationally; scales with param dimensions (~15 here).
 # References: Goldberg (1989, Genetic Algorithms book) for popsize ~100-200 in complex spaces.
-popsize:128 
+popsize:256 
 
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
@@ -101,7 +101,7 @@ shrink_range: 'False'
 
 # Controls the scale of gaussian mutations relative to each parameter's range
 # Justification: 0.1 as fraction of range for adaptive steps.
-gaussian_sigma_scale: 0.01
+gaussian_sigma_scale: 0.1
 
 # Fraction of the difference between parents used as noise during crossover
 # Justification: 0.05 adds small variation for fine-tuning.
@@ -213,7 +213,7 @@ sfe_array: [0.01, 0.2]
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.
 # References: Spitoni et al. (2019, A&A, 632, A58) for Δ~0.5-2 increases; Chiappini et al. (2001) variations 0-2; Matteucci et al. (2024) potential decreases ~ -0.5 for dilution; Grisoni et al. (2020) Δ~0-1.
-delta_sfe_array: [-0.5, 1.0]
+delta_sfe_array: [0.1, 1.0]
 
 ############################################################
 #

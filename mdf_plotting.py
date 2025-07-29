@@ -26,6 +26,8 @@ from scipy.stats import gaussian_kde
 import os
 from scipy.interpolate import UnivariateSpline
 from numpy.polynomial.polynomial import Polynomial
+from phys_plot import generate_physics_plots
+from loss_plot import *
 
 # ---------------------------------------------------
 # Global style for paper-quality figures
@@ -70,199 +72,6 @@ def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
     plt.close(fig)
     return fig
 
-
-
-def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.csv', 
-                             threshold=0.1, loss_metric='wrmse', save_path='GA/walker_success_rate.png'):
-    """
-    Plot the fraction of walkers with loss below threshold over generations.
-    
-    Parameters:
-    -----------
-    walker_history : dict
-        Dictionary mapping walker IDs to their parameter history
-    results_csv : str
-        Path to the CSV file containing all evaluation results
-    threshold : float
-        Loss threshold for success criterion
-    loss_metric : str
-        Which loss metric to use ('wrmse', 'mae', 'mape', etc.)
-    save_path : str
-        Where to save the plot
-    """
-    
-    if not walker_history:
-        print("Walker history data not available. Skipping success rate plot.")
-        return None
-    
-    # Load results containing all evaluations
-    import pandas as pd
-    results_df = pd.read_csv(results_csv)
-    
-    # Get maximum number of generations
-    max_generations = max(len(history) for history in walker_history.values() if history)
-    if max_generations == 0:
-        print("No generation data found. Skipping success rate plot.")
-        return None
-    
-    success_fractions = []
-    generations = list(range(max_generations))
-    
-    # For each generation
-    for gen in range(max_generations):
-        successful_walkers = 0
-        total_walkers = 0
-        
-        # Check each walker
-        for walker_id, history in walker_history.items():
-            if not history or gen >= len(history):
-                continue
-                
-            total_walkers += 1
-            
-            # Get parameters for this generation
-            params = history[gen]
-            
-            # Extract key parameters to match with results
-            # Assuming indices based on your individual structure
-            sigma_2 = params[5]  # sigma_2
-            t_2 = params[7]      # t_2  
-            infall_2 = params[9] # infall_2
-            
-            # Find matching result in dataframe
-            matches = results_df[
-                (abs(results_df['sigma_2'] - sigma_2) < 1e-5) &
-                (abs(results_df['t_2'] - t_2) < 1e-5) &
-                (abs(results_df['infall_2'] - infall_2) < 1e-5)
-            ]
-            
-            if not matches.empty:
-                loss_value = matches.iloc[0][loss_metric]
-                if loss_value < threshold:
-                    successful_walkers += 1
-        
-        # Calculate success fraction
-        if total_walkers > 0:
-            success_fraction = successful_walkers / total_walkers
-        else:
-            success_fraction = 0.0
-            
-        success_fractions.append(success_fraction)
-    
-    # Create the plot
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    ax.plot(generations, success_fractions, 'o-', linewidth=2, markersize=4, 
-            color='steelblue', label=f'Success Rate (< {threshold})')
-    
-    # Add horizontal reference lines
-    ax.axhline(y=0.5, color='orange', linestyle='--', alpha=0.7, label='50% Success')
-    ax.axhline(y=0.8, color='green', linestyle='--', alpha=0.7, label='80% Success')
-    
-    # Formatting
-    ax.set_xlabel('Generation')
-    ax.set_ylabel(f'Fraction of Walkers with {loss_metric.upper()} < {threshold}')
-    ax.set_title(f'Walker Success Rate Over Generations\n({loss_metric.upper()} threshold = {threshold})')
-    ax.set_ylim(0, 1)
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    
-    # Add final success rate annotation
-    if success_fractions:
-        final_rate = success_fractions[-1]
-        ax.annotate(f'Final: {final_rate:.1%}', 
-                   xy=(len(generations)-1, final_rate),
-                   xytext=(10, 10), textcoords='offset points',
-                   bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.7),
-                   arrowprops=dict(arrowstyle='->', color='black'))
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    print(f"Walker success rate plot saved to {save_path}")
-    print(f"Final success rate: {success_fractions[-1]:.1%} of walkers below {threshold}")
-    
-    return fig
-
-
-def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_results.csv', 
-                                   thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='wrmse', 
-                                   save_path='GA/walker_success_rates_multiple.png'):
-    """
-    Plot success rates for multiple thresholds on the same plot.
-    """
-    
-    if not walker_history:
-        print("Walker history data not available.")
-        return None
-    
-    import pandas as pd
-    results_df = pd.read_csv(results_csv)
-    
-    max_generations = max(len(history) for history in walker_history.values() if history)
-    if max_generations == 0:
-        return None
-    
-    fig, ax = plt.subplots(figsize=(12, 8))
-    
-    colors = ['red', 'orange', 'green', 'blue', 'purple']
-    
-    for i, threshold in enumerate(thresholds):
-        success_fractions = []
-        generations = list(range(max_generations))
-        
-        for gen in range(max_generations):
-            successful_walkers = 0
-            total_walkers = 0
-            
-            for walker_id, history in walker_history.items():
-                if not history or gen >= len(history):
-                    continue
-                    
-                total_walkers += 1
-                params = history[gen]
-                
-                sigma_2 = params[5]
-                t_2 = params[7]
-                infall_2 = params[9]
-                
-                matches = results_df[
-                    (abs(results_df['sigma_2'] - sigma_2) < 1e-5) &
-                    (abs(results_df['t_2'] - t_2) < 1e-5) &
-                    (abs(results_df['infall_2'] - infall_2) < 1e-5)
-                ]
-                
-                if not matches.empty:
-                    loss_value = matches.iloc[0][loss_metric]
-                    if loss_value < threshold:
-                        successful_walkers += 1
-            
-            if total_walkers > 0:
-                success_fraction = successful_walkers / total_walkers
-            else:
-                success_fraction = 0.0
-                
-            success_fractions.append(success_fraction)
-        
-        # Plot this threshold
-        color = colors[i % len(colors)]
-        ax.plot(generations, success_fractions, 'o-', linewidth=2, markersize=3, 
-                color=color, label=f'< {threshold}', alpha=0.8)
-    
-    ax.set_xlabel('Generation')
-    ax.set_ylabel(f'Fraction of Walkers Below Threshold ({loss_metric.upper()})')
-    ax.set_title(f'Walker Success Rates for Multiple Thresholds')
-    ax.set_ylim(0, 1)
-    ax.grid(True, alpha=0.3)
-    ax.legend(title='Threshold')
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    print(f"Multiple threshold success rate plot saved to {save_path}")
-    return fig
 
 
 # ---------------------------------------------------
@@ -367,166 +176,6 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     fig.savefig(save_path, bbox_inches='tight')
     plt.close(fig)
     return fig
-
-
-def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
-    """Plot 3D scatter plot with color indicating a specific metric.
-    Two plots:
-      - All data, color scaled [0, 1]
-      - Only points with loss < 0.1, color scaled [0, 0.1]
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-
-    x, y, z, color_metric = map(np.array, (x, y, z, color_metric))
-
-    def make_plot(x_data, y_data, z_data, color_data, vmin, vmax, suffix):
-        # Sort to plot best points on top
-        idx = np.argsort(color_data)[::-1]
-        x_sorted, y_sorted, z_sorted, color_sorted = x_data[idx], y_data[idx], z_data[idx], color_data[idx]
-
-        total = len(color_sorted)
-        top_n = min(max(1, int(0.01 * total)), 100)
-
-        fig = plt.figure(figsize=(12, 10))
-        ax = fig.add_subplot(111, projection='3d')
-
-        sc = ax.scatter(x_sorted, y_sorted, z_sorted, c=color_sorted, cmap='nipy_spectral',
-                        vmin=vmin, vmax=vmax, s=30, alpha=0.8)
-
-        if top_n > 0:
-            top_x = x_sorted[-top_n:]
-            top_y = y_sorted[-top_n:]
-            top_z = z_sorted[-top_n:]
-            top_colors = color_sorted[-top_n:]
-            ax.scatter(top_x, top_y, top_z, c=top_colors, cmap='nipy_spectral',
-                       vmin=vmin, vmax=vmax, s=50, edgecolors='white', linewidths=2, alpha=1.0)
-
-
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_zlabel(zlabel)
-        plt.colorbar(sc, label=label)
-        plt.savefig(f'GA/loss/{label}_loss_3d{suffix}.png', bbox_inches='tight')
-        plt.close()
-
-    # Full plot
-    make_plot(x, y, z, color_metric, 0, 1, '')
-
-    # Filtered plot for low loss
-    mask = color_metric < 0.1
-    if np.any(mask):
-        make_plot(x[mask], y[mask], z[mask], color_metric[mask], 0, 0.1, '_lowloss')
-
-
-
-def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
-    """Plot 2D scatter plot with color indicating a specific metric.
-    Two plots:
-      - All data, color scaled [0, 1]
-      - Only points with loss < 0.1, color scaled [0, 0.1]
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    x, y, color_metric = map(np.array, (x, y, color_metric))
-
-    def make_plot(x_data, y_data, color_data, vmin, vmax, suffix):
-        idx = np.argsort(color_data)[::-1]
-        x_sorted, y_sorted, color_sorted = x_data[idx], y_data[idx], color_data[idx]
-
-        total = len(color_sorted)
-        top_n = min(max(1, int(0.01 * total)), 100)
-
-        plt.figure(figsize=(10, 8))
-        sc = plt.scatter(x_sorted, y_sorted, c=color_sorted, cmap='nipy_spectral',
-                         vmin=vmin, vmax=vmax, s=30, alpha=0.8)
-
-        if top_n > 0:
-            top_x = x_sorted[-top_n:]
-            top_y = y_sorted[-top_n:]
-            top_colors = color_sorted[-top_n:]
-            plt.scatter(top_x, top_y, c=top_colors, cmap='nipy_spectral',
-                        vmin=vmin, vmax=vmax, s=50, edgecolors='white', linewidths=2, alpha=1.0)
-
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.colorbar(sc, label=label)
-        plt.savefig(f'GA/loss/{label}_loss_2d{suffix}.png', bbox_inches='tight')
-        plt.close()
-
-    # Full plot
-    make_plot(x, y, color_metric, 0, 1, '')
-
-    # Filtered plot for low loss
-    mask = color_metric < 0.1
-    if np.any(mask):
-        make_plot(x[mask], y[mask], color_metric[mask], 0, 0.1, '_lowloss')
-
-
-
-
-
-def plot_walker_history(walker_history, param_names, param_indices):
-    """
-    Plot the evolution of parameters for all walkers with median + spread.
-    """
-    if not walker_history:
-        print("Walker history data not available. Skipping walker evolution plots.")
-        return None
-
-    os.makedirs("GA/loss", exist_ok=True)
-    figs = []
-
-    for idx, param_name in enumerate(param_names):
-        fig, ax = plt.subplots(figsize=(12, 6))
-        figs.append(fig)
-
-        all_histories = []
-        for walker_idx, history in walker_history.items():
-            if not history:
-                continue
-
-            history = np.array(history)
-            param_idx = param_indices[idx]
-
-            if param_idx >= history.shape[1]:
-                continue
-
-            all_histories.append(history[:, param_idx])
-
-        if not all_histories:
-            continue
-
-        all_histories = np.array(all_histories)  # shape: (n_walkers, n_generations)
-        generations = np.arange(all_histories.shape[1])
-
-        # Plot faint lines for individual walkers
-        for walker_series in all_histories:
-            ax.plot(generations, walker_series, color='gray', alpha=0.01, linewidth=0.75)
-
-        # Overlay median and shaded quantiles
-        median = np.median(all_histories, axis=0)
-        lower = np.percentile(all_histories, 25, axis=0)
-        upper = np.percentile(all_histories, 75, axis=0)
-
-        ax.plot(generations, median, color='black', label='Median', linewidth=2)
-        ax.fill_between(generations, lower, upper, color='blue', alpha=0.2, label='25–75% range')
-
-        ax.set_xlabel("Generation")
-        ax.set_ylabel(f"{param_name}")
-        ax.set_title(f"Walker Evolution: {param_name}")
-        ax.legend(loc='best')
-        ax.grid(True)
-
-        fig.tight_layout()
-        fig.savefig(f'GA/loss/walker_evolution_{param_name}.png', bbox_inches='tight')
-        plt.close(fig)
-
-    print("Generated walker evolution plots with clarity enhancements")
-    return figs
-
 
 
 
@@ -2384,6 +2033,10 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
         
+        plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, threshold=0.1)
+    
+
+
     # 7. Create 3D animation
     print("Generating 3D animation...")
     # create_3d_animation(GalGA.walker_history)
@@ -2392,8 +2045,13 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     print("Generating PCA degeneracy analysis...")
     plot_pca_degeneracy_analysis(GalGA, results_file)
     
+    generate_physics_plots(GalGA, results_file=results_file)
+
     print("Generating parameter correlation matrix...")
     plot_parameter_correlation_matrix(results_file)
+
+    generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)
+
     
     print("All plotting complete! Check the GA directory for results.")
     print(f"Generated comprehensive parameter space exploration plots:")

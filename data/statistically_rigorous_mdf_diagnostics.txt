@@ -1,0 +1,13 @@
+MDF COMBINATION DIAGNOSTICS
+============================
+
+Effective weights:
+  APOGEE: 0.0464
+  BDBS:   0.9536
+
+Statistical measures:
+  Chi²/dof (overlap): 686.739
+  Effective sample size: 10502817075
+  Mean uncertainty: 0.004432
+  [Fe/H] range: -2.50 to 1.00
+  Resolution: 0.0500 dex

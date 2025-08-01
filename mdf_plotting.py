@@ -28,7 +28,7 @@ from scipy.interpolate import UnivariateSpline
 from numpy.polynomial.polynomial import Polynomial
 from phys_plot import generate_physics_plots
 from loss_plot import *
-
+import age_meta
 # ---------------------------------------------------
 # Global style for paper-quality figures
 # ---------------------------------------------------
@@ -1849,11 +1849,6 @@ def plot_walker_evolution_combined(walker_history, param_names, param_indices, s
     print(f"Combined walker evolution plot saved to {save_path}")
     return fig
 
-
-
-
-# Replace the plotting section in generate_all_plots function with this expanded version:
-
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
     """Generate all plots from GalGA results including comprehensive parameter combinations"""
     
@@ -2035,8 +2030,6 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         
         plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, threshold=0.1)
     
-
-
     # 7. Create 3D animation
     print("Generating 3D animation...")
     # create_3d_animation(GalGA.walker_history)
@@ -2052,7 +2045,11 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
 
     generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)
 
-    
+    # FIXED: Import age_meta and pass DataFrame instead of string
+    import age_meta
+    # Pass the DataFrame (df) instead of the file path string (results_file)
+    age_meta.plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=df, save_path='GA/Age_FeH_detailed_results.png', n_bins=10)
+
     print("All plotting complete! Check the GA directory for results.")
     print(f"Generated comprehensive parameter space exploration plots:")
     print(f"- {len(metrics_dict)} metrics × 24 2D plots = {len(metrics_dict) * 24} 2D scatter plots")

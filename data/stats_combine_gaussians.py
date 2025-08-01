@@ -9,7 +9,7 @@ def create_corrected_mdf_combination(
     apogee_file='gaussians.dat',
     bdbs_file='binned_dist_lat6_0.08dex.dat',
     feh_range=(-2.0, 1.0),
-    dx=0.05,
+    dx=0.08,
     apogee_weight=0.5,
     bdbs_weight=0.5,
     output_file='corrected_mdf.dat',
@@ -242,8 +242,6 @@ def create_corrected_mdf_combination(
         if np.any(overlap_mask):
             residuals = apogee_composite - bdbs_interp
             ax4.plot(x, residuals, 'ko-', markersize=2, alpha=0.7)
-            ax4.fill_between(x[overlap_mask], 0, residuals[overlap_mask], 
-                           alpha=0.3, color='yellow', label='Overlap region')
             ax4.axhline(0, color='red', linestyle='--')
             ax4.set_xlabel('[Fe/H]')
             ax4.set_ylabel('APOGEE - BDBS')

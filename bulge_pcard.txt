@@ -48,7 +48,7 @@ sn1a_header: 'yield_tables/'
 # NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
 # Justification: 128 allows diversity while feasible computationally; scales with param dimensions (~15 here).
 # References: Goldberg (1989, Genetic Algorithms book) for popsize ~100-200 in complex spaces.
-popsize:256
+popsize:128
 
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.

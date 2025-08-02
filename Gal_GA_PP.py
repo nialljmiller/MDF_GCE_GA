@@ -28,6 +28,7 @@ import mdf_plotting
 
 from loss import *
 from physical_constraints import apply_physics_penalty
+from exploration import voronoi_explore_dearths
 import ast
 
 
@@ -560,22 +561,23 @@ class GalacticEvolutionGA:
         else:
             diversity = 0
         
+        exploration_fraction = 0.1            
         # Adaptive rates based on diversity
         if diversity < 0.1:  # Low diversity = increase mutation
             self.mutpb = min(0.9, self.mutpb * 1.2)
             self.cxpb = max(0.2, self.cxpb * 0.8)
             
             # When diversity is low, explore sparse regions more aggressively
-            from exploration import voronoi_explore_dearths
-            voronoi_explore_dearths(self, population, exploration_fraction=0.25)
-            
+            exploration_fraction = 0.25            
+
         elif diversity > 0.5:  # High diversity = decrease mutation slightly
             self.mutpb = max(0.1, self.mutpb * 0.95)
             self.cxpb = min(0.7, self.cxpb * 1.05)
         else:
             # Normal diversity - still do some exploration but less aggressive
-            from exploration import voronoi_explore_dearths
-            voronoi_explore_dearths(self, population, exploration_fraction=0.15)
+            exploration_fraction = 0.15
+
+        voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
 
 
     def get_param_bounds(self, index):

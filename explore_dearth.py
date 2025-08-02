@@ -247,7 +247,7 @@ def _mutate_toward_region(GA_instance, individual, target_region):
         direction = target_val - current_val
         
         # Move partially toward target with noise
-        movement_fraction = 0.4 + 0.4 * random.random()  # 40-80% toward target
+        movement_fraction = 0.9 + 0.1 * random.random()  # 90-100% toward target
         
         min_bound, max_bound = GA_instance.get_param_bounds(param_idx)
         range_size = max_bound - min_bound

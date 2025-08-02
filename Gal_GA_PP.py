@@ -28,7 +28,7 @@ import mdf_plotting
 
 from loss import *
 from physical_constraints import apply_physics_penalty
-from exploration import voronoi_explore_dearths
+from explore_dearth import voronoi_explore_dearths
 import ast
 
 

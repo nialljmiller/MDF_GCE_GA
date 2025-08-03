@@ -53,7 +53,7 @@ popsize:256
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
 # References: Whitley (1994, Foundations of Genetic Algorithms) for generation scaling.
-generations: 128
+generations: 256
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output

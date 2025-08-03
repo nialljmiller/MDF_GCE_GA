@@ -178,7 +178,98 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     return fig
 
 
-
+def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA/MDF_multiple_results.png'):
+    """
+    Plot all model MDFs, highlight the best model, overlay data, and show residuals.
+    """
+    import numpy as np
+    from scipy.interpolate import interp1d
+    
+    # Create figure with subplots - main plot and residuals
+    fig, (ax_main, ax_res) = plt.subplots(2, 1, figsize=(9, 8), 
+                                          gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.05})
+    
+    # Determine best model parameters
+    if results_df is not None and not results_df.empty:
+        bm = results_df.iloc[0]
+        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
+    else:
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+    
+    best_flag = False
+    best_x = None
+    best_y = None
+    
+    # Plot all model curves on main panel
+    for (x, y), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
+        params = (res[5], res[7], res[9])
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
+        if is_best:
+            best_x = np.array(x)
+            best_y = np.array(y)
+            ax_main.plot(x, y, color='C3', linewidth=2.5,
+                        label='Best Model' if not best_flag else None)
+            best_flag = True
+        else:
+            ax_main.plot(x, y, color='gray', alpha=0.01)
+    
+    # Plot observational data on main panel
+    ax_main.plot(feh, normalized_count, 'x', ms=8, color='k', label='Observational Data')
+    
+    # Calculate and plot residuals
+    if best_x is not None and best_y is not None:
+        # Interpolate best model to observational data points
+        # Only interpolate within the model's [Fe/H] range
+        model_min, model_max = np.min(best_x), np.max(best_x)
+        
+        # Filter observational data to model range
+        obs_mask = (feh >= model_min) & (feh <= model_max)
+        feh_filtered = feh[obs_mask]
+        obs_filtered = normalized_count[obs_mask]
+        
+        if len(feh_filtered) > 0:
+            # Interpolate model to observational points
+            interp_func = interp1d(best_x, best_y, kind='linear', 
+                                 bounds_error=False, fill_value=np.nan)
+            model_interp = interp_func(feh_filtered)
+            
+            # Calculate residuals (model - observations)
+            residuals = model_interp - obs_filtered
+            
+            # Plot residuals
+            ax_res.plot(feh_filtered, residuals, 'rx', ms=6, alpha=0.8, label='Residuals')
+            ax_res.axhline(0, color='k', linestyle='--', alpha=0.5)
+            
+            # Calculate and display RMS residual
+            valid_residuals = residuals[~np.isnan(residuals)]
+            if len(valid_residuals) > 0:
+                rms_residual = np.sqrt(np.mean(valid_residuals**2))
+                ax_res.text(0.02, 0.95, f'RMS = {rms_residual:.3f}', 
+                           transform=ax_res.transAxes, fontsize=10,
+                           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+    
+    # Format main plot
+    ax_main.set_ylabel('Normalized Number Density')
+    ax_main.set_xlim(-2, 1)
+    ax_main.legend(loc='upper left', frameon=False)
+    ax_main.tick_params(axis='x', labelbottom=False)  # Remove x-axis labels from main plot
+    
+    # Format residuals plot
+    ax_res.set_xlabel('[Fe/H]')
+    ax_res.set_ylabel('Model - Obs')
+    ax_res.set_xlim(-2, 1)
+    ax_res.grid(True, alpha=0.3)
+    
+    # Set reasonable y-limits for residuals
+    if 'residuals' in locals() and len(valid_residuals) > 0:
+        res_std = np.std(valid_residuals)
+        ax_res.set_ylim(-3*res_std, 3*res_std)
+    
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)
+    return fig
 
 def create_3d_animation(walker_history):
     """Create an animated 3D visualization of walker evolution"""

@@ -129,7 +129,7 @@ physical_constraints_freq: 3
 # Contentious: High ratios (>10) may over-dilute metals, but tested in recent simulations; typical bulge ratios 1-5, but up to 20 allows exploration of extreme dilution scenarios.
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ratios 1-10 in two-infall models; Spitoni et al. (2019, A&A, 632, A58) for 0.5-5 in bulge/disk transitions; Matteucci et al. (2024, A&A, 687, A11) for variable ratios up to ~20 in multi-population bulge evolution; Grisoni et al. (2020, MNRAS, 492, 2828) confirming 2-10 for chemical gradients.
 ############################################################
-sigma_2_list: [0.1, 50.0]
+sigma_2_list: [0.1, 30.0]
 
 ############################################################
 #
@@ -147,12 +147,12 @@ sigma_2_list: [0.1, 50.0]
 # Contentious: Very short (<0.01 Gyr) may cause numerical instability in models, but necessary for prompt SF bursts; longer (~0.1 Gyr) debated for "inside-out" vs. monolithic collapse.
 # References: Matteucci et al. (2021, A&A, 653, A72) for ~0.1 Gyr onset in bulge models; Chiappini et al. (2001, ApJ, 554, 1044) for fast <0.01 Gyr first phase; Grisoni et al. (2017, MNRAS, 469, 4216) for 0.001-0.1 Gyr in two-infall; Wylie et al. (2024, MNRAS, 531, 386) observing old bulge ages implying <0.1 Gyr.
 ############################################################
-tmax_1_list: [0.001, 0.1] # for two infall scenario, sweep
+tmax_1_list: [0.0001, 0.1] # for two infall scenario, sweep
 
 # Justification for tmax_2: 0.1-10.0 Gyr for delayed second infall matching observed bulge age spreads (2-10 Gyr) and bimodal populations; reduced upper from 15 to 10 as late delays (>10 Gyr) unlikely for bulge enrichment, focusing on plausible merger/dilution timings.
 # Contentious: Long delays (>8 Gyr) may underproduce metal-rich stars, debated in clumpy vs. secular evolution; typical 1-5 Gyr for "knee" in [α/Fe].
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ~4 Gyr delay; Valenti et al. (2016, A&A, 587, L6) for age spreads implying 0.1-12 Gyr, but up to 10 in models; Grisoni et al. (2017) for 0.1-8 Gyr; Matteucci et al. (2024, A&A, 687, A11) for 2-6 Gyr in multi-pop bulge.
-tmax_2_list: [0.1, 13.0]
+tmax_2_list: [0.1, 10.0]
 
 ############################################################
 #
@@ -169,12 +169,12 @@ tmax_2_list: [0.1, 13.0]
 # Contentious: Very short (<0.001 Gyr) unphysical as it implies instantaneous collapse; 0.01-0.1 Gyr more common to avoid over-enrichment spikes.
 # References: Matteucci et al. (2021, A&A, 653, A72) for ~0.1 Gyr tau1; Chiappini et al. (2001, ApJ, 554, 1044) for fast <0.01 Gyr; Spitoni et al. (2019, A&A, 632, A58) for 0.001-0.1 Gyr in bulge phase; Grisoni et al. (2020, MNRAS, 492, 2828) confirming short tau1 for alpha knee.
 ############################################################
-infall_timescale_1_list: [0.001, 0.1] # fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.0001, 0.5] # fix for single infall model; sweep otherwise
 
 # Justification for infall_timescale_2: 1.0-10.0 Gyr for slower second phase mimicking disk accretion and dilution; focused range to match disk formation without excessive late infall.
 # Contentious: Long tau2 (>10 Gyr) may cause under-enrichment or flat MDF; shorter (1-5 Gyr) preferred for bulge-disk transition, but up to 10 allows testing extended feeding.
 # References: Grand et al. (2018, MNRAS, 474, 3629) for 1-10 Gyr disk timescales; Chiappini et al. (2001) for 2-15 Gyr tau2; Matteucci et al. (2024, A&A, 687, A11) for 2-4 Gyr; Spitoni et al. (2019) for 3-7 Gyr in inner Galaxy.
-infall_timescale_2_list: [0.1, 13.0]
+infall_timescale_2_list: [0.1, 10.0]
 
 ############################################################
 #
@@ -354,5 +354,5 @@ timesteps: 100
 # Contentious: Fixed A2=1 assumes equal normalization; variable A2 (0.5-2) could test mass ratios, but kept simple.
 # References: Spitoni et al. (2019) for A2/A1 ~1-5; Chiappini et al. (2001) for normalization in equations.
 ############################################################
-A2: 1
+A2: -1
 A1: 1

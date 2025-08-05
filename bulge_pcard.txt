@@ -127,7 +127,7 @@ physical_constraints_freq: 2
 # Contentious: High ratios (>10) may over-dilute metals, but tested in recent simulations; typical bulge ratios 1-5, but up to 20 allows exploration of extreme dilution scenarios.
 # References: Chiappini et al. (2001, ApJ, 554, 1044) for ratios 1-10 in two-infall models; Spitoni et al. (2019, A&A, 632, A58) for 0.5-5 in bulge/disk transitions; Matteucci et al. (2024, A&A, 687, A11) for variable ratios up to ~20 in multi-population bulge evolution; Grisoni et al. (2020, MNRAS, 492, 2828) confirming 2-10 for chemical gradients.
 ############################################################
-sigma_2_list: [0.1, 30.0]
+sigma_2_list: [0.1, 10.0]
 
 ############################################################
 #
@@ -206,12 +206,12 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 # Contentious: High SFE (>0.5) debated for sustained periods (leads to rapid depletion), but observed in starbursts; typical bulge ~0.02-0.2.
 # References: Leroy et al. (2013, AJ, 146, 19) for 0.01-1 in dense environments; Bigiel et al. (2008, AJ, 136, 2846) 0.002-0.1; Kennicutt et al. (2021, ARA&A, 59, 319) up to 10 in bursts, but ~1 for bulges; Grisoni et al. (2020, MNRAS, 492, 2828) ~0.02 for bulge.
 ############################################################
-sfe_array: [0.001, 0.2]
+sfe_array: [0.001, 0.035]
 
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.
 # References: Spitoni et al. (2019, A&A, 632, A58) for Δ~0.5-2 increases; Chiappini et al. (2001) variations 0-2; Matteucci et al. (2024) potential decreases ~ -0.5 for dilution; Grisoni et al. (2020) Δ~0-1.
-delta_sfe_array: [-0.1, 0.2]
+delta_sfe_array: [-0.01, 0.02]
 
 ############################################################
 #
@@ -306,7 +306,7 @@ mgal_values: [0.9e10,2.0e10]
 # Contentious: Bulge rates potentially higher due to density/binary fraction; typical 0.001-0.003, but variations by factor 3-5 in models.
 # References: Maoz et al. (2014, ARA&A, 52, 107) for ~1e-3; Matteucci et al. (2021) 3e-4-3e-3 in bulge; Greggio (2005, A&A, 441, 1055) for 1e-4-1e-2 variations; Kobayashi et al. (2020) confirming 0.0005-0.005 for Fe-peak.
 ############################################################
-nb_array: [1e-4, 5e-3]  # Sweep SN1a frequency
+nb_array: [0.5e-3, 5.5e-3]  # Sweep SN1a frequency
 
 ############################################################
 #

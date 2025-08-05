@@ -169,7 +169,7 @@ tmax_2_list: [0.1, 10.0]
 # Contentious: Very short (<0.001 Gyr) unphysical as it implies instantaneous collapse; 0.01-0.1 Gyr more common to avoid over-enrichment spikes.
 # References: Matteucci et al. (2021, A&A, 653, A72) for ~0.1 Gyr tau1; Chiappini et al. (2001, ApJ, 554, 1044) for fast <0.01 Gyr; Spitoni et al. (2019, A&A, 632, A58) for 0.001-0.1 Gyr in bulge phase; Grisoni et al. (2020, MNRAS, 492, 2828) confirming short tau1 for alpha knee.
 ############################################################
-infall_timescale_1_list: [0.0001, 0.5] # fix for single infall model; sweep otherwise
+infall_timescale_1_list: [0.0001, 0.1] # fix for single infall model; sweep otherwise
 
 # Justification for infall_timescale_2: 1.0-10.0 Gyr for slower second phase mimicking disk accretion and dilution; focused range to match disk formation without excessive late infall.
 # Contentious: Long tau2 (>10 Gyr) may cause under-enrichment or flat MDF; shorter (1-5 Gyr) preferred for bulge-disk transition, but up to 10 allows testing extended feeding.
@@ -355,4 +355,4 @@ timesteps: 100
 # References: Spitoni et al. (2019) for A2/A1 ~1-5; Chiappini et al. (2001) for normalization in equations.
 ############################################################
 A2: -1
-A1: 1
+A1: -1

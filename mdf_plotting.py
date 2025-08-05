@@ -2018,6 +2018,9 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     print("Generating Age-Metallicity plot...")
     plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
 
+    print("Generating more physics plots...")
+    generate_physics_plots(GalGA, results_file=results_file)
+
     # 3. Comprehensive 2D scatter plots
     print("Generating comprehensive 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
@@ -2116,10 +2119,10 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
-    for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness']:
+    for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness', 'ensemble']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
         
-        plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, threshold=0.1)
+        plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, loss_metric=metric, threshold=0.1)
     
     # 7. Create 3D animation
     print("Generating 3D animation...")
@@ -2127,9 +2130,11 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # 8. PCA degeneracy analysis
     print("Generating PCA degeneracy analysis...")
-    plot_pca_degeneracy_analysis(GalGA, results_file)
-    
-    generate_physics_plots(GalGA, results_file=results_file)
+    try:
+        plot_pca_degeneracy_analysis(GalGA, results_file)
+    except:
+        print("probably not enough samples yet...")
+
 
     print("Generating parameter correlation matrix...")
     plot_parameter_correlation_matrix(results_file)

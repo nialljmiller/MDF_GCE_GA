@@ -33,7 +33,7 @@ from phys_plot import generate_physics_plots
 
 
 def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.csv', 
-                             threshold=0.1, loss_metric='wrmse', save_path='GA/walker_success_rate.png'):
+                             threshold=0.1, loss_metric='wrmse', save_path='GA/walker_success_rate_'):
     """
     Plot the fraction of walkers with loss below threshold over generations.
     
@@ -51,6 +51,8 @@ def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.
         Where to save the plot
     """
     
+    save_path = save_path + str(loss_metric) + '.png'
+
     if not walker_history:
         print("Walker history data not available. Skipping success rate plot.")
         return None

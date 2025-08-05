@@ -48,7 +48,7 @@ sn1a_header: 'yield_tables/'
 # NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
 # Justification: 128 allows diversity while feasible computationally; scales with param dimensions (~15 here).
 # References: Goldberg (1989, Genetic Algorithms book) for popsize ~100-200 in complex spaces.
-popsize:256
+popsize:64
 
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
@@ -57,8 +57,7 @@ generations: 256
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-# Justification: Every 4 gens balances monitoring with efficiency.
-output_interval: 4
+output_interval: 8
 
 # Probability an individual will make babies. 
 # Justification: 0.5 promotes mixing without excessive randomness.
@@ -72,7 +71,6 @@ crossover_probability: 0.5
 mutation_probability: 0.7
 
 # The threshold at which a gene is considered successful.(-1 : threshold is median fitness of that sample)
-# Justification: -1 (median) for adaptive selection.
 selection_threshold: -1
 
 # Tournament selection is used to determine next population. Each round of individuals is split into tournaments of size {tournament_size} and the fittest individual from this tournament is kept for future evaluations.
@@ -113,7 +111,7 @@ perturbation_strength: 0.2
 
 # Frequency of applying physical constraints (every N evaluations)
 # Justification: Every 3 balances efficiency and realism.
-physical_constraints_freq: 3
+physical_constraints_freq: 2
 
 ############################################################
 #

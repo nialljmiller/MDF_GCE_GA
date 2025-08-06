@@ -2158,7 +2158,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # 7. Create 3D animation
     print("Generating 3D animation...")
-    # create_3d_animation(GalGA.walker_history)
+    create_3d_animation(GalGA.walker_history)
 
 
     generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)

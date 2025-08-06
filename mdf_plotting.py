@@ -1643,20 +1643,18 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     explained_variance = pca.explained_variance_
     explained_variance_ratio = pca.explained_variance_ratio_
     
-    # Create comprehensive plot
-    fig = plt.figure(figsize=(20, 12))
-    gs = plt.GridSpec(3, 4, figure=fig, hspace=0.3, wspace=0.3)
-    
-    # Add title indicating this is top 10% analysis
-    fig.suptitle(f'PCA Degeneracy Analysis - Top 10% Fittest Models (n={top_10_percent})', fontsize=16, y=0.98)
+    # Create comprehensive plot with better spacing
+    fig = plt.figure(figsize=(24, 16))
+    gs = plt.GridSpec(3, 5, figure=fig, hspace=0.3, wspace=0.2, 
+                      left=0.06, right=0.98, top=0.96, bottom=0.06)
     
     # 1. Eigenvalue/Singular value plot
     ax1 = fig.add_subplot(gs[0, 0])
     bars = ax1.bar(range(len(explained_variance)), explained_variance, color='steelblue', alpha=0.7)
-    ax1.set_xlabel('Principal Component')
-    ax1.set_ylabel('Eigenvalue (Variance)')
+    ax1.set_xlabel('Principal Component', fontsize=12)
+    ax1.set_ylabel('Eigenvalue (Variance)', fontsize=12)
     ax1.set_yscale('log')
-    ax1.set_title('Eigenvalues (Top 10%)')
+    ax1.tick_params(axis='both', which='major', labelsize=10)
     
     # Highlight small eigenvalues (degeneracies)
     threshold = np.max(explained_variance) * 0.01  # 1% of maximum
@@ -1669,30 +1667,33 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     ax2 = fig.add_subplot(gs[0, 1])
     cumulative_var = np.cumsum(explained_variance_ratio)
     ax2.plot(range(len(cumulative_var)), cumulative_var, 'o-', color='darkgreen', linewidth=2)
-    ax2.set_xlabel('Number of Components')
-    ax2.set_ylabel('Cumulative Variance')
-    ax2.set_title('Cumulative Variance')
+    ax2.set_xlabel('Number of Components', fontsize=12)
+    ax2.set_ylabel('Cumulative Variance', fontsize=12)
     ax2.grid(True, alpha=0.3)
-    ax2.axhline(0.95, color='red', linestyle='--', alpha=0.7, label='95%')
-    ax2.legend()
+    ax2.axhline(0.95, color='red', linestyle='--', alpha=0.7)
+    ax2.axhline(0.99, color='orange', linestyle='--', alpha=0.7)
+    ax2.tick_params(axis='both', which='major', labelsize=10)
     
-    # 3. Principal component loadings heatmap
+    # 3. Principal component loadings heatmap - FIXED LABELS
     ax3 = fig.add_subplot(gs[0, 2:])
-    im = ax3.imshow(components[:6], cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
-    ax3.set_xticks(range(len(continuous_params)))
-    ax3.set_xticklabels(continuous_params, rotation=45, ha='right')
-    ax3.set_yticks(range(6))
-    ax3.set_yticklabels([f'PC{i+1}' for i in range(6)])
-    ax3.set_title('Principal Component Loadings')
-    plt.colorbar(im, ax=ax3, fraction=0.02)
+    im = ax3.imshow(components, cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
+    
+    # Short parameter names to avoid overlap
+    param_short = ['σ₂', 't₁', 't₂', 'τ₁', 'τ₂', 'SFE', 'ΔSFE', 'M_up', 'N_Ia']
+    
+    ax3.set_xticks(range(len(param_short)))
+    ax3.set_xticklabels(param_short, fontsize=11, ha='center')
+    ax3.set_yticks(range(len(explained_variance)))
+    ax3.set_yticklabels([f'PC{i+1}' for i in range(len(explained_variance))], fontsize=10)
     
     # Add text annotations for strong loadings
-    for i in range(6):
-        for j in range(len(continuous_params)):
+    for i in range(len(explained_variance)):
+        for j in range(len(param_short)):
             if abs(components[i, j]) > 0.5:
                 ax3.text(j, i, f'{components[i, j]:.2f}', 
                         ha='center', va='center', fontweight='bold', 
-                        color='white' if abs(components[i, j]) > 0.7 else 'black')
+                        color='white' if abs(components[i, j]) > 0.7 else 'black',
+                        fontsize=8)
     
     # 4. 2D projections onto first few PCs
     # Color points by fitness; use log scale for clarity
@@ -1703,25 +1704,24 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     
     # PC1 vs PC2
     ax4 = fig.add_subplot(gs[1, 0])
-    scatter = ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)')
-    ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
-    ax4.set_title('PC1 vs PC2')
-    plt.colorbar(scatter, ax=ax4, label=f'log10 {fitness_col}')
+    ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
+    ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)', fontsize=11)
+    ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)', fontsize=11)
+    ax4.tick_params(axis='both', which='major', labelsize=9)
     
     # PC2 vs PC3
     ax5 = fig.add_subplot(gs[1, 1])
     ax5.scatter(pca_result[:, 1], pca_result[:, 2], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax5.set_xlabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)')
-    ax5.set_ylabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
-    ax5.set_title('PC2 vs PC3')
+    ax5.set_xlabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)', fontsize=11)
+    ax5.set_ylabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)', fontsize=11)
+    ax5.tick_params(axis='both', which='major', labelsize=9)
     
     # PC3 vs PC4
     ax6 = fig.add_subplot(gs[1, 2])
     ax6.scatter(pca_result[:, 2], pca_result[:, 3], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax6.set_xlabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)')
-    ax6.set_ylabel(f'PC4 ({explained_variance_ratio[3]:.1%} variance)')
-    ax6.set_title('PC3 vs PC4')
+    ax6.set_xlabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)', fontsize=11)
+    ax6.set_ylabel(f'PC4 ({explained_variance_ratio[3]:.1%} variance)', fontsize=11)
+    ax6.tick_params(axis='both', which='major', labelsize=9)
     
     # 5. Example parameter pair showing degeneracy
     ax7 = fig.add_subplot(gs[1, 3])
@@ -1735,73 +1735,92 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     param2_name = continuous_params[param2_idx]
     
     ax7.scatter(df_top[param1_name], df_top[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax7.set_xlabel(param1_name)
-    ax7.set_ylabel(param2_name)
-    ax7.set_title(f'Most Correlated Pair\nr = {param_corr[max_corr_idx]:.3f}')
+    ax7.set_xlabel(param_short[param1_idx], fontsize=11)
+    ax7.set_ylabel(param_short[param2_idx], fontsize=11)
+    ax7.text(0.05, 0.95, f'r = {param_corr[max_corr_idx]:.3f}', 
+             transform=ax7.transAxes, fontsize=10, va='top',
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+    ax7.tick_params(axis='both', which='major', labelsize=9)
     
     # 6. Parameter distributions along degenerate vs constrained directions
-    ax8 = fig.add_subplot(gs[2, :2])
+    ax8 = fig.add_subplot(gs[1, 4])
     
     # Project onto most and least constrained directions
     most_constrained = pca_result[:, 0]  # Highest variance PC
     least_constrained = pca_result[:, -1]  # Lowest variance PC
     
-    ax8.hist(most_constrained, bins=30, alpha=0.7, label=f'Most constrained (PC1, λ={explained_variance[0]:.3f})', color='blue')
-    ax8.hist(least_constrained, bins=30, alpha=0.7, label=f'Least constrained (PC{len(explained_variance)}, λ={explained_variance[-1]:.6f})', color='red')
-    ax8.set_xlabel('Projection Value')
-    ax8.set_ylabel('Count')
-    ax8.set_title('Parameter Distributions Along PC Directions')
-    ax8.legend()
+    ax8.hist(most_constrained, bins=15, alpha=0.7, 
+            label=f'PC1 (λ={explained_variance[0]:.3f})', color='blue')
+    ax8.hist(least_constrained, bins=15, alpha=0.7, 
+            label=f'PC{len(explained_variance)} (λ={explained_variance[-1]:.6f})', color='red')
+    ax8.set_xlabel('Projection Value', fontsize=11)
+    ax8.set_ylabel('Count', fontsize=11)
+    ax8.legend(fontsize=9)
+    ax8.tick_params(axis='both', which='major', labelsize=9)
     
-    # 7. Degeneracy identification table
-    ax9 = fig.add_subplot(gs[2, 2:])
+    # 7. Degeneracy identification table - IMPROVED FORMATTING
+    ax9 = fig.add_subplot(gs[2, :])
     ax9.axis('off')
     
     # Identify degenerate parameter combinations
     degeneracy_threshold = np.max(explained_variance) * 0.05  # 5% threshold
-    degenerate_pcs = np.where(explained_variance < degeneracy_threshold)[0]
     
     table_data = []
-    table_data.append(['Principal Component', 'Eigenvalue', 'Status', 'Dominant Parameters'])
+    headers = ['PC', 'Eigenvalue', 'Variance %', 'Cumulative %', 'Dominant Parameters']
     
-    for i in range(min(8, len(explained_variance))):
+    for i in range(len(explained_variance)):
         eigenval = explained_variance[i]
-        status = 'DEGENERATE' if eigenval < degeneracy_threshold else 'Constrained'
+        var_percent = explained_variance_ratio[i] * 100
+        cumulative_percent = cumulative_var[i] * 100
         
         # Find parameters with highest loadings
         loadings = np.abs(components[i])
-        top_params_idx = np.argsort(loadings)[-3:]  # Top 3
-        top_params = [continuous_params[idx] for idx in top_params_idx]
-        param_str = ', '.join(top_params)
+        top_params_idx = np.argsort(loadings)[-3:][::-1]  # Top 3, reversed
+        top_params_with_values = []
+        for idx in top_params_idx:
+            if loadings[idx] > 0.3:  # Only show significant loadings
+                sign = '+' if components[i, idx] > 0 else '-'
+                top_params_with_values.append(f'{param_short[idx]} ({sign}{abs(components[i, idx]):.2f})')
+        param_str = ', '.join(top_params_with_values)
         
-        table_data.append([f'PC{i+1}', f'{eigenval:.4f}', status, param_str])
+        table_data.append([
+            f'{i+1}', 
+            f'{eigenval:.4f}', 
+            f'{var_percent:.1f}', 
+            f'{cumulative_percent:.1f}', 
+            param_str
+        ])
     
-    # Create table
-    table = ax9.table(cellText=table_data[1:], colLabels=table_data[0], 
-                     cellLoc='left', loc='center', bbox=[0, 0, 1, 1])
+    # Create table with better spacing
+    table = ax9.table(cellText=table_data, colLabels=headers, 
+                     cellLoc='left', loc='center', bbox=[-0.05, 0.05, 1.05, 1.1])
     table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1, 1.5)
+    table.set_fontsize(14)
+    table.scale(1,2.1)
     
     # Color degenerate rows
-    for i, row in enumerate(table_data[1:], 1):
-        if 'DEGENERATE' in row[2]:
-            for j in range(len(row)):
-                table[(i, j)].set_facecolor('#ffcccc')
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:  # Header
+            cell.set_facecolor('#4472C4')
+            cell.set_text_props(weight='bold', color='white')
+        else:
+            if explained_variance[row-1] < degeneracy_threshold:
+                cell.set_facecolor('#ffcccc')  # Light red for degenerate
+            else:
+                cell.set_facecolor('#f0f0f0')  # Light gray
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
     
     # Print summary
+    degenerate_pcs = np.where(explained_variance < degeneracy_threshold)[0]
     print(f"PCA Degeneracy Analysis saved to {save_path}")
     print(f"Found {len(degenerate_pcs)} degenerate directions (eigenvalue < {degeneracy_threshold:.4f})")
     print(f"Top 3 eigenvalues: {explained_variance[:3]}")
     print(f"Bottom 3 eigenvalues: {explained_variance[-3:]}")
     
     return fig
-
-
 def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', save_path='GA/parameter_correlations.png'):
     """
     Create a correlation matrix heatmap showing parameter relationships for the fittest 10% of individuals.
@@ -2008,6 +2027,19 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # Extract metrics for scatter plots
     sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df = extract_metrics(results_file)
     
+    
+    # 8. PCA degeneracy analysis
+    print("Generating PCA degeneracy analysis...")
+    try:
+        plot_pca_degeneracy_analysis(GalGA, results_file)
+    except:
+        print("probably not enough samples yet...")
+
+
+
+    print("Generating parameter correlation matrix...")
+    plot_parameter_correlation_matrix(results_file)
+
     # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
     
@@ -2127,17 +2159,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # 7. Create 3D animation
     print("Generating 3D animation...")
     # create_3d_animation(GalGA.walker_history)
-    
-    # 8. PCA degeneracy analysis
-    print("Generating PCA degeneracy analysis...")
-    try:
-        plot_pca_degeneracy_analysis(GalGA, results_file)
-    except:
-        print("probably not enough samples yet...")
 
-
-    print("Generating parameter correlation matrix...")
-    plot_parameter_correlation_matrix(results_file)
 
     generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)
 

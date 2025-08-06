@@ -154,10 +154,74 @@ class GalacticEvolutionGA:
         self.gaussian_sigma_scale = gaussian_sigma_scale
         self.crossover_noise_fraction = crossover_noise_fraction
         self.perturbation_strength = perturbation_strength
+            
+
         
-        print('############################')
-        print(f'Doing {self.fancy_mutation} mutations with {loss_metric} loss and parallel processing is {self.PP}')
-        print('############################')
+        # Calculate parameter space dimensions for comprehensive reporting
+        categorical_params = len(comp_array) * len(imf_array) * len(sn1a_assumptions) * len(stellar_yield_assumptions) * len(sn1a_rates)
+        continuous_param_ranges = [
+            (max(sigma_2_list) - min(sigma_2_list)),
+            (max(tmax_1_list) - min(tmax_1_list)), 
+            (max(tmax_2_list) - min(tmax_2_list)),
+            (max(infall_timescale_1_list) - min(infall_timescale_1_list)),
+            (max(infall_timescale_2_list) - min(infall_timescale_2_list)),
+            (max(sfe_array) - min(sfe_array)),
+            (max(delta_sfe_array) - min(delta_sfe_array)),
+            (max(imf_upper_limits) - min(imf_upper_limits)),
+            (max(mgal_values) - min(mgal_values)),
+            (max(nb_array) - min(nb_array))
+        ]
+        
+        observational_constraints = len(feh)
+
+
+        print('═' * 80)
+        print('GALACTIC CHEMICAL EVOLUTION OPTIMIZATION FRAMEWORK')
+        print('Two-Infall Paradigm Parameter Estimation via Genetic Algorithm')
+        print('═' * 80)
+        print()
+        
+        print('THEORETICAL MODEL CONFIGURATION:')
+        print(f'├─ Infall Episodes: Dual-phase accretion paradigm')
+        print(f'├─ Temporal Range: t₁ ∈ [{min(tmax_1_list):.3f}, {max(tmax_1_list):.3f}] Gyr')
+        print(f'├─ Second Episode: t₂ ∈ [{min(tmax_2_list):.1f}, {max(tmax_2_list):.1f}] Gyr')  
+        print(f'├─ Spatial Dispersion: σ₂ ∈ [{min(sigma_2_list):.0f}, {max(sigma_2_list):.0f}] pc')
+        print(f'├─ Timescale Domain: τ₁,₂ ∈ [{min(infall_timescale_1_list):.2f}, {max(infall_timescale_2_list):.2f}] Gyr')
+        print(f'├─ Galaxy Mass Range: [{min(mgal_values):.1e}, {max(mgal_values):.1e}] M☉')
+        print(f'├─ SFE Evolution: [{min(sfe_array):.2e}, {max(sfe_array):.2e}] ± Δ[{min(delta_sfe_array):.3f}, {max(delta_sfe_array):.3f}]')
+        print(f'└─ Temporal Resolution: {timesteps} computational timesteps')
+        print()
+        
+        print('STELLAR POPULATION SYNTHESIS:')
+        print(f'├─ Yield Libraries: {len(stellar_yield_assumptions)} theoretical frameworks')
+        print(f'├─ IMF Configurations: {len(imf_array)} functional forms')
+        print(f'├─ Mass Range: [0.1, {min(imf_upper_limits):.0f}–{max(imf_upper_limits):.0f}] M☉')
+        print(f'├─ SN Ia Models: {len(sn1a_assumptions)} progenitor scenarios')
+        print(f'├─ SN Ia Rates: [{min(nb_array):.1e}, {max(nb_array):.1e}] per M☉')
+        print(f'└─ Primordial Compositions: {len(comp_array)} abundance patterns')
+        print()
+        
+        print('OBSERVATIONAL CONSTRAINTS:')
+        print(f'├─ Metallicity Distribution: {observational_constraints} observational data points')
+        print(f'├─ [Fe/H] Range: [{min(feh):.2f}, {max(feh):.2f}] dex')
+        print(f'├─ Target Diagnostic: Normalized stellar MDF')
+        print(f'└─ Loss Function: {loss_metric.upper()} metric optimization')
+        print()
+        
+        print('GENETIC ALGORITHM CONFIGURATION:')
+        print(f'├─ Mutation Strategy: {fancy_mutation.capitalize()} perturbation scheme')
+        print(f'├─ Selection Method: Tournament selection (τ={tournament_size})')
+        print(f'├─ Crossover Probability: {cxpb:.2f} (noise fraction: {crossover_noise_fraction:.3f})')
+        print(f'├─ Mutation Probability: {mutpb:.2f} (σ-scale: {gaussian_sigma_scale:.3f})')
+        print(f'├─ Perturbation Strength: {perturbation_strength:.2f}')
+        print(f'├─ Physics Constraints: Every {physical_constraints_freq} evaluations')
+        print(f'├─ Parallel Processing: {"ENABLED" if PP else "DISABLED"}')
+        print(f'├─ Parameter Space: {categorical_params:,} categorical × 10 continuous dimensions')
+        print(f'└─ Expected Parameter Volume: ~{categorical_params:.0e} discrete combinations')
+        print()
+
+        print('═' * 80)
+        print()
         
         # Define available loss metrics
         self.loss_functions = {

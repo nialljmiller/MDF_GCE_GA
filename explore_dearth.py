@@ -43,18 +43,20 @@ def voronoi_explore_dearths(GA_instance, population, exploration_fraction=0.2):
     print(f"Moved {len(worst_performers)} individuals to {len(sparse_regions)} sparse regions")
 
 
-def identify_sparse_regions_voronoi(GA_instance, population, n_regions=5):
+def identify_sparse_regions_voronoi(GA_instance, population, n_regions=12):
     """
     Use Voronoi diagrams to identify sparse regions in parameter space.
     Works with 2D projections of most important parameter pairs.
     """
-    
+
     # Define key parameter pairs for analysis (based on your plots)
     key_param_pairs = [
         (6, 7, 't_1', 't_2'),        # t_1 vs t_2
         (7, 9, 't_2', 'infall_2'),       # t_2 vs infall_2  
         (5, 9, 'sigma_2', 'infall_2'),   # sigma_2 vs infall_2
-        (10, 11, 'sfe', 'delta_sfe_val'),      # sfe vs delta sfe
+        (10, 11, 'sfe', 'delta_sfe'),      # sfe vs delta sfe
+        (10, 5, 'sfe', 'sigma_2'),      # sfe vs delta sfe
+        (13, 14, 'mgal', 'nb'),      # sfe vs delta sfe
     ]
     
     all_sparse_regions = []

@@ -2149,8 +2149,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, loss_metric=metric, threshold=0.1)
     
     # 7. Create 3D animation
-    print("Generating 3D animation...")
-    create_3d_animation(GalGA.walker_history)
+    #print("Generating 3D animation...")
+    #create_3d_animation(GalGA.walker_history)
 
 
     generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)

@@ -271,12 +271,13 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     plt.close(fig)
     return fig
 
+
 def create_3d_animation(walker_history):
     """Create an animated 3D visualization of walker evolution"""
     if not walker_history:
         print("Walker history data not available. Skipping 3D animation.")
         return None
-        
+    
     # Get maximum number of generations
     num_generations = max(len(v) for v in walker_history.values()) if walker_history else 0
     if num_generations == 0:
@@ -296,34 +297,25 @@ def create_3d_animation(walker_history):
         ax.set_xlabel("Generation")
         ax.set_ylabel("tmax_2")
         ax.set_zlabel("infall_2")
-        ax.view_init(elev=20, azim=num)  # Rotate by 1 degree per frame
-    
+        ax.view_init(elev=20, azim=num % 360)  # One rotation, loops if more frames
+        
         for i, (walker_id, history) in enumerate(walker_history.items()):
             if not history:
                 continue
             history = np.array(history)
             generations = np.arange(len(history))
             
-            # Use correct indices for t_2 (7) and infall_2 (9)
-            if num < num_generations:
-                # During first rotation, show progressive evolution
-                plot_up_to = min(num+1, len(history))
-                ax.plot(generations[:plot_up_to], history[:plot_up_to, 7], history[:plot_up_to, 9], 
-                        color=colors[i], alpha=0.7, label=f"Walker {i}")
-            else:
-                # Second rotation shows complete paths
-                ax.plot(generations, history[:, 7], history[:, 9], 
-                        color=colors[i], alpha=0.7, label=f"Walker {i}")
+            # Plot full path using indices for t_2 (7) and infall_2 (9)
+            ax.plot(generations, history[:, 7], history[:, 9],
+                    color=colors[i], alpha=0.7)  # No legend to save resources
     
-        ax.legend(loc="upper right", fontsize="small")
+    # Create animation with one full rotation
+    total_frames = 360
+    ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=200, blit=False)
     
-    # Create animation with two full rotations
-    total_frames = 360 * 2  # Two full rotations at 1 degree per frame
-    ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=100, blit=False)
-    
-    # Save as GIF with lower frame rate
+    # Save as GIF with lower fps and dpi
     gif_path = "GA/loss/walker_evolution_3D.gif"
-    ani.save(gif_path, writer="pillow", fps=6)  # Lower fps for slower rotation
+    ani.save(gif_path, writer="pillow", fps=5, dpi=72)
     plt.close()
     
     print(f"Generated 3D animation: {gif_path}")

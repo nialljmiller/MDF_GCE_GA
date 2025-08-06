@@ -51,10 +51,10 @@ def identify_sparse_regions_voronoi(GA_instance, population, n_regions=5):
     
     # Define key parameter pairs for analysis (based on your plots)
     key_param_pairs = [
-        (5, 7, 'sigma_2', 't_2'),        # sigma_2 vs t_2
+        (6, 7, 't_1', 't_2'),        # t_1 vs t_2
         (7, 9, 't_2', 'infall_2'),       # t_2 vs infall_2  
         (5, 9, 'sigma_2', 'infall_2'),   # sigma_2 vs infall_2
-        (10, 9, 'sfe', 'infall_2'),      # sfe vs infall_2
+        (10, 11, 'sfe', 'delta_sfe_val'),      # sfe vs delta sfe
     ]
     
     all_sparse_regions = []

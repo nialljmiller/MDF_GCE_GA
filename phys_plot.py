@@ -127,7 +127,6 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax1.set_xlabel('Age (Gyr)', fontsize=14)
     ax1.set_ylabel(r'Inflow Rate [$M_\odot$ yr$^{-1}$]', fontsize=14)
     ax1.set_title('Gas Inflow Rate', fontsize=16, fontweight='bold')
-    ax1.set_yscale('log')
     ax1.grid(True, alpha=0.3)
     ax1.legend(fontsize=12)
     

@@ -125,10 +125,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     gs = GridSpec(4, 4, figure=fig, hspace=0.35, wspace=0.3, 
                   left=0.06, right=0.98, top=0.94, bottom=0.06)
     
-    # Add comprehensive title with model identification
-    fig.suptitle('Galactic Chemical Evolution Model: Physical Diagnostics\n' + 
-                 f'Two-Infall Paradigm (t₁={t_1:.3f} Gyr, t₂={t_2:.1f} Gyr)', 
-                 fontsize=18, fontweight='bold', y=0.97)
+
     
     # Define enhanced color palette for scientific clarity
     colors = {
@@ -173,7 +170,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax1.axvline(t_2, color='crimson', linestyle=':', linewidth=2, alpha=0.8)
     
     # Enhanced axis formatting
-    ax1.set_xlabel('Lookback Time (Gyr)', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Time (Gyr)', fontsize=14, fontweight='bold')
     ax1.set_ylabel(r'Inflow Rate ($M_\odot$ yr$^{-1}$)', fontsize=14, fontweight='bold')
     ax1.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
     ax1.legend(fontsize=11, loc='upper right', framealpha=0.9)
@@ -189,10 +186,10 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     
     # Highlight SFE change epoch
     ax2.axvline(t_2, color='crimson', linestyle=':', alpha=0.7, linewidth=2)
-    ax2.text(t_2 + 0.2, np.max(sfr_rates) * 0.5, f'ΔSFE = {delta_sfe_val:+.4f}', 
+    ax2.text(t_2 + 0.2, np.max(sfr_rates) * 0.1, f'ΔSFE = {delta_sfe_val:+.4f}', 
              rotation=90, fontsize=10, alpha=0.8, fontweight='bold')
     
-    ax2.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax2.set_ylabel(r'SFR ($M_\odot$ yr$^{-1}$)', fontsize=12, fontweight='bold')
     ax2.grid(True, alpha=0.2)
     ax2.legend(fontsize=11)
@@ -207,7 +204,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax3.plot(ages[:-1], outflow_rates, color=colors['outflow'], linewidth=2, 
              label='Outflow', marker='^', markersize=2, alpha=0.8)
 
-    ax3.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax3.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax3.set_ylabel(r'Flow Rate ($M_\odot$ yr$^{-1}$)', fontsize=12, fontweight='bold')
     ax3.grid(True, alpha=0.2)
     ax3.legend(fontsize=11)
@@ -224,7 +221,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
                  label='Outflow', marker='^', markersize=2, alpha=0.8)
 
 
-    ax4.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax4.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax4.set_ylabel(r'Flow Rate ($M_\odot$ yr$^{-1}$)', fontsize=12, fontweight='bold')
     ax4.grid(True, alpha=0.2)
     ax4.legend(fontsize=11)
@@ -235,10 +232,8 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax5 = fig.add_subplot(gs[1, 3])
     ax5.plot(ages[:-1], metallicity, color=colors['metallicity'], linewidth=2.5,
              label='[Fe/H]', marker='o', markersize=3)
-    ax5.axhline(0, color='black', linestyle='-', alpha=0.3, linewidth=1)  # Solar metallicity
-    ax5.text(0.02, 0.95, 'Solar', transform=ax5.transAxes, fontsize=10, alpha=0.7)
     
-    ax5.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax5.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax5.set_ylabel('[Fe/H]', fontsize=12, fontweight='bold')
     ax5.grid(True, alpha=0.2)
     ax5.legend(fontsize=11)
@@ -252,16 +247,16 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax6.semilogy(ages, stellar_masses, color=colors['stellar'], linewidth=3, 
                  label='Stellar Component', marker='s', markersize=3, alpha=0.9)
     
-    # Add total baryonic mass for context
+    # Add total mass for context
     total_baryons = gas_masses + stellar_masses
     ax6.semilogy(ages, total_baryons, color='black', linewidth=2, linestyle='--', 
-                 label='Total Baryonic mass', alpha=0.7)
+                 label='Total mass', alpha=0.7)
     
     # Mark key transition epochs
     ax6.axvline(t_1, color='steelblue', linestyle=':', alpha=0.6)
     ax6.axvline(t_2, color='crimson', linestyle=':', alpha=0.6)
     
-    ax6.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax6.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax6.set_ylabel(r'Reservoir Mass ($M_\odot$)', fontsize=12, fontweight='bold')
     ax6.grid(True, alpha=0.2)
     ax6.legend(fontsize=11, loc='best')
@@ -287,7 +282,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax7_twin.set_ylabel(r'SFE (yr$^{-1}$)', color=colors['efficiency'], fontsize=12, fontweight='bold')
     ax7_twin.tick_params(axis='y', labelcolor=colors['efficiency'])
     
-    ax7.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax7.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax7.grid(True, alpha=0.2)
     
     # Combined legend
@@ -314,11 +309,38 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
         ax8.semilogy(ages[:-1], np.maximum(cumulative_outflow, 1e6), color=colors['outflow'], 
                      linewidth=3, label='Cumulative Outflow', marker='^', markersize=3)
     
-    ax8.set_xlabel('Lookback Time (Gyr)', fontsize=12, fontweight='bold')
+    ax8.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
     ax8.set_ylabel(r'Cumulative Mass ($M_\odot$)', fontsize=12, fontweight='bold')
     ax8.grid(True, alpha=0.2)
     ax8.legend(fontsize=11)
     
+
+    ax8a = fig.add_subplot(gs[3, 2])
+    
+    # Cumulative fluxes
+    cumulative_inflow = np.cumsum(inflow_masses)
+    cumulative_outflow = np.cumsum(outflow_masses)
+    cumulative_sf = np.cumsum(sfr_rates * timesteps_yr)
+    
+    ax8a.plot(ages[:-1], cumulative_inflow, color=colors['inflow'], linewidth=3, 
+                 label='Cumulative Inflow', marker='o', markersize=3)
+    ax8a.plot(ages[:-1], cumulative_sf, color=colors['sfr'], linewidth=3, 
+                 label='Cumulative SF', marker='s', markersize=3)
+    
+    if np.max(cumulative_outflow) > 0:
+        ax8a.plot(ages[:-1], np.maximum(cumulative_outflow, 1e6), color=colors['outflow'], 
+                     linewidth=3, label='Cumulative Outflow', marker='^', markersize=3)
+    
+    ax8a.set_xlabel('Time (Gyr)', fontsize=12, fontweight='bold')
+    ax8a.set_ylabel(r'Cumulative Mass ($M_\odot$)', fontsize=12, fontweight='bold')
+    ax8a.grid(True, alpha=0.2)
+    ax8a.legend(fontsize=11)
+
+
+
+
+
+
     # ======================================================================
     # PANEL 9: Enhanced Physics Summary with Quantitative Analysis
     # ======================================================================
@@ -356,7 +378,7 @@ Two-Infall Parameters:
 ├─ Episode II: t₂ = {t_2:.1f} Gyr, τ₂ = {infall_2:.2f} Gyr  
 └─ SFE Evolution: {sfe_val:.4f} → {sfe_val + delta_sfe_val:.4f}
 
-Baryonic Budget (M☉):
+Mass:
 ├─ Total inflow: {total_inflow:.2e}
 ├─ Stellar assembly: {total_sf:.2e}
 ├─ Final stellar mass: {final_stellar_mass:.2e}

@@ -1280,7 +1280,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     
     # Create parameter text
     param_text = "BEST-FIT MODEL PARAMETERS\n" + "="*35 + "\n"
-    param_text += f"σ₂ (second infall dispersion): {best_row['sigma_2']:.1f} pc\n"
+    param_text += f"σ₂ (second infall radio): {best_row['sigma_2']:.1f} \n"
     param_text += f"t₁ (first infall time): {best_row['t_1']:.3f} Gyr\n"
     param_text += f"t₂ (second infall time): {best_row['t_2']:.3f} Gyr\n"
     param_text += f"τ₁ (first infall timescale): {best_row['infall_1']:.3f} Gyr\n"
@@ -1476,7 +1476,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     
     print(f"Comprehensive dashboard saved to {save_path}")
     print(f"Best-fit parameters:")
-    print(f"  σ₂ = {best_row['sigma_2']:.1f} pc")
+    print(f"  σ₂ = {best_row['sigma_2']:.1f}")
     print(f"  t₂ = {best_row['t_2']:.3f} Gyr") 
     print(f"  τ₂ = {best_row['infall_2']:.3f} Gyr")
     print(f"  SFE = {best_row['sfe']:.5f}")

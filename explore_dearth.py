@@ -43,7 +43,7 @@ def voronoi_explore_dearths(GA_instance, population, exploration_fraction=0.2):
     print(f"Moved {len(worst_performers)} individuals to {len(sparse_regions)} sparse regions")
 
 
-def identify_sparse_regions_voronoi(GA_instance, population, n_regions=12):
+def identify_sparse_regions_voronoi(GA_instance, population, n_regions=32):
     """
     Use Voronoi diagrams to identify sparse regions in parameter space.
     Works with 2D projections of most important parameter pairs.
@@ -54,8 +54,10 @@ def identify_sparse_regions_voronoi(GA_instance, population, n_regions=12):
         (6, 7, 't_1', 't_2'),        # t_1 vs t_2
         (7, 9, 't_2', 'infall_2'),       # t_2 vs infall_2  
         (5, 9, 'sigma_2', 'infall_2'),   # sigma_2 vs infall_2
-        (10, 11, 'sfe', 'delta_sfe'),      # sfe vs delta sfe
+        (5, 7, 'sigma_2', 't_2'),   # sigma_2 vs infall_2
+        (5, 14, 'sigma_2', 'nb'),   # sigma_2 vs infall_2
         (10, 5, 'sfe', 'sigma_2'),      # sfe vs delta sfe
+        (10, 11, 'sfe', 'delta_sfe'),      # sfe vs delta sfe
         (13, 14, 'mgal', 'nb'),      # sfe vs delta sfe
     ]
     
@@ -65,7 +67,7 @@ def identify_sparse_regions_voronoi(GA_instance, population, n_regions=12):
     for param1_idx, param2_idx, param1_name, param2_name in key_param_pairs:
         sparse_regions = _analyze_voronoi_2d(
             GA_instance, population, param1_idx, param2_idx, 
-            param1_name, param2_name, n_regions_per_pair=2
+            param1_name, param2_name, n_regions_per_pair=4
         )
         all_sparse_regions.extend(sparse_regions)
     

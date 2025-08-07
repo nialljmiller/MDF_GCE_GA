@@ -57,7 +57,7 @@ generations: 256
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 4
+output_interval: 16
 
 # Probability an individual will make babies. 
 # Justification: 0.5 promotes mixing without excessive randomness.

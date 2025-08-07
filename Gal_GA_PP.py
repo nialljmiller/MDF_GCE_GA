@@ -560,6 +560,8 @@ class GalacticEvolutionGA:
                 new_value = self._reflect_at_bounds(new_value, min_bound, max_bound)
                 individual[i] = new_value
 
+
+
     def get_fitness_scale(self, individual):
         """Calculate fitness-based scaling factor with activation function"""
         if not individual.fitness.valid:
@@ -610,8 +612,9 @@ class GalacticEvolutionGA:
             # Within bounds, no reflection needed
             return value
 
+
     def update_operator_rates(self, population, generation, num_generations):
-        """Enhanced diversity preservation with exploration of sparse regions"""
+        """Age-based convergence with diversity preservation"""
         progress = generation / num_generations
         
         # Calculate population diversity using continuous parameters only
@@ -619,29 +622,69 @@ class GalacticEvolutionGA:
         for ind in population:
             continuous_genes.append(ind[5:])  # Skip categorical parameters
         
-        if len(continuous_genes) > 1:
-            gene_array = np.array(continuous_genes)
-            diversity = np.mean(np.std(gene_array, axis=0))
-        else:
-            diversity = 0
-        
-        exploration_fraction = 0.1            
-        # Adaptive rates based on diversity
-        if diversity < 0.1:  # Low diversity = increase mutation
-            self.mutpb = min(0.9, self.mutpb * 1.2)
-            self.cxpb = max(0.2, self.cxpb * 0.8)
+        if len(continuous_genes) <= 1:
+            return  # Can't calculate meaningful diversity with 1 or fewer individuals
             
-            # When diversity is low, explore sparse regions more aggressively
-            exploration_fraction = 0.25            
-
-        elif diversity > 0.5:  # High diversity = decrease mutation slightly
-            self.mutpb = max(0.1, self.mutpb * 0.95)
-            self.cxpb = min(0.7, self.cxpb * 1.05)
+        gene_array = np.array(continuous_genes)
+        overall_diversity = np.mean(np.std(gene_array, axis=0))
+        
+        # Age-based convergence pressure (starts gentle, increases smoothly over time)
+        # Use quadratic function for smooth convergence
+        convergence_pressure = progress ** 2
+        
+        # Base exploration fraction that decreases with age
+        if progress < 0.1:
+            base_exploration = 0.25 * (1.0 - convergence_pressure)  # Decreases from 0.25 to 0
+            min_exploration = 0.02  # Always maintain some minimal exploration
+            exploration_fraction = max(min_exploration, base_exploration)
         else:
-            # Normal diversity - still do some exploration but less aggressive
-            exploration_fraction = 0.15
+            base_exploration = 0.1 * (1.0 - (convergence_pressure*0.5))  # Decreases from 0.25 to 0
+            min_exploration = 0.02  # Always maintain some minimal exploration
+            exploration_fraction = max(min_exploration, base_exploration)
 
+
+
+        # Adaptive rates based on diversity and age
+        if overall_diversity < 0.05:  # Very low diversity
+            # Emergency diversity boost, but respect age-based convergence
+            emergency_boost = 1.5 * (1.0 - convergence_pressure * 0.7)  # Less emergency boost as we age
+            self.mutpb = min(0.9, self.mutpb * emergency_boost)
+            self.cxpb = max(0.1, self.cxpb * 0.7)
+
+            base_exploration = 0.5 * (1.0 - (convergence_pressure*0.5))  # Decreases from 0.25 to 0
+            min_exploration = 0.1  # Always maintain some minimal exploration
+            exploration_fraction = max(min_exploration, base_exploration)
+
+            
+        elif overall_diversity < 0.1:  # Low diversity but not critical
+            # Gentle diversity encouragement, respect convergence pressure
+            diversity_boost = 1.15 * (1.0 - convergence_pressure * 0.6)
+            self.mutpb = min(0.8, self.mutpb * diversity_boost)
+            self.cxpb = max(0.2, self.cxpb * 0.9)
+            
+        elif overall_diversity > 0.5:  # High diversity - encourage convergence
+            # Age-based convergence: stronger as we get older
+            convergence_factor = 0.85 * (1.0 - 0.15 * convergence_pressure)  # Gradual reduction
+            convergence_boost = 1.0 + convergence_pressure * 0.4  # Increase crossover as we age
+            exploration_fraction = 0.02            
+            self.mutpb = max(0.05, self.mutpb * convergence_factor)
+            self.cxpb = min(0.85, self.cxpb * convergence_boost)
+            
+        else:  # Normal diversity (0.1 - 0.5) - gradual convergence
+            # Smooth convergence based on age
+            age_mutation_factor = 1.0 - convergence_pressure * 0.3  # Gentle reduction
+            age_crossover_factor = 1.0 + convergence_pressure * 0.2  # Gentle increase
+            
+            self.mutpb = max(0.08, self.mutpb * age_mutation_factor)
+            self.cxpb = min(0.75, self.cxpb * age_crossover_factor)
+        
+        # Apply Voronoi exploration for sparse regions
         voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
+        
+        if generation % 10 == 0:
+            print(f"Gen {generation}: Progress={progress:.2f}, Diversity={overall_diversity:.3f}, "
+                  f"MutPb={self.mutpb:.3f}, CxPb={self.cxpb:.3f}, Exploration={exploration_fraction:.3f}")
+
 
 
     def get_param_bounds(self, index):
@@ -675,6 +718,7 @@ class GalacticEvolutionGA:
 
     
 
+
     def uniform_mutate(self, individual, indpb=1.0):
         """
         Uniform mutation that replaces values with uniform random values 
@@ -693,6 +737,8 @@ class GalacticEvolutionGA:
                     individual[i] = random.uniform(min_bound, max_bound)
         
         return individual,
+
+
 
     def adaptive_mutation_rate(self, individual, population):
         """Calculate adaptive mutation rate based on fitness rank"""
@@ -803,6 +849,8 @@ class GalacticEvolutionGA:
             ind[1] = min(self.tmax_2_list, key=lambda x: abs(x - ind[1]))   # Snap tmax_2 to nearest
             ind[2] = min(self.infall_timescale_2_list, key=lambda x: abs(x - ind[2]))  # Snap infall_2 to nearest
             return ind
+
+        self.num_generations = num_generations
 
         # Use a context manager for the multiprocessing pool
         if self.PP:

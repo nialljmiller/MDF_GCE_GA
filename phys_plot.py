@@ -380,7 +380,6 @@ Two-Infall Parameters:
 
 Mass:
 ├─ Total inflow: {total_inflow:.2e}
-├─ Stellar assembly: {total_sf:.2e}
 ├─ Final stellar mass: {final_stellar_mass:.2e}
 └─ Final gas reservoir: {final_gas_mass:.2e}
 

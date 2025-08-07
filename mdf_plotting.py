@@ -28,6 +28,7 @@ from scipy.interpolate import UnivariateSpline
 from numpy.polynomial.polynomial import Polynomial
 from phys_plot import generate_physics_plots
 from loss_plot import *
+from analysis_plot import run_analysis
 import age_meta
 # ---------------------------------------------------
 # Global style for paper-quality figures
@@ -50,6 +51,40 @@ plt.rcParams.update({
 def ensure_dirs():
     """Ensure necessary directories exist."""
     os.makedirs('GA/loss', exist_ok=True)
+    os.makedirs('GA/analysis', exist_ok=True)
+
+
+def extract_metrics(results_file):
+    """Extract metrics from CSV file for plotting"""
+    # Load the dataframe directly
+    df = pd.read_csv(results_file)
+    
+    comp_idx_vals    = df['comp_idx'].values
+    imf_idx_vals     = df['imf_idx'].values
+    sn1a_idx_vals    = df['sn1a_idx'].values
+    sy_idx_vals      = df['sy_idx'].values
+    sn1ar_idx_vals   = df['sn1ar_idx'].values
+    sigma_2_vals     = df['sigma_2'].values
+    t_1_vals         = df['t_1'].values
+    t_2_vals         = df['t_2'].values
+    infall_1_vals    = df['infall_1'].values
+    infall_2_vals    = df['infall_2'].values
+    sfe_vals         = df['sfe'].values
+    delta_sfe_vals   = df['delta_sfe'].values
+    imf_upper_vals   = df['imf_upper'].values
+    mgal_vals        = df['mgal'].values
+    nb_vals          = df['nb'].values
+
+    # Extract metrics
+    metrics_dict = {}
+    #for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble', 'fitness']:
+    for metric in ['fitness']:
+        if metric in df.columns:
+            metrics_dict[metric] = df[metric].values
+    
+    return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
+
+
 
 # ---------------------------------------------------
 def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
@@ -320,98 +355,6 @@ def create_3d_animation(walker_history):
     
     print(f"Generated 3D animation: {gif_path}")
     return ani
-
-
-def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
-    """
-    Plot the evolution of loss for all walkers with median and IQR shading.
-    Mirrors the style of plot_walker_history.
-    """
-    import os
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    os.makedirs("GA/loss", exist_ok=True)
-
-    # Load full GA results
-    results_df = pd.read_csv(results_csv)
-
-    # Column mapping
-    loss_metrics = {
-        'ks': 15, 'ensemble': 16, 'wrmse': 17, 'mae': 18, 'mape': 19,
-        'huber': 20, 'cosine': 21, 'log_cosh': 22, 'fitness': 23
-    }
-
-    if loss_metric not in loss_metrics:
-        print(f"Loss metric '{loss_metric}' not found. Falling back to 'wrmse'.")
-        loss_metric = 'wrmse'
-
-    loss_column = loss_metrics[loss_metric]
-
-    all_histories = []
-    max_gens = 0
-
-    for walker_id, history in walker_history.items():
-        if not history:
-            continue
-
-        history_array = np.array(history)
-        loss_vals = []
-
-        for row in history_array:
-            sigma_2, t_2, infall_2 = row[5], row[7], row[9]
-            match = results_df[
-                (abs(results_df['sigma_2'] - sigma_2) < 1e-5) &
-                (abs(results_df['t_2'] - t_2) < 1e-5) &
-                (abs(results_df['infall_2'] - infall_2) < 1e-5)
-            ]
-            loss_vals.append(match.iloc[0][loss_metric] if not match.empty else np.nan)
-
-        all_histories.append(loss_vals)
-        max_gens = max(max_gens, len(loss_vals))
-
-    if not all_histories:
-        print("No valid walker loss histories to plot.")
-        return None
-
-    # Pad to uniform shape
-    for i in range(len(all_histories)):
-        if len(all_histories[i]) < max_gens:
-            all_histories[i] += [np.nan] * (max_gens - len(all_histories[i]))
-
-    all_histories = np.array(all_histories)
-    generations = np.arange(max_gens)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    # Individual walkers (faint gray)
-    for series in all_histories:
-        ax.plot(generations, series, color='gray', alpha=0.01, linewidth=0.75)
-
-    # Median + IQR
-    with np.errstate(all='ignore'):
-        median = np.nanmedian(all_histories, axis=0)
-        lower = np.nanpercentile(all_histories, 25, axis=0)
-        upper = np.nanpercentile(all_histories, 75, axis=0)
-
-    ax.plot(generations, median, color='black', label='Median', linewidth=2)
-    ax.fill_between(generations, lower, upper, color='blue', alpha=0.2, label='25–75% range')
-
-    ax.set_title(f"Walker Evolution: {loss_metric.upper()}")
-    ax.set_xlabel("Generation")
-    ax.set_ylabel(f"{loss_metric.upper()}")
-    ax.grid(True)
-    ax.legend(loc='best')
-
-    fig.tight_layout()
-    outpath = f'GA/loss/walker_loss_history_{loss_metric}.png'
-    fig.savefig(outpath, bbox_inches='tight')
-    plt.close(fig)
-
-    print(f"Saved loss history plot: {outpath}")
-    return fig
-
 
 
 
@@ -840,375 +783,6 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
 
 
 
-
-def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, save_path='GA/Age_FeH_detailed_results.png', n_bins=10):
-    """
-    Enhanced Age vs [Fe/H] plot with:
-    - Model lines (gray + red for best)
-    - Polynomial fits to Joyce & Bensby
-    - Faint fillbetween for difference
-    - Marginal KDE histogram on the right
-    - Binned observational data as lines
-    - Axes: Age on X, [Fe/H] on Y
-    - Improved fit metrics that better reflect visual agreement
-    """
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from scipy.interpolate import UnivariateSpline, interp1d
-    from scipy.stats import gaussian_kde, binned_statistic, ks_2samp
-    import os
-    
-    if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
-        print("No age data available for plotting")
-        return None
-    
-    # Create main figure with proper layout
-    fig = plt.figure(figsize=(18, 10))
-    
-    # Create gridspec for proper alignment
-    from matplotlib import gridspec
-    gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.0, 
-                          left=0.08, right=0.95, top=0.95, bottom=0.1)
-    
-    ax_main = fig.add_subplot(gs[0])
-    ax_kde = fig.add_subplot(gs[1], sharey=ax_main)
-    
-    # Ensure array typing for safe masking
-    Fe_H = np.asarray(Fe_H)
-    age_Joyce = np.asarray(age_Joyce)
-    age_Bensby = np.asarray(age_Bensby)
-    
-    # Determine best model
-    if results_df is not None and not results_df.empty:
-        bm = results_df.iloc[0]
-        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
-    else:
-        r = GalGA.results[0]
-        best_params = (r[5], r[7], r[9])
-    
-    best_plotted = False
-    best_model_feh = None
-    best_model_age_gyr = None
-    
-    # Calculate average spacing of real data for model interpolation
-    all_real_ages = np.concatenate([age_Joyce[np.isfinite(age_Joyce)], 
-                                   age_Bensby[np.isfinite(age_Bensby)]])
-    if len(all_real_ages) > 1:
-        sorted_ages = np.sort(all_real_ages)
-        avg_spacing = np.mean(np.diff(sorted_ages))
-        # Create interpolation grid with similar spacing
-        age_interp_grid = np.arange(0, 14 + avg_spacing, avg_spacing)
-    else:
-        age_interp_grid = np.linspace(0, 14, 100)
-    
-    # Plot model lines
-    for age_data, label, res in zip(GalGA.age_data, GalGA.labels, GalGA.results):
-        params = (res[5], res[7], res[9])
-        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-        
-        x_age_raw, y_feh = age_data
-        age_gyr = (x_age_raw[-1] / 1e9) - np.array(x_age_raw) / 1e9
-        
-        if is_best and not best_plotted:
-            # Interpolate best model to match real data spacing
-            if len(age_gyr) > 1 and len(y_feh) > 1:
-                f_best = interp1d(age_gyr, y_feh, kind='linear', 
-                                bounds_error=False, fill_value='extrapolate')
-                best_model_age_gyr = age_interp_grid
-                best_model_feh = f_best(age_interp_grid)
-                
-                label_lines = [f"• {p.strip()}" for p in label.split(',')]
-                pretty_label = "Best model"
-                ax_main.plot(best_model_age_gyr, best_model_feh, color="red", linewidth=2, zorder=3, label=pretty_label)
-            else:
-                ax_main.plot(age_gyr, y_feh, color="red", linewidth=2, zorder=3)
-                best_model_feh = np.array(y_feh)
-                best_model_age_gyr = age_gyr
-            best_plotted = True
-        else:
-            ax_main.plot(age_gyr, y_feh, color='gray', alpha=0.01, linewidth=1, zorder=1)
-    
-    # Create age bins for observational data
-    age_bins = np.linspace(0, 14, n_bins + 1)
-    bin_centers = (age_bins[:-1] + age_bins[1:]) / 2
-    
-
-
-
-    # Scatter real data (raw points)
-    ax_main.scatter(age_Joyce, Fe_H, marker='*', s=50, color='blue', 
-                   alpha=0.6, label='Joyce et al. (raw)', zorder=2)
-    ax_main.scatter(age_Bensby, Fe_H, marker='^', s=50, color='orange', 
-                   alpha=0.6, label='Bensby et al. (raw)', zorder=2)
-    
-
-
-
-
-    
-    # Bin Bensby data
-    mask_bensby = np.isfinite(age_Bensby) & np.isfinite(Fe_H)
-    bin_means_bensby = None
-    bin_stds_bensby = None
-    bin_counts_bensby = None
-
-    # Bin Joyce data
-    mask_joyce = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
-    bin_means_joyce = None
-    bin_stds_joyce = None
-    bin_counts_joyce = None
-   
-    bin_means_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
-                                           statistic='mean', bins=age_bins)
-    bin_stds_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
-                                          statistic='std', bins=age_bins)
-    bin_counts_joyce, _, _ = binned_statistic(age_Joyce[mask_joyce], Fe_H[mask_joyce], 
-                                            statistic='count', bins=age_bins)
-
-
-    bin_means_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
-                                            statistic='mean', bins=age_bins)
-    bin_stds_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
-                                           statistic='std', bins=age_bins)
-    bin_counts_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
-                                             statistic='count', bins=age_bins)
-    
-
-
-
-
-
-    # Calculate IMPROVED metrics between best model and binned data
-    metrics_text = ""
-
-    # Find common age range for fair comparison
-    min_age = max(0, np.min(best_model_age_gyr))
-    max_age = min(13, np.max(best_model_age_gyr))
-    common_age_mask = (bin_centers >= min_age) & (bin_centers <= max_age)
-
-    # Interpolate best model to bin centers
-    f_model = interp1d(best_model_age_gyr, best_model_feh, kind='linear',
-                      bounds_error=False, fill_value=np.nan)
-    model_at_bins = f_model(bin_centers)
-    
-    # Calculate multiple metrics for Joyce data
-    valid_joyce_bins = (np.isfinite(bin_means_joyce) & 
-                      np.isfinite(model_at_bins) & 
-                      common_age_mask & 
-                      (bin_counts_joyce > 2))  # Require at least 3 points per bin
-    
-    joyce_model_vals = model_at_bins[valid_joyce_bins]
-    joyce_obs_vals = bin_means_joyce[valid_joyce_bins]
-    joyce_weights = np.sqrt(bin_counts_joyce[valid_joyce_bins])  # Weight by sqrt(N)
-    joyce_uncertainties = bin_stds_joyce[valid_joyce_bins] / np.sqrt(bin_counts_joyce[valid_joyce_bins])
-    
-    # Weighted RMSE (accounts for uncertainties)
-    joyce_weighted_rmse = np.sqrt(np.average((joyce_model_vals - joyce_obs_vals)**2, 
-                                           weights=joyce_weights))
-    
-    # MAE (less sensitive to outliers)
-    joyce_mae = np.mean(np.abs(joyce_model_vals - joyce_obs_vals))
-    
-    # Weighted MAE
-    joyce_weighted_mae = np.average(np.abs(joyce_model_vals - joyce_obs_vals), 
-                                  weights=joyce_weights)
-    
-    # Chi-squared like metric
-    joyce_chi2 = np.mean(((joyce_model_vals - joyce_obs_vals) / 
-                        np.maximum(joyce_uncertainties, 0.1))**2)
-    
-    metrics_text += f"Joyce Weighted RMSE: {joyce_weighted_rmse:.3f}\n"
-    metrics_text += f"Joyce MAE: {joyce_mae:.3f}\n"
-    metrics_text += f"Joyce χ²/dof: {joyce_chi2:.3f}\n"
-
-    # Calculate same metrics for Bensby data
-    valid_bensby_bins = (np.isfinite(bin_means_bensby) & 
-                       np.isfinite(model_at_bins) & 
-                       common_age_mask & 
-                       (bin_counts_bensby > 2))
-    
-    bensby_model_vals = model_at_bins[valid_bensby_bins]
-    bensby_obs_vals = bin_means_bensby[valid_bensby_bins]
-    bensby_weights = np.sqrt(bin_counts_bensby[valid_bensby_bins])
-    bensby_uncertainties = bin_stds_bensby[valid_bensby_bins] / np.sqrt(bin_counts_bensby[valid_bensby_bins])
-    
-    # Same metrics for Bensby
-    bensby_weighted_rmse = np.sqrt(np.average((bensby_model_vals - bensby_obs_vals)**2, 
-                                            weights=bensby_weights))
-    bensby_mae = np.mean(np.abs(bensby_model_vals - bensby_obs_vals))
-    bensby_weighted_mae = np.average(np.abs(bensby_model_vals - bensby_obs_vals), 
-                                   weights=bensby_weights)
-    bensby_chi2 = np.mean(((bensby_model_vals - bensby_obs_vals) / 
-                         np.maximum(bensby_uncertainties, 0.1))**2)
-    
-    metrics_text += f"Bensby Weighted RMSE: {bensby_weighted_rmse:.3f}\n"
-    metrics_text += f"Bensby MAE: {bensby_mae:.3f}\n"
-    metrics_text += f"Bensby χ²/dof: {bensby_chi2:.3f}\n"
-
-    # Add debugging info
-    metrics_text += f"\nValid Joyce bins: {np.sum(valid_joyce_bins)}\n"
-    metrics_text += f"Valid Bensby bins: {np.sum(valid_bensby_bins)}\n"
-    metrics_text += f"Age range: {min_age:.1f}-{max_age:.1f} Gyr"
-
-
-
-
-
-
-
-    # Plot binned Bensby data as line with error bars
-    valid_bensby = np.isfinite(bin_means_bensby) & (bin_counts_bensby > 0)
-    ax_main.plot(bin_centers[valid_bensby], bin_means_bensby[valid_bensby], 
-                color='orange', linewidth=3, linestyle='-', 
-                label=f"Bensby (χ²/dof: {bensby_chi2:.3f})", zorder=5)
-    ax_main.errorbar(bin_centers[valid_bensby], bin_means_bensby[valid_bensby], 
-                    yerr=bin_stds_bensby[valid_bensby], 
-                    color='orange', alpha=0.3, capsize=3, zorder=4)
-    
-    
-    # Plot binned Joyce data as line with error bars
-    valid_joyce = np.isfinite(bin_means_joyce) & (bin_counts_joyce > 0)
-    ax_main.plot(bin_centers[valid_joyce], bin_means_joyce[valid_joyce], 
-                color='blue', linewidth=3, linestyle='-', 
-                label=f"Joyce (χ²/dof: {joyce_chi2:.3f})", zorder=5)
-    ax_main.errorbar(bin_centers[valid_joyce], bin_means_joyce[valid_joyce], 
-                    yerr=bin_stds_joyce[valid_joyce], 
-                    color='blue', alpha=0.3, capsize=3, zorder=4)
-
-
-
-
-
-
-
-    # Polynomial fits (degree=3) - keeping your original spline fits
-    if np.sum(mask_joyce) > 3 and np.sum(mask_bensby) > 3:
-        sort_J = np.argsort(age_Joyce[mask_joyce])
-        sort_B = np.argsort(age_Bensby[mask_bensby])
-        
-        s_joyce = UnivariateSpline(age_Joyce[mask_joyce][sort_J], Fe_H[mask_joyce][sort_J], k=3, s=0.5)
-        s_bensby = UnivariateSpline(age_Bensby[mask_bensby][sort_B], Fe_H[mask_bensby][sort_B], k=3, s=0.5)
-        
-        x_vals = np.linspace(0, 14, 100)
-        y_joyce = s_joyce(x_vals)
-        y_bensby = s_bensby(x_vals)
-        
-        ax_main.plot(x_vals, y_joyce, color='blue', linestyle='--', lw=2, zorder=4, alpha=0.7)
-        ax_main.plot(x_vals, y_bensby, color='orange', linestyle='--', lw=2, zorder=4, alpha=0.7)
-        
-        if best_model_feh is not None:
-            # Interpolate best model to match x_vals length
-            f_model = interp1d(best_model_age_gyr, best_model_feh, kind='linear', 
-                              bounds_error=False, fill_value='extrapolate')
-            y_model_interp = f_model(x_vals)
-            
-            ax_main.fill_between(x_vals, y_joyce, y_model_interp, color='purple', alpha=0.1, zorder=0)
-            ax_main.fill_between(x_vals, y_model_interp, y_bensby, color='purple', alpha=0.1, zorder=0)
-    
-    # Create KDE plots on the right margin
-    feh_vals = np.linspace(-2, 1, 200)
-    
-    # KDE for Joyce data
-    mask_joyce_kde = np.isfinite(age_Joyce) & np.isfinite(Fe_H)
-    joyce_feh_data = None
-    if np.sum(mask_joyce_kde) > 2:
-        joyce_feh_data = Fe_H[mask_joyce_kde]
-        kde_joyce = gaussian_kde(joyce_feh_data)
-        kde_j = kde_joyce(feh_vals)
-        kde_j_norm = kde_j / np.max(kde_j) if np.max(kde_j) > 0 else kde_j
-        ax_kde.plot(kde_j_norm, feh_vals, color='darkblue', linewidth=4, label='Joyce')
-        ax_kde.fill_betweenx(feh_vals, 0, kde_j_norm, color='blue', alpha=0.3)
-    
-
-    # KDE for best model - use MDF data instead of age-metallicity track
-    model_feh_data = None
-    if hasattr(GalGA, 'mdf_data') and len(GalGA.mdf_data) > 0:
-        # Find the MDF data for the best model
-        for mdf_data, res in zip(GalGA.mdf_data, GalGA.results):
-            params = (res[5], res[7], res[9])  # sigma_2, t_2, infall_2
-            is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-            if is_best:
-                mdf_x, mdf_y = mdf_data
-                # Convert MDF to sample points for KDE (sample according to MDF weights)
-                mdf_x = np.array(mdf_x)
-                mdf_y = np.array(mdf_y)
-                valid_mdf = np.isfinite(mdf_x) & np.isfinite(mdf_y) & (mdf_y > 0)
-                if np.sum(valid_mdf) > 0:
-                    mdf_x_valid = mdf_x[valid_mdf]
-                    mdf_y_valid = mdf_y[valid_mdf]
-                    # Sample from MDF to create synthetic data points for KDE
-                    n_samples = min(1000, int(np.sum(mdf_y_valid) * 1000))
-                    if n_samples > 10:
-                        # Create samples weighted by MDF
-                        samples = np.random.choice(mdf_x_valid, size=n_samples, 
-                                                 p=mdf_y_valid/np.sum(mdf_y_valid))
-                        model_feh_data = samples
-                break
-    
-    if model_feh_data is not None and len(model_feh_data) > 2:
-        kde_model = gaussian_kde(model_feh_data)
-        kde_m = kde_model(feh_vals)
-        kde_m_norm = kde_m / np.max(kde_m) if np.max(kde_m) > 0 else kde_m
-        ax_kde.plot(kde_m_norm, feh_vals, color='darkred', linestyle='--', linewidth=4, label='Best Model')
-        ax_kde.fill_betweenx(feh_vals, 0, kde_m_norm, color='red', alpha=0.3)
-
-
-    # Calculate KS statistics and add to histogram plot
-    ks_text = ""
-    if joyce_feh_data is not None and model_feh_data is not None:
-        ks_stat_joyce, _ = ks_2samp(joyce_feh_data, model_feh_data)
-        ks_text += f"KS - Best fit vs. Observational: {ks_stat_joyce:.3f}\n"
-
-    # Add KS text to histogram plot (top left)
-    if ks_text:
-        ax_kde.text(0.2, 0.95, ks_text.strip(), transform=ax_kde.transAxes, 
-                   fontsize=10, verticalalignment='top', 
-                   bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
-    
-    # Set reasonable limits
-    ax_kde.set_xlim(0, 1.2)
-    
-    # Axis control for main plot
-    ax_main.set_xlim(0, 14)
-    ax_main.set_ylim(-2, 1)
-    ax_main.set_xlabel("Age (Gyr)", fontsize=16)
-    ax_main.set_ylabel("[Fe/H]", fontsize=16)
-    
-    # Create legend with metrics info in lower left with faint white background
-    #if metrics_text:
-    #    # Add metrics as separate text
-    #    ax_main.text(0.02, 0.02, metrics_text.strip(), transform=ax_main.transAxes,
-    #                fontsize=8, verticalalignment='bottom', fontfamily='monospace',
-    #                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
-    
-    # Main legend
-    legend = ax_main.legend(loc="lower left", bbox_to_anchor=(0., 0.), frameon=True, 
-                          fontsize=10, facecolor='white', edgecolor='gray')
-    legend.get_frame().set_alpha(0.8)
-    
-    # Clean up KDE axis
-    ax_kde.set_xticks([])
-    ax_kde.set_xlabel('')
-    ax_kde.set_ylabel('')
-    ax_kde.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False, 
-                       right=False, labelright=False)
-    ax_kde.spines['left'].set_visible(False)
-    ax_kde.spines['right'].set_visible(False)
-    ax_kde.spines['top'].set_visible(False)
-    ax_kde.spines['bottom'].set_visible(False)
-    
-    plt.tight_layout()
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path, bbox_inches="tight", dpi=300)
-    plt.close(fig)
-    print(f"Enhanced age-metallicity plot with improved metrics saved to {save_path}")
-    return fig
-
-
-
-
-
-
 def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, 
                           feh_mdf, normalized_count_mdf, results_df=None, 
                           save_path='GA/Omni_Info_Figure.png'):
@@ -1485,471 +1059,9 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     return fig
 
 
-# Add this function to the generate_all_plots function
-def generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
-    """Enhanced version that includes the omni info figure"""
-    
-    # Load observational alpha element data (same as before)
-    f = open('data/Bensby_Data.tsv')
-    lines = f.readlines()
-    Fe_H = []
-    age_Joyce = []
-    age_Bensby = []
-    Si_Fe = []
-    Ca_Fe = []
-    Mg_Fe = []
-    Ti_Fe = []
-    
-    for line in lines[1::]:
-        line = line.split()
-        
-        Fe_H_ind = lines[0].split().index('[Fe/H]')
-        Si_Fe_ind = lines[0].split().index('[Si/Fe]')
-        Ca_Fe_ind = lines[0].split().index('[Ca/Fe]')
-        Mg_Fe_ind = lines[0].split().index('[Mg/Fe]')
-        Ti_Fe_ind = lines[0].split().index('[Ti/Fe]')
-        age_Joyce_ind = lines[0].split().index('Joyce_age')
-        age_Bensby_ind = lines[0].split().index('Bensby')
-        
-        age_Joyce.append(float(line[age_Joyce_ind]))
-        age_Bensby.append(float(line[age_Bensby_ind]))
-        Fe_H.append(float(line[Fe_H_ind]))
-        Si_Fe.append(float(line[Si_Fe_ind]))
-        Ca_Fe.append(float(line[Ca_Fe_ind]))
-        Mg_Fe.append(float(line[Mg_Fe_ind]))
-        Ti_Fe.append(float(line[Ti_Fe_ind]))
-    
-    f.close()
-    
-    # Convert to numpy arrays
-    Fe_H = np.array(Fe_H)
-    age_Joyce = np.array(age_Joyce)
-    age_Bensby = np.array(age_Bensby)
-    Si_Fe = np.array(Si_Fe)
-    Ca_Fe = np.array(Ca_Fe) 
-    Mg_Fe = np.array(Mg_Fe)
-    Ti_Fe = np.array(Ti_Fe)
-    
-    # Load results DataFrame
-    import pandas as pd
-    df = pd.read_csv(results_file)
-    
-    # Generate the comprehensive omni info figure
-    print("Generating comprehensive dashboard figure...")
-    plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, 
-                          Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
-                          feh, normalized_count, df)
-    
-    print("Omni info figure generated!")
-    return df
 
 
 
-
-
-
-
-
-
-def extract_metrics(results_file):
-    """Extract metrics from CSV file for plotting"""
-    # Load the dataframe directly
-    df = pd.read_csv(results_file)
-    
-    comp_idx_vals    = df['comp_idx'].values
-    imf_idx_vals     = df['imf_idx'].values
-    sn1a_idx_vals    = df['sn1a_idx'].values
-    sy_idx_vals      = df['sy_idx'].values
-    sn1ar_idx_vals   = df['sn1ar_idx'].values
-    sigma_2_vals     = df['sigma_2'].values
-    t_1_vals         = df['t_1'].values
-    t_2_vals         = df['t_2'].values
-    infall_1_vals    = df['infall_1'].values
-    infall_2_vals    = df['infall_2'].values
-    sfe_vals         = df['sfe'].values
-    delta_sfe_vals   = df['delta_sfe'].values
-    imf_upper_vals   = df['imf_upper'].values
-    mgal_vals        = df['mgal'].values
-    nb_vals          = df['nb'].values
-
-    # Extract metrics
-    metrics_dict = {}
-    #for metric in ['wrmse', 'mae', 'mape', 'huber', 'cosine', 'log_cosh', 'ks', 'ensemble', 'fitness']:
-    for metric in ['fitness']:
-        if metric in df.columns:
-            metrics_dict[metric] = df[metric].values
-    
-    return sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df
-
-
-
-def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv', save_path='GA/pca_degeneracy_analysis.png'):
-    """
-    Perform PCA analysis on the fittest 10% of the population to reveal parameter degeneracies.
-    Shows how the best models spread along degenerate manifolds vs constrained directions.
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import StandardScaler
-    import pandas as pd
-    
-    # Load results and extract continuous parameters
-    df = pd.read_csv(results_file)
-    
-    # Sort by fitness (assuming lower is better) and take top 10%
-    if 'fitness' in df.columns:
-        fitness_col = 'fitness'
-    elif 'wrmse' in df.columns:
-        fitness_col = 'wrmse'
-    else:
-        # Fallback to first loss metric available
-        possible_metrics = ['ks', 'ensemble', 'mae', 'mape', 'huber', 'cosine', 'log_cosh']
-        fitness_col = next((col for col in possible_metrics if col in df.columns), df.columns[-1])
-    
-    df_sorted = df.sort_values(fitness_col, ascending=True)
-    top_10_percent = int(len(df_sorted) * 0.1)
-    df_top = df_sorted.head(top_10_percent)
-    
-    print(f"Analyzing top {top_10_percent} individuals ({10:.0f}%) out of {len(df)} total")
-    print(f"Using '{fitness_col}' as fitness metric")
-    print(f"Fitness range in top 10%: {df_top[fitness_col].min():.4f} to {df_top[fitness_col].max():.4f}")
-    
-    # Define continuous parameter names and extract values
-    continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
-                        'sfe', 'delta_sfe', 'imf_upper', 'nb']
-    
-    # Extract parameter matrix from top 10%
-    param_matrix = df_top[continuous_params].values
-    
-    # Standardize the data (important for PCA)
-    scaler = StandardScaler()
-    param_matrix_scaled = scaler.fit_transform(param_matrix)
-    
-    # Perform PCA
-    pca = PCA()
-    pca_result = pca.fit_transform(param_matrix_scaled)
-    
-    # Get principal components and explained variance
-    components = pca.components_
-    explained_variance = pca.explained_variance_
-    explained_variance_ratio = pca.explained_variance_ratio_
-    
-    # Create comprehensive plot with better spacing
-    fig = plt.figure(figsize=(24, 16))
-    gs = plt.GridSpec(3, 5, figure=fig, hspace=0.3, wspace=0.2, 
-                      left=0.06, right=0.98, top=0.96, bottom=0.06)
-    
-    # 1. Eigenvalue/Singular value plot
-    ax1 = fig.add_subplot(gs[0, 0])
-    bars = ax1.bar(range(len(explained_variance)), explained_variance, color='steelblue', alpha=0.7)
-    ax1.set_xlabel('Principal Component', fontsize=12)
-    ax1.set_ylabel('Eigenvalue (Variance)', fontsize=12)
-    ax1.set_yscale('log')
-    ax1.tick_params(axis='both', which='major', labelsize=10)
-    
-    # Highlight small eigenvalues (degeneracies)
-    threshold = np.max(explained_variance) * 0.01  # 1% of maximum
-    for i, (bar, val) in enumerate(zip(bars, explained_variance)):
-        if val < threshold:
-            bar.set_color('red')
-            bar.set_alpha(0.8)
-    
-    # 2. Explained variance ratio
-    ax2 = fig.add_subplot(gs[0, 1])
-    cumulative_var = np.cumsum(explained_variance_ratio)
-    ax2.plot(range(len(cumulative_var)), cumulative_var, 'o-', color='darkgreen', linewidth=2)
-    ax2.set_xlabel('Number of Components', fontsize=12)
-    ax2.set_ylabel('Cumulative Variance', fontsize=12)
-    ax2.grid(True, alpha=0.3)
-    ax2.axhline(0.95, color='red', linestyle='--', alpha=0.7)
-    ax2.axhline(0.99, color='orange', linestyle='--', alpha=0.7)
-    ax2.tick_params(axis='both', which='major', labelsize=10)
-    
-    # 3. Principal component loadings heatmap - FIXED LABELS
-    ax3 = fig.add_subplot(gs[0, 2:])
-    im = ax3.imshow(components, cmap='RdBu_r', aspect='auto', vmin=-1, vmax=1)
-    
-    # Short parameter names to avoid overlap
-    param_short = ['σ₂', 't₁', 't₂', 'τ₁', 'τ₂', 'SFE', 'ΔSFE', 'M_up', 'N_Ia']
-    
-    ax3.set_xticks(range(len(param_short)))
-    ax3.set_xticklabels(param_short, fontsize=11, ha='center')
-    ax3.set_yticks(range(len(explained_variance)))
-    ax3.set_yticklabels([f'PC{i+1}' for i in range(len(explained_variance))], fontsize=10)
-    
-    # Add text annotations for strong loadings
-    for i in range(len(explained_variance)):
-        for j in range(len(param_short)):
-            if abs(components[i, j]) > 0.5:
-                ax3.text(j, i, f'{components[i, j]:.2f}', 
-                        ha='center', va='center', fontweight='bold', 
-                        color='white' if abs(components[i, j]) > 0.7 else 'black',
-                        fontsize=8)
-    
-    # 4. 2D projections onto first few PCs
-    # Color points by fitness; use log scale for clarity
-    if fitness_col in df_top.columns:
-        colors = np.log10(np.clip(df_top[fitness_col].values, 1e-10, None))
-    else:
-        colors = np.zeros(len(df_top))
-    
-    # PC1 vs PC2
-    ax4 = fig.add_subplot(gs[1, 0])
-    ax4.scatter(pca_result[:, 0], pca_result[:, 1], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax4.set_xlabel(f'PC1 ({explained_variance_ratio[0]:.1%} variance)', fontsize=11)
-    ax4.set_ylabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)', fontsize=11)
-    ax4.tick_params(axis='both', which='major', labelsize=9)
-    
-    # PC2 vs PC3
-    ax5 = fig.add_subplot(gs[1, 1])
-    ax5.scatter(pca_result[:, 1], pca_result[:, 2], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax5.set_xlabel(f'PC2 ({explained_variance_ratio[1]:.1%} variance)', fontsize=11)
-    ax5.set_ylabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)', fontsize=11)
-    ax5.tick_params(axis='both', which='major', labelsize=9)
-    
-    # PC3 vs PC4
-    ax6 = fig.add_subplot(gs[1, 2])
-    ax6.scatter(pca_result[:, 2], pca_result[:, 3], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax6.set_xlabel(f'PC3 ({explained_variance_ratio[2]:.1%} variance)', fontsize=11)
-    ax6.set_ylabel(f'PC4 ({explained_variance_ratio[3]:.1%} variance)', fontsize=11)
-    ax6.tick_params(axis='both', which='major', labelsize=9)
-    
-    # 5. Example parameter pair showing degeneracy
-    ax7 = fig.add_subplot(gs[1, 3])
-    # Find the most correlated parameter pair in top 10%
-    param_corr = np.corrcoef(param_matrix_scaled.T)
-    np.fill_diagonal(param_corr, 0)  # Remove self-correlation
-    max_corr_idx = np.unravel_index(np.argmax(np.abs(param_corr)), param_corr.shape)
-    
-    param1_idx, param2_idx = max_corr_idx
-    param1_name = continuous_params[param1_idx]
-    param2_name = continuous_params[param2_idx]
-    
-    ax7.scatter(df_top[param1_name], df_top[param2_name], c=colors, cmap='viridis', alpha=0.6, s=20)
-    ax7.set_xlabel(param_short[param1_idx], fontsize=11)
-    ax7.set_ylabel(param_short[param2_idx], fontsize=11)
-    ax7.text(0.05, 0.95, f'r = {param_corr[max_corr_idx]:.3f}', 
-             transform=ax7.transAxes, fontsize=10, va='top',
-             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
-    ax7.tick_params(axis='both', which='major', labelsize=9)
-    
-    # 6. Parameter distributions along degenerate vs constrained directions
-    ax8 = fig.add_subplot(gs[1, 4])
-    
-    # Project onto most and least constrained directions
-    most_constrained = pca_result[:, 0]  # Highest variance PC
-    least_constrained = pca_result[:, -1]  # Lowest variance PC
-    
-    ax8.hist(most_constrained, bins=15, alpha=0.7, 
-            label=f'PC1 (λ={explained_variance[0]:.3f})', color='blue')
-    ax8.hist(least_constrained, bins=15, alpha=0.7, 
-            label=f'PC{len(explained_variance)} (λ={explained_variance[-1]:.6f})', color='red')
-    ax8.set_xlabel('Projection Value', fontsize=11)
-    ax8.set_ylabel('Count', fontsize=11)
-    ax8.legend(fontsize=9)
-    ax8.tick_params(axis='both', which='major', labelsize=9)
-    
-    # 7. Degeneracy identification table - IMPROVED FORMATTING
-    ax9 = fig.add_subplot(gs[2, :])
-    ax9.axis('off')
-    
-    # Identify degenerate parameter combinations
-    degeneracy_threshold = np.max(explained_variance) * 0.05  # 5% threshold
-    
-    table_data = []
-    headers = ['PC', 'Eigenvalue', 'Variance %', 'Cumulative %', 'Dominant Parameters']
-    
-    for i in range(len(explained_variance)):
-        eigenval = explained_variance[i]
-        var_percent = explained_variance_ratio[i] * 100
-        cumulative_percent = cumulative_var[i] * 100
-        
-        # Find parameters with highest loadings
-        loadings = np.abs(components[i])
-        top_params_idx = np.argsort(loadings)[-3:][::-1]  # Top 3, reversed
-        top_params_with_values = []
-        for idx in top_params_idx:
-            if loadings[idx] > 0.3:  # Only show significant loadings
-                sign = '+' if components[i, idx] > 0 else '-'
-                top_params_with_values.append(f'{param_short[idx]} ({sign}{abs(components[i, idx]):.2f})')
-        param_str = ', '.join(top_params_with_values)
-        
-        table_data.append([
-            f'{i+1}', 
-            f'{eigenval:.4f}', 
-            f'{var_percent:.1f}', 
-            f'{cumulative_percent:.1f}', 
-            param_str
-        ])
-    
-    # Create table with better spacing
-    table = ax9.table(cellText=table_data, colLabels=headers, 
-                     cellLoc='left', loc='center', bbox=[-0.05, 0.05, 1.05, 1.1])
-    table.auto_set_font_size(False)
-    table.set_fontsize(14)
-    table.scale(1,2.1)
-    
-    # Color degenerate rows
-    for (row, col), cell in table.get_celld().items():
-        if row == 0:  # Header
-            cell.set_facecolor('#4472C4')
-            cell.set_text_props(weight='bold', color='white')
-        else:
-            if explained_variance[row-1] < degeneracy_threshold:
-                cell.set_facecolor('#ffcccc')  # Light red for degenerate
-            else:
-                cell.set_facecolor('#f0f0f0')  # Light gray
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    # Print summary
-    degenerate_pcs = np.where(explained_variance < degeneracy_threshold)[0]
-    print(f"PCA Degeneracy Analysis saved to {save_path}")
-    print(f"Found {len(degenerate_pcs)} degenerate directions (eigenvalue < {degeneracy_threshold:.4f})")
-    print(f"Top 3 eigenvalues: {explained_variance[:3]}")
-    print(f"Bottom 3 eigenvalues: {explained_variance[-3:]}")
-    
-    return fig
-def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', save_path='GA/parameter_correlations.png'):
-    """
-    Create a correlation matrix heatmap showing parameter relationships for the fittest 10% of individuals.
-    Complements the PCA analysis by showing direct pairwise correlations.
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import seaborn as sns
-    
-    df = pd.read_csv(results_file)
-    
-    # Sort by fitness (assuming lower is better) and take top 10%
-    if 'fitness' in df.columns:
-        fitness_col = 'fitness'
-    elif 'wrmse' in df.columns:
-        fitness_col = 'wrmse'
-    else:
-        # Fallback to first loss metric available
-        possible_metrics = ['ks', 'ensemble', 'mae', 'mape', 'huber', 'cosine', 'log_cosh']
-        fitness_col = next((col for col in possible_metrics if col in df.columns), df.columns[-1])
-    
-    df_sorted = df.sort_values(fitness_col, ascending=True)
-    top_10_percent = int(len(df_sorted) * 0.1)
-    df_top = df_sorted.head(top_10_percent)
-    
-    continuous_params = ['sigma_2', 't_1', 't_2', 'infall_1', 'infall_2', 
-                        'sfe', 'delta_sfe', 'imf_upper', 'nb']
-    
-    # Calculate correlation matrix for top 10%
-    corr_matrix = df_top[continuous_params].corr()
-    
-    # Create plot
-    fig, ax = plt.subplots(figsize=(12, 10))
-    
-    # Add title indicating this is top 10% analysis
-    fig.suptitle(f'Parameter Correlation Matrix - Top 10% Fittest Models (n={top_10_percent})', fontsize=14, y=0.95)
-    
-    # Create heatmap
-    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))  # Show only lower triangle
-    sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='RdBu_r', center=0,
-                square=True, linewidths=0.5, cbar_kws={"shrink": .8}, ax=ax,
-                fmt='.3f')  # Show 3 decimal places
-    
-    # Add subtitle with fitness range
-    plt.figtext(0.5, 0.91, f'Fitness range: {df_top[fitness_col].min():.4f} to {df_top[fitness_col].max():.4f}', 
-                ha='center', fontsize=10, style='italic')
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    # Find strongest correlations in the top 10%
-    corr_values = corr_matrix.values
-    np.fill_diagonal(corr_values, 0)  # Remove self-correlations
-    
-    # Get indices of strongest positive and negative correlations
-    max_pos_idx = np.unravel_index(np.argmax(corr_values), corr_values.shape)
-    min_neg_idx = np.unravel_index(np.argmin(corr_values), corr_values.shape)
-    
-    print(f"Correlation analysis for top {top_10_percent} individuals:")
-    print(f"Strongest positive correlation: {continuous_params[max_pos_idx[0]]} - {continuous_params[max_pos_idx[1]]} (r = {corr_values[max_pos_idx]:.3f})")
-    print(f"Strongest negative correlation: {continuous_params[min_neg_idx[0]]} - {continuous_params[min_neg_idx[1]]} (r = {corr_values[min_neg_idx]:.3f})")
-    
-    return fig
-
-
-
-
-
-def plot_walker_evolution_combined(walker_history, param_names, param_indices, save_path='figures/walker_evolution_combined.png'):
-    """
-    Generate a combined plot showing the evolution of multiple key parameters across generations.
-    Each subplot shows one parameter's evolution with median trajectory and interquartile range.
-    
-    Parameters:
-    -----------
-    walker_history : dict
-        Dictionary mapping walker IDs to their parameter history arrays
-    param_names : list of str
-        Names of the parameters to plot
-    param_indices : list of int
-        Indices of the parameters in the history arrays
-    save_path : str
-        Path to save the figure
-    """
-    if not walker_history:
-        print("Walker history data not available. Skipping combined walker evolution plot.")
-        return None
-
-    n_params = len(param_names)
-    fig, axes = plt.subplots(nrows=n_params, ncols=1, figsize=(10, 4 * n_params), sharex=True)
-    if n_params == 1:
-        axes = [axes]  # Ensure iterable
-
-    for ax, param_name, param_idx in zip(axes, param_names, param_indices):
-        all_histories = []
-        for history in walker_history.values():
-            if not history:
-                continue
-            history = np.array(history)
-            if param_idx >= history.shape[1]:
-                continue
-            all_histories.append(history[:, param_idx])
-
-        if not all_histories:
-            continue
-
-        all_histories = np.array(all_histories)  # (n_walkers, n_generations)
-        generations = np.arange(all_histories.shape[1])
-
-        # Plot individual walkers faintly
-        for walker_series in all_histories:
-            ax.plot(generations, walker_series, color='gray', alpha=0.02, linewidth=0.5)
-
-        # Compute and plot median and IQR
-        median = np.median(all_histories, axis=0)
-        lower = np.percentile(all_histories, 25, axis=0)
-        upper = np.percentile(all_histories, 75, axis=0)
-
-        ax.plot(generations, median, color='black', label='Median', linewidth=2)
-        ax.fill_between(generations, lower, upper, color='blue', alpha=0.3, label='IQR (25-75%)')
-
-        ax.set_ylabel(param_name)
-        ax.grid(True, alpha=0.3)
-        ax.legend(loc='upper right', fontsize='small')
-
-    axes[-1].set_xlabel('Generation')
-    fig.suptitle('Parameter Evolution Across Generations', fontsize=16)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.98])
-
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    
-    print(f"Combined walker evolution plot saved to {save_path}")
-    return fig
 
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
     """Generate all plots from GalGA results including comprehensive parameter combinations"""
@@ -2019,18 +1131,14 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # Extract metrics for scatter plots
     sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df = extract_metrics(results_file)
     
-    
+    run_analysis(GalGA, results_file)
+
     # 8. PCA degeneracy analysis
     print("Generating PCA degeneracy analysis...")
     try:
-        plot_pca_degeneracy_analysis(GalGA, results_file)
+        run_analysis(GalGA, results_file)
     except:
         print("probably not enough samples yet...")
-
-
-
-    print("Generating parameter correlation matrix...")
-    plot_parameter_correlation_matrix(results_file)
 
     # 1. Plot MDF curves (existing)
     plot_mdf_curves(GalGA, feh, normalized_count, df)
@@ -2038,9 +1146,6 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # 2. Plot Four-Panel Alpha Elements
     print("Generating Four-Panel Alpha Elements plot...")
     plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, df)
-
-    print("Generating Age-Metallicity plot...")
-    plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, df, save_path='GA/Age_FeH_detailed_results.png')
 
     print("Generating more physics plots...")
     generate_physics_plots(GalGA, results_file=results_file)
@@ -2143,7 +1248,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     
     # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
-    for metric in ['wrmse', 'huber', 'ks', 'cosine', 'fitness', 'ensemble']:
+    for metric in ['wrmse', 'huber', 'ks', 'cosine', 'ensemble']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
         
         plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, loss_metric=metric, threshold=0.1)
@@ -2153,10 +1258,16 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     #create_3d_animation(GalGA.walker_history)
 
 
-    generate_all_plots_with_omni(GalGA, feh, normalized_count, results_file=results_file)
+    # Generate the comprehensive omni info figure
+    print("Generating comprehensive dashboard figure...")
+    plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, 
+                          Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
+                          feh, normalized_count, df)
+    
+    print("Omni info figure generated!")
+
 
     # FIXED: Import age_meta and pass DataFrame instead of string
-    import age_meta
     # Pass the DataFrame (df) instead of the file path string (results_file)
     age_meta.plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=df, save_path='GA/Age_FeH_detailed_results.png', n_bins=10)
 

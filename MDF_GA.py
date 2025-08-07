@@ -85,6 +85,9 @@ normalized_count = count / count.max()  # Normalize count for comparison
 # Global GalGA object to be used for both computation and plotting
 GalGA = None
 
+os.makedirs('GA', exist_ok=True)
+os.makedirs('GA/loss', exist_ok=True)
+os.makedirs('GA/analysis', exist_ok=True)
 
 # Save/load walker history
 def save_walker_history():

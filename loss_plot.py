@@ -32,8 +32,96 @@ from phys_plot import generate_physics_plots
 
 
 
+def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
+    """
+    Plot the evolution of loss for all walkers with median and IQR shading.
+    Mirrors the style of plot_walker_history.
+    """
+
+    os.makedirs("GA/loss", exist_ok=True)
+
+    # Load full GA results
+    results_df = pd.read_csv(results_csv)
+
+    # Column mapping
+    loss_metrics = {
+        'ks': 15, 'ensemble': 16, 'wrmse': 17, 'mae': 18, 'mape': 19,
+        'huber': 20, 'cosine': 21, 'log_cosh': 22, 'fitness': 23
+    }
+
+    if loss_metric not in loss_metrics:
+        print(f"Loss metric '{loss_metric}' not found. Falling back to 'wrmse'.")
+        loss_metric = 'wrmse'
+
+    loss_column = loss_metrics[loss_metric]
+
+    all_histories = []
+    max_gens = 0
+
+    for walker_id, history in walker_history.items():
+        if not history:
+            continue
+
+        history_array = np.array(history)
+        loss_vals = []
+
+        for row in history_array:
+            sigma_2, t_2, infall_2 = row[5], row[7], row[9]
+            match = results_df[
+                (abs(results_df['sigma_2'] - sigma_2) < 1e-5) &
+                (abs(results_df['t_2'] - t_2) < 1e-5) &
+                (abs(results_df['infall_2'] - infall_2) < 1e-5)
+            ]
+            loss_vals.append(match.iloc[0][loss_metric] if not match.empty else np.nan)
+
+        all_histories.append(loss_vals)
+        max_gens = max(max_gens, len(loss_vals))
+
+    if not all_histories:
+        print("No valid walker loss histories to plot.")
+        return None
+
+    # Pad to uniform shape
+    for i in range(len(all_histories)):
+        if len(all_histories[i]) < max_gens:
+            all_histories[i] += [np.nan] * (max_gens - len(all_histories[i]))
+
+    all_histories = np.array(all_histories)
+    generations = np.arange(max_gens)
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Individual walkers (faint gray)
+    for series in all_histories:
+        ax.plot(generations, series, color='gray', alpha=0.01, linewidth=0.75)
+
+    # Median + IQR
+    with np.errstate(all='ignore'):
+        median = np.nanmedian(all_histories, axis=0)
+        lower = np.nanpercentile(all_histories, 25, axis=0)
+        upper = np.nanpercentile(all_histories, 75, axis=0)
+
+    ax.plot(generations, median, color='black', label='Median', linewidth=2)
+    ax.fill_between(generations, lower, upper, color='blue', alpha=0.2, label='25–75% range')
+
+    ax.set_title(f"Walker Evolution: {loss_metric.upper()}")
+    ax.set_xlabel("Generation")
+    ax.set_ylabel(f"{loss_metric.upper()}")
+    ax.grid(True)
+    ax.legend(loc='best')
+
+    fig.tight_layout()
+    outpath = f'GA/loss/walker_loss_history_{loss_metric}.png'
+    fig.savefig(outpath, bbox_inches='tight')
+    plt.close(fig)
+
+    print(f"Saved loss history plot: {outpath}")
+    return fig
+
+
+
 def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.csv', 
-                             threshold=0.1, loss_metric='wrmse', save_path='GA/walker_success_rate_'):
+                             threshold=0.1, loss_metric='wrmse', save_path='GA/loss/walker_success_rate_'):
     """
     Plot the fraction of walkers with loss below threshold over generations.
     

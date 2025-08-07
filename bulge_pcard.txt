@@ -206,7 +206,7 @@ comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_outp
 # Contentious: High SFE (>0.5) debated for sustained periods (leads to rapid depletion), but observed in starbursts; typical bulge ~0.02-0.2.
 # References: Leroy et al. (2013, AJ, 146, 19) for 0.01-1 in dense environments; Bigiel et al. (2008, AJ, 136, 2846) 0.002-0.1; Kennicutt et al. (2021, ARA&A, 59, 319) up to 10 in bursts, but ~1 for bulges; Grisoni et al. (2020, MNRAS, 492, 2828) ~0.02 for bulge.
 ############################################################
-sfe_array: [0.001, 0.035]
+sfe_array: [0.01, 0.035]
 
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.

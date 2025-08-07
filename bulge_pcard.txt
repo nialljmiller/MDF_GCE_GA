@@ -211,7 +211,7 @@ sfe_array: [0.01, 0.035]
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.
 # References: Spitoni et al. (2019, A&A, 632, A58) for Δ~0.5-2 increases; Chiappini et al. (2001) variations 0-2; Matteucci et al. (2024) potential decreases ~ -0.5 for dilution; Grisoni et al. (2020) Δ~0-1.
-delta_sfe_array: [-0.01, 0.02]
+delta_sfe_array: [-0.005, 0.02]
 
 ############################################################
 #

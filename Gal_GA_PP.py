@@ -626,8 +626,21 @@ class GalacticEvolutionGA:
             return  # Can't calculate meaningful diversity with 1 or fewer individuals
             
         gene_array = np.array(continuous_genes)
-        overall_diversity = np.mean(np.std(gene_array, axis=0))
         
+        # FIXED: Normalize each parameter by its range before calculating diversity
+        normalized_genes = np.zeros_like(gene_array)
+        for i, param_idx in enumerate(range(5, 5 + gene_array.shape[1])):
+            min_bound, max_bound = self.get_param_bounds(param_idx)
+            param_range = max_bound - min_bound
+            if param_range > 0:
+                # Normalize to [0, 1] range
+                normalized_genes[:, i] = (gene_array[:, i] - min_bound) / param_range
+            else:
+                normalized_genes[:, i] = 0  # Constant parameter
+        
+        # Calculate diversity on normalized parameters
+        overall_diversity = np.mean(np.std(normalized_genes, axis=0))
+                
         # Age-based convergence pressure (starts gentle, increases smoothly over time)
         # Use quadratic function for smooth convergence
         convergence_pressure = progress ** 2
@@ -642,27 +655,8 @@ class GalacticEvolutionGA:
             min_exploration = 0.02  # Always maintain some minimal exploration
             exploration_fraction = max(min_exploration, base_exploration)
 
-
-
-        # Adaptive rates based on diversity and age
-        if overall_diversity < 0.05:  # Very low diversity
-            # Emergency diversity boost, but respect age-based convergence
-            emergency_boost = 1.5 * (1.0 - convergence_pressure * 0.7)  # Less emergency boost as we age
-            self.mutpb = min(0.9, self.mutpb * emergency_boost)
-            self.cxpb = max(0.1, self.cxpb * 0.7)
-
-            base_exploration = 0.5 * (1.0 - (convergence_pressure*0.5))  # Decreases from 0.25 to 0
-            min_exploration = 0.1  # Always maintain some minimal exploration
-            exploration_fraction = max(min_exploration, base_exploration)
-
             
-        elif overall_diversity < 0.1:  # Low diversity but not critical
-            # Gentle diversity encouragement, respect convergence pressure
-            diversity_boost = 1.15 * (1.0 - convergence_pressure * 0.6)
-            self.mutpb = min(0.8, self.mutpb * diversity_boost)
-            self.cxpb = max(0.2, self.cxpb * 0.9)
-            
-        elif overall_diversity > 0.5:  # High diversity - encourage convergence
+        if overall_diversity > 0.5:  # High diversity - encourage convergence
             # Age-based convergence: stronger as we get older
             convergence_factor = 0.85 * (1.0 - 0.15 * convergence_pressure)  # Gradual reduction
             convergence_boost = 1.0 + convergence_pressure * 0.4  # Increase crossover as we age

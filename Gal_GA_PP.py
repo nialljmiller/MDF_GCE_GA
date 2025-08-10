@@ -674,21 +674,7 @@ class GalacticEvolutionGA:
         # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
         self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
         exploration_fraction = max(0.05, exploration_fraction)  # Always maintain some Voronoi exploration
-        
-        # 5. SPARSE ELITIST REPLACEMENT (only occasionally, when really stuck)
-        if generation > 20 and generation % 25 == 0 and avg_nearest_neighbor_dist < 0.03:
-            # Only when spatial diversity is very low and we've been running a while
-            n_replace = max(1, len(population) // 20)  # Replace only 5% instead of 10%
-            sorted_pop = sorted(population, key=lambda x: x.fitness.values[0])
-            best_inds = sorted_pop[:n_replace]
-            worst_indices = list(range(len(population) - n_replace, len(population)))
-            
-            for i, worst_idx in enumerate(worst_indices):
-                best_template = self.toolbox.clone(best_inds[i % len(best_inds)])
-                self.controlled_perturbation(best_template, strength=0.2)
-                del best_template.fitness.values
-                population[worst_idx] = best_template
-        
+                
         # 6. VORONOI EXPLORATION VIRTUALLY ALWAYS (magnitude guided by strategy)
         voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
         

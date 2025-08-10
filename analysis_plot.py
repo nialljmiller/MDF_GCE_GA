@@ -1002,8 +1002,9 @@ def run_analysis(GalGA, results_file='GA/simulation_results.csv'):
     analyze_best_fit_parameters(results_file)
     
     analyze_top_percentile_parameters(results_file, percentile=10)
-    
-    island_results = identify_solution_islands(results_file, percentile_threshold=90)
+
+    island_results = None
+    #island_results = identify_solution_islands(results_file, percentile_threshold=90)
 
     plot_pca_degeneracy_analysis(GalGA, results_file)
     

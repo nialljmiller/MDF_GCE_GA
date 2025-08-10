@@ -612,74 +612,83 @@ class GalacticEvolutionGA:
             # Within bounds, no reflection needed
             return value
 
-
     def update_operator_rates(self, population, generation, num_generations):
-        """Age-based convergence with diversity preservation"""
-        progress = generation / num_generations
+        """Fitness-guided exploration with proper diversity measurement"""
         
-        # Calculate population diversity using continuous parameters only
-        continuous_genes = []
-        for ind in population:
-            continuous_genes.append(ind[5:])  # Skip categorical parameters
+        # 1. BETTER DIVERSITY METRIC: Use nearest neighbor distances
+        continuous_genes = np.array([ind[5:] for ind in population])
         
-        if len(continuous_genes) <= 1:
-            return  # Can't calculate meaningful diversity with 1 or fewer individuals
-            
-        gene_array = np.array(continuous_genes)
-        
-        # FIXED: Normalize each parameter by its range before calculating diversity
-        normalized_genes = np.zeros_like(gene_array)
-        for i, param_idx in enumerate(range(5, 5 + gene_array.shape[1])):
+        # Normalize parameters to [0,1] for fair distance calculation
+        normalized_genes = np.zeros_like(continuous_genes)
+        for i, param_idx in enumerate(range(5, 5 + continuous_genes.shape[1])):
             min_bound, max_bound = self.get_param_bounds(param_idx)
             param_range = max_bound - min_bound
             if param_range > 0:
-                # Normalize to [0, 1] range
-                normalized_genes[:, i] = (gene_array[:, i] - min_bound) / param_range
-            else:
-                normalized_genes[:, i] = 0  # Constant parameter
+                normalized_genes[:, i] = (continuous_genes[:, i] - min_bound) / param_range
         
-        # Calculate diversity on normalized parameters
-        overall_diversity = np.mean(np.std(normalized_genes, axis=0))
-                
-        # Age-based convergence pressure (starts gentle, increases smoothly over time)
-        # Use quadratic function for smooth convergence
-        convergence_pressure = progress ** 2
-        
-        # Base exploration fraction that decreases with age
-        if progress < 0.1:
-            base_exploration = 0.25 * (1.0 - convergence_pressure)  # Decreases from 0.25 to 0
-            min_exploration = 0.02  # Always maintain some minimal exploration
-            exploration_fraction = max(min_exploration, base_exploration)
+        # Calculate average nearest neighbor distance (better diversity metric)
+        from scipy.spatial.distance import pdist, squareform
+        if len(normalized_genes) > 1:
+            distances = squareform(pdist(normalized_genes))
+            np.fill_diagonal(distances, np.inf)  # Exclude self-distances
+            avg_nearest_neighbor_dist = np.mean(np.min(distances, axis=1))
         else:
-            base_exploration = 0.1 * (1.0 - (convergence_pressure*0.5))  # Decreases from 0.25 to 0
-            min_exploration = 0.02  # Always maintain some minimal exploration
-            exploration_fraction = max(min_exploration, base_exploration)
-
-            
-        if overall_diversity > 0.5:  # High diversity - encourage convergence
-            # Age-based convergence: stronger as we get older
-            convergence_factor = 0.85 * (1.0 - 0.15 * convergence_pressure)  # Gradual reduction
-            convergence_boost = 1.0 + convergence_pressure * 0.4  # Increase crossover as we age
-            exploration_fraction = 0.02            
-            self.mutpb = max(0.05, self.mutpb * convergence_factor)
-            self.cxpb = min(0.85, self.cxpb * convergence_boost)
-            
-        else:  # Normal diversity (0.1 - 0.5) - gradual convergence
-            # Smooth convergence based on age
-            age_mutation_factor = 1.0 - convergence_pressure * 0.3  # Gentle reduction
-            age_crossover_factor = 1.0 + convergence_pressure * 0.2  # Gentle increase
-            
-            self.mutpb = max(0.08, self.mutpb * age_mutation_factor)
-            self.cxpb = min(0.75, self.cxpb * age_crossover_factor)
+            avg_nearest_neighbor_dist = 0.0
         
-        # Apply Voronoi exploration for sparse regions
-        voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
+        # 2. FITNESS-BASED POPULATION ANALYSIS
+        fitnesses = [ind.fitness.values[0] for ind in population if ind.fitness.valid]
+        if not fitnesses:
+            return
+            
+        fitness_std = np.std(fitnesses)
+        best_fitness = min(fitnesses)
+        worst_fitness = max(fitnesses)
+        fitness_range = worst_fitness - best_fitness
         
-        if generation % 10 == 0:
-            print(f"Gen {generation}: Progress={progress:.2f}, Diversity={overall_diversity:.3f}, "
-                  f"MutPb={self.mutpb:.3f}, CxPb={self.cxpb:.3f}, Exploration={exploration_fraction:.3f}")
-
-
+        # 3. ADAPTIVE STRATEGY BASED ON SEARCH STATE
+        
+        # If fitness diversity is high (population spread across fitness landscape)
+        if fitness_range > 0.1 and fitness_std > 0.05:
+            # EXPLORATION MODE: High mutation, moderate crossover
+            self.mutpb = 0.6
+            self.cxpb = 0.4
+            strategy = "EXPLORATION"
+            
+        # If fitness diversity is low but spatial diversity is high  
+        elif avg_nearest_neighbor_dist > 0.1:
+            # CONVERGENCE MODE: Lower mutation, higher crossover
+            self.mutpb = 0.2
+            self.cxpb = 0.7
+            strategy = "CONVERGENCE"
+            
+        # If both fitness and spatial diversity are low
+        else:
+            # INTENSIFICATION MODE: Focus on local search around best solutions
+            self.mutpb = 0.3
+            self.cxpb = 0.6
+            strategy = "INTENSIFICATION"
+        
+        # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
+        self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
+        
+        # 5. FITNESS-GUIDED POPULATION REPLACEMENT
+        # Replace worst 10% with perturbed versions of best 10%
+        if generation > 10 and generation % 5 == 0:
+            n_replace = max(1, len(population) // 10)
+            sorted_pop = sorted(population, key=lambda x: x.fitness.values[0])
+            best_inds = sorted_pop[:n_replace]
+            worst_indices = list(range(len(population) - n_replace, len(population)))
+            
+            for i, worst_idx in enumerate(worst_indices):
+                # Create perturbed copy of a good individual
+                best_template = self.toolbox.clone(best_inds[i % len(best_inds)])
+                self.controlled_perturbation(best_template, strength=0.2)
+                del best_template.fitness.values
+                population[worst_idx] = best_template
+        
+        if generation % 2 == 0:
+            print(f"Gen {generation}: Strategy={strategy}, NN_dist={avg_nearest_neighbor_dist:.3f}, "
+                  f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}")
 
     def get_param_bounds(self, index):
         """

@@ -613,7 +613,7 @@ class GalacticEvolutionGA:
             return value
 
     def update_operator_rates(self, population, generation, num_generations):
-        """Fitness-guided exploration with proper diversity measurement"""
+        """Fitness-guided exploration with Voronoi dearth exploration always active"""
         
         # 1. BETTER DIVERSITY METRIC: Use nearest neighbor distances
         continuous_genes = np.array([ind[5:] for ind in population])
@@ -627,8 +627,8 @@ class GalacticEvolutionGA:
                 normalized_genes[:, i] = (continuous_genes[:, i] - min_bound) / param_range
         
         # Calculate average nearest neighbor distance (better diversity metric)
-        from scipy.spatial.distance import pdist, squareform
         if len(normalized_genes) > 1:
+            from scipy.spatial.distance import pdist, squareform
             distances = squareform(pdist(normalized_genes))
             np.fill_diagonal(distances, np.inf)  # Exclude self-distances
             avg_nearest_neighbor_dist = np.mean(np.min(distances, axis=1))
@@ -653,6 +653,7 @@ class GalacticEvolutionGA:
             self.mutpb = 0.6
             self.cxpb = 0.4
             strategy = "EXPLORATION"
+            exploration_fraction = 0.3  # High Voronoi exploration
             
         # If fitness diversity is low but spatial diversity is high  
         elif avg_nearest_neighbor_dist > 0.1:
@@ -660,6 +661,7 @@ class GalacticEvolutionGA:
             self.mutpb = 0.2
             self.cxpb = 0.7
             strategy = "CONVERGENCE"
+            exploration_fraction = 0.15  # Moderate Voronoi exploration
             
         # If both fitness and spatial diversity are low
         else:
@@ -667,28 +669,34 @@ class GalacticEvolutionGA:
             self.mutpb = 0.3
             self.cxpb = 0.6
             strategy = "INTENSIFICATION"
+            exploration_fraction = 0.1  # Lower but still active Voronoi exploration
         
         # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
         self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
+        exploration_fraction = max(0.05, exploration_fraction)  # Always maintain some Voronoi exploration
         
-        # 5. FITNESS-GUIDED POPULATION REPLACEMENT
-        # Replace worst 10% with perturbed versions of best 10%
-        if generation > 10 and generation % 5 == 0:
-            n_replace = max(1, len(population) // 10)
+        # 5. SPARSE ELITIST REPLACEMENT (only occasionally, when really stuck)
+        if generation > 20 and generation % 25 == 0 and avg_nearest_neighbor_dist < 0.03:
+            # Only when spatial diversity is very low and we've been running a while
+            n_replace = max(1, len(population) // 20)  # Replace only 5% instead of 10%
             sorted_pop = sorted(population, key=lambda x: x.fitness.values[0])
             best_inds = sorted_pop[:n_replace]
             worst_indices = list(range(len(population) - n_replace, len(population)))
             
             for i, worst_idx in enumerate(worst_indices):
-                # Create perturbed copy of a good individual
                 best_template = self.toolbox.clone(best_inds[i % len(best_inds)])
                 self.controlled_perturbation(best_template, strength=0.2)
                 del best_template.fitness.values
                 population[worst_idx] = best_template
         
-        if generation % 2 == 0:
+        # 6. VORONOI EXPLORATION VIRTUALLY ALWAYS (magnitude guided by strategy)
+        voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
+        
+        if generation % 5 == 0:
             print(f"Gen {generation}: Strategy={strategy}, NN_dist={avg_nearest_neighbor_dist:.3f}, "
-                  f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}")
+                  f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}, "
+                  f"Voronoi={exploration_fraction:.2f}")
+
 
     def get_param_bounds(self, index):
         """

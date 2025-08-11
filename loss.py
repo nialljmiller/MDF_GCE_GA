@@ -177,7 +177,7 @@ def compute_age_metallicity_loss(GA_class, age_x_data, age_y_data, loss_metric='
     model_feh_final = model_feh_clean[model_mask]
     
     try:
-        # Calculate comprehensive metrics using age_meta functions
+        # Calculate metrics using age_meta functions
         metrics = calculate_all_metrics(
             model_ages_final, model_feh_final,
             joyce_ages_final, joyce_feh_final, joyce_err_final,

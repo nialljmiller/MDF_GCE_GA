@@ -347,7 +347,7 @@ def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_P
     ax9 = fig.add_subplot(gs[3, 3:])
     ax9.axis('off')
     
-    # Calculate comprehensive physics summary
+    # Calculate physics summary
     total_inflow = np.sum(inflow_masses)
     total_outflow = np.sum(outflow_masses) 
     total_sf = np.sum(sfr_rates * timesteps_yr)

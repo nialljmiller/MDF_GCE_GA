@@ -19,6 +19,13 @@ import checkpoint  # checkpointing utilities
 # Import plotting module
 import mdf_plotting
 
+
+def load_bensby_data(file_path='data/Bensby_Data.tsv'):
+    obs_age_data = pd.read_csv(file_path, sep='\t')
+    print(f"Loaded Bensby data with shape: {obs_age_data.shape}")
+    print(f"Columns available: {list(obs_age_data.columns)}")
+    return obs_age_data
+
 # Suppress specific RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -66,6 +73,14 @@ mutation_probability = params['mutation_probability']
 tournament_size = params['tournament_size']
 selection_threshold = params['selection_threshold']
 
+obs_age_data_loss_metric = params['obs_age_data_loss_metric']
+mdf_vs_age_weight = params['mdf_vs_age_weight']
+
+
+
+
+
+
 output_interval = params.get('output_interval')
 
 loss_metric = params['loss_metric']
@@ -81,6 +96,38 @@ perturbation_strength = params.get('perturbation_strength', 0.1)
 # Load and normalize observational data
 feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
 normalized_count = count / count.max()  # Normalize count for comparison
+
+
+
+# Load the data
+obs_age_data = load_bensby_data('data/Bensby_Data.tsv')
+
+# Display basic info about the dataset
+print("\nDataset Info:")
+print(f"Number of stars: {len(obs_age_data)}")
+print(f"Number of columns: {len(obs_age_data.columns)}")
+
+print("\nFirst few rows:")
+print(obs_age_data.head())
+
+print("\nColumn data types:")
+print(obs_age_data.dtypes)
+
+# Example usage - accessing specific columns
+print(f"\nExample access:")
+print(f"Joyce ages: {obs_age_data['Joyce_age'].head()}")
+print(f"Bensby ages: {obs_age_data['Bensby'].head()}")
+print(f"[Fe/H] values: {obs_age_data['[Fe/H]'].head()}")
+print(f"[Mg/Fe] values: {obs_age_data['[Mg/Fe]'].head()}")
+
+# Show some basic statistics
+print(f"\nBasic statistics for key columns:")
+key_columns = ['Joyce_age', 'Bensby', '[Fe/H]', '[Mg/Fe]', '[Si/Fe]', '[Ca/Fe]', '[Ti/Fe]']
+for col in key_columns:
+    if col in obs_age_data.columns:
+        print(f"{col}: mean={obs_age_data[col].mean():.2f}, std={obs_age_data[col].std():.2f}, range=[{obs_age_data[col].min():.2f}, {obs_age_data[col].max():.2f}]")
+
+
 
 # Global GalGA object to be used for both computation and plotting
 GalGA = None
@@ -150,7 +197,10 @@ def run_ga(cp_manager):
         A2=A2,
         feh=feh,
         normalized_count=normalized_count,
+        obs_age_data=obs_age_data,
         loss_metric=loss_metric,
+        obs_age_data_loss_metric = obs_age_data_loss_metric,
+        mdf_vs_age_weight = mdf_vs_age_weight,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
         gaussian_sigma_scale=gaussian_sigma_scale,
@@ -256,7 +306,10 @@ def load_ga_for_plotting():
         A2=A2,
         feh=feh,
         normalized_count=normalized_count,
+        obs_age_data=obs_age_data,
         loss_metric=loss_metric,
+        obs_age_data_loss_metric = obs_age_data_loss_metric,
+        mdf_vs_age_weight = mdf_vs_age_weight,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
         gaussian_sigma_scale=gaussian_sigma_scale,

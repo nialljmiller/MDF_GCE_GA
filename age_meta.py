@@ -535,3 +535,138 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     print(f"Supplementary metrics comparison saved to {metrics_save_path}")
     
     return fig
+
+
+
+def age_meta_loss(model_age_x, model_age_y, obs_age_data, loss_metric, dataset='joyce'):
+    """
+    Calculate age-metallicity relation loss between model and observations.
+    
+    Parameters:
+    -----------
+    model_age_x : array
+        Model ages in years (will be converted to Gyr)
+    model_age_y : array  
+        Model [Fe/H] values
+    obs_age_data : pandas.DataFrame
+        Observational data with columns for ages and [Fe/H]
+    loss_metric : str
+        Loss metric to use for comparison
+    dataset : str
+        Which dataset to use: 'joyce' or 'bensby'
+        
+    Returns:
+    --------
+    float : Loss value (lower is better for most metrics)
+    """
+    
+    # Convert model ages to Gyr (assuming input is in years)
+    if np.max(model_age_x) > 100:  # Likely in years
+        model_age_gyr = (model_age_x[-1] / 1e9) - np.array(model_age_x) / 1e9
+    else:  # Already in Gyr
+        model_age_gyr = np.array(model_age_x)
+    
+    model_feh = np.array(model_age_y)
+    
+    # Extract observational data for the specified dataset
+    obs_feh = obs_age_data['[Fe/H]'].values
+    
+    if dataset.lower() == 'joyce':
+        obs_ages = obs_age_data['Joyce_age'].values
+    elif dataset.lower() == 'bensby':
+        obs_ages = obs_age_data['Bensby'].values
+    else:
+        raise ValueError(f"Unknown dataset '{dataset}'. Use 'joyce' or 'bensby'.")
+    
+    # Clean data - remove NaN values
+    mask = np.isfinite(obs_ages) & np.isfinite(obs_feh)
+    
+    if np.sum(mask) < 5:
+        return 10.0  # High penalty if insufficient data
+    
+    # Get clean data
+    clean_ages = obs_ages[mask]
+    clean_feh = obs_feh[mask]
+    
+    # Interpolate model to observation ages
+    if len(model_age_gyr) > 1:
+        model_interp = np.interp(clean_ages, model_age_gyr, model_feh)
+        return _calculate_single_loss(model_interp, clean_feh, loss_metric)
+    else:
+        return 10.0  # High penalty if model has insufficient points
+
+
+def _calculate_single_loss(model_vals, obs_vals, loss_metric):
+    """Calculate loss for a single dataset comparison"""
+    
+    if loss_metric == 'mae':
+        return np.mean(np.abs(model_vals - obs_vals))
+        
+    elif loss_metric == 'rmse':
+        return np.sqrt(np.mean((model_vals - obs_vals)**2))
+        
+    elif loss_metric == 'weighted_mae':
+        # Use inverse of absolute values as weights (higher for low metallicity)
+        weights = 1.0 / np.maximum(np.abs(obs_vals), 0.1)
+        return np.average(np.abs(model_vals - obs_vals), weights=weights)
+        
+    elif loss_metric == 'weighted_rmse':
+        weights = 1.0 / np.maximum(np.abs(obs_vals), 0.1)  
+        return np.sqrt(np.average((model_vals - obs_vals)**2, weights=weights))
+        
+    elif loss_metric == 'huber_loss':
+        return huber_loss(obs_vals, model_vals, delta=0.2)
+        
+    elif loss_metric == 'log_likelihood':
+        # Assume fixed uncertainty of 0.1 dex for metallicity
+        sigma = 0.1
+        residuals = model_vals - obs_vals
+        chi2 = np.sum((residuals / sigma)**2)
+        log_likelihood = -0.5 * (chi2 + len(obs_vals) * np.log(2*np.pi) + 
+                                 2*len(obs_vals)*np.log(sigma))
+        return -log_likelihood  # Return negative so lower is better
+        
+    elif loss_metric == 'aic':
+        sigma = 0.1
+        residuals = model_vals - obs_vals  
+        chi2 = np.sum((residuals / sigma)**2)
+        log_likelihood = -0.5 * (chi2 + len(obs_vals) * np.log(2*np.pi) + 
+                                 2*len(obs_vals)*np.log(sigma))
+        n_params = 3  # Assume 3 model parameters
+        aic = 2 * n_params - 2 * log_likelihood
+        return aic
+        
+    elif loss_metric == 'bic':
+        sigma = 0.1
+        residuals = model_vals - obs_vals
+        chi2 = np.sum((residuals / sigma)**2) 
+        log_likelihood = -0.5 * (chi2 + len(obs_vals) * np.log(2*np.pi) + 
+                                 2*len(obs_vals)*np.log(sigma))
+        n_params = 3
+        bic = n_params * np.log(len(obs_vals)) - 2 * log_likelihood
+        return bic
+        
+    elif loss_metric == 'correlation':
+        # Return 1 - correlation so lower is better
+        if len(model_vals) > 1 and np.std(model_vals) > 0 and np.std(obs_vals) > 0:
+            corr = np.corrcoef(model_vals, obs_vals)[0, 1]
+            return 1.0 - np.abs(corr)  # Use absolute correlation
+        else:
+            return 1.0  # No correlation
+            
+    elif loss_metric == 'spearman_correlation':
+        # Return 1 - spearman correlation so lower is better
+        if len(model_vals) > 1:
+            spearman_corr, _ = stats.spearmanr(model_vals, obs_vals)
+            if np.isfinite(spearman_corr):
+                return 1.0 - np.abs(spearman_corr)
+            else:
+                return 1.0
+        else:
+            return 1.0
+    
+    else:
+        # Default to MAE if unknown metric
+        return np.mean(np.abs(model_vals - obs_vals))
+
+    

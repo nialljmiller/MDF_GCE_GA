@@ -237,11 +237,13 @@ def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.
 
 
 def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_results.csv', 
-                                   thresholds=[0.05, 0.1, 0.2, 0.5], loss_metric='wrmse', 
-                                   save_path='GA/walker_success_rates_multiple.png'):
+                                   thresholds=[0.01, 0.1, 0.001], loss_metric='wrmse', 
+                                   save_path='GA/loss/walker_success_rates_multiple.png'):
     """
     Plot success rates for multiple thresholds on the same plot.
     """
+
+    save_path = save_path + str(loss_metric) + '.png'
     
     if not walker_history:
         print("Walker history data not available.")
@@ -255,8 +257,15 @@ def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_
         return None
     
     fig, ax = plt.subplots(figsize=(12, 8))
-    
-    colors = ['red', 'orange', 'green', 'blue', 'purple']
+        
+    colors = [
+        '#E60026',  # Mondrian red
+        '#0047AB',  # Mondrian blue
+        '#F7D842',  # Mondrian yellow
+        '#000000',  # black
+        '#1A1A1A'   # very dark gray/near-black accent
+        '#FFD300',  # strong yellow variant
+    ]
     
     for i, threshold in enumerate(thresholds):
         success_fractions = []

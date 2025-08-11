@@ -18,7 +18,7 @@ from matplotlib.lines import *
 from matplotlib.patches import *
 from JINAPyCEE import omega_plus
 from multiprocessing.pool import ThreadPool
-from multiprocessing.pool import Pool
+from multiprocessing import Pool, cpu_count
 
 from deap import base, creator, tools
 import random
@@ -30,7 +30,7 @@ from loss import *
 from physical_constraints import apply_physics_penalty
 from explore_dearth import voronoi_explore_dearths
 import ast
-
+from age_meta import age_meta_loss
 
 # Function to find the index of the nearest value in an array
 def find_nearest(array, value):
@@ -102,9 +102,13 @@ def should_use_log(min_val, max_val, threshold=2.0):
 
 class GalacticEvolutionGA:
 
-    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits,
-                 sn1a_assumptions, stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, loss_metric='huber', fancy_mutation = 'gaussian', shrink_range = False,
-                 tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, PP = False):
+    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, 
+                infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits, sn1a_assumptions,
+                stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, obs_age_data,
+                loss_metric='huber', obs_age_data_loss_metric = 'None', mdf_vs_age_weight = 1, fancy_mutation = 'gaussian', 
+                shrink_range = False, tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, 
+                gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, PP = False):
+
         # Initialize parameters as instance variables
         self.sn1a_header = sn1a_header
         self.iniab_header = iniab_header
@@ -128,6 +132,7 @@ class GalacticEvolutionGA:
         self.A2 = A2        
         self.feh = feh
         self.normalized_count = normalized_count
+        self.obs_age_data = obs_age_data
         self.placeholder_sigma_array = np.zeros(len(normalized_count)) + 1  # Assume all sigmas are 1
         self.fancy_mutation = fancy_mutation
         self.PP = PP
@@ -148,16 +153,18 @@ class GalacticEvolutionGA:
         self.infall_2_min, self.infall_2_max = min(infall_timescale_2_list), max(infall_timescale_2_list)
 
         self.loss_metric = loss_metric
+        self.obs_age_data_loss_metric = obs_age_data_loss_metric
+        self.mdf_vs_age_weight = mdf_vs_age_weight
 
         self.cxpb=cxpb
         self.mutpb=mutpb
         self.gaussian_sigma_scale = gaussian_sigma_scale
         self.crossover_noise_fraction = crossover_noise_fraction
         self.perturbation_strength = perturbation_strength
-            
+
 
         
-        # Calculate parameter space dimensions for comprehensive reporting
+        # Calculate parameter space dimensions for reporting
         categorical_params = len(comp_array) * len(imf_array) * len(sn1a_assumptions) * len(stellar_yield_assumptions) * len(sn1a_rates)
         continuous_param_ranges = [
             (max(sigma_2_list) - min(sigma_2_list)),
@@ -182,7 +189,6 @@ class GalacticEvolutionGA:
         print()
         
         print('THEORETICAL MODEL CONFIGURATION:')
-        print(f'├─ Infall Episodes: Dual-phase accretion paradigm')
         print(f'├─ Temporal Range: t₁ ∈ [{min(tmax_1_list):.3f}, {max(tmax_1_list):.3f}] Gyr')
         print(f'├─ Second Episode: t₂ ∈ [{min(tmax_2_list):.1f}, {max(tmax_2_list):.1f}] Gyr')  
         print(f'├─ Spatial Dispersion: σ₂ ∈ [{min(sigma_2_list):.0f}, {max(sigma_2_list):.0f}] pc')
@@ -220,8 +226,6 @@ class GalacticEvolutionGA:
         print(f'└─ Expected Parameter Volume: ~{categorical_params:.0e} discrete combinations')
         print()
 
-        print('═' * 80)
-        print()
         
         # Define available loss metrics
         self.loss_functions = {
@@ -251,6 +255,7 @@ class GalacticEvolutionGA:
         
         self.threshold = threshold
         self.tournament_size = tournament_size
+        self.backup_tournament_size = 0
         self.lambda_diversity = lambda_diversity #A higher value places more emphasis on diversity.
 
         self.physics_timer = 0
@@ -301,82 +306,62 @@ class GalacticEvolutionGA:
         # Continuous parameters
         # sigma_2
         if should_use_log(min(self.sigma_2_list), max(self.sigma_2_list)):
-            print(f"Using LOG sampling for sigma_2: {min(self.sigma_2_list)} to {max(self.sigma_2_list)}")
             toolbox.register("sigma_2_attr", log_uniform, min(self.sigma_2_list), max(self.sigma_2_list))
         else:
-            print(f"Using LINEAR sampling for sigma_2: {min(self.sigma_2_list)} to {max(self.sigma_2_list)}")
             toolbox.register("sigma_2_attr", random.uniform, min(self.sigma_2_list), max(self.sigma_2_list))
 
         # t_1
         if should_use_log(min(self.tmax_1_list), max(self.tmax_1_list)):
-            print(f"Using LOG sampling for t_1: {min(self.tmax_1_list)} to {max(self.tmax_1_list)}")
             toolbox.register("t_1_attr", log_uniform, min(self.tmax_1_list), max(self.tmax_1_list))
         else:
-            print(f"Using LINEAR sampling for t_1: {min(self.tmax_1_list)} to {max(self.tmax_1_list)}")
             toolbox.register("t_1_attr", random.uniform, min(self.tmax_1_list), max(self.tmax_1_list))
 
         # t_2
         if should_use_log(min(self.tmax_2_list), max(self.tmax_2_list)):
-            print(f"Using LOG sampling for t_2: {min(self.tmax_2_list)} to {max(self.tmax_2_list)}")
             toolbox.register("t_2_attr", log_uniform, min(self.tmax_2_list), max(self.tmax_2_list))
         else:
-            print(f"Using LINEAR sampling for t_2: {min(self.tmax_2_list)} to {max(self.tmax_2_list)}")
             toolbox.register("t_2_attr", random.uniform, min(self.tmax_2_list), max(self.tmax_2_list))
 
         # infall_1
         if should_use_log(min(self.infall_timescale_1_list), max(self.infall_timescale_1_list)):
-            print(f"Using LOG sampling for infall_1: {min(self.infall_timescale_1_list)} to {max(self.infall_timescale_1_list)}")
             toolbox.register("infall_1_attr", log_uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
         else:
-            print(f"Using LINEAR sampling for infall_1: {min(self.infall_timescale_1_list)} to {max(self.infall_timescale_1_list)}")
             toolbox.register("infall_1_attr", random.uniform, min(self.infall_timescale_1_list), max(self.infall_timescale_1_list))
 
         # infall_2
         if should_use_log(min(self.infall_timescale_2_list), max(self.infall_timescale_2_list)):
-            print(f"Using LOG sampling for infall_2: {min(self.infall_timescale_2_list)} to {max(self.infall_timescale_2_list)}")
             toolbox.register("infall_2_attr", log_uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
         else:
-            print(f"Using LINEAR sampling for infall_2: {min(self.infall_timescale_2_list)} to {max(self.infall_timescale_2_list)}")
             toolbox.register("infall_2_attr", random.uniform, min(self.infall_timescale_2_list), max(self.infall_timescale_2_list))
 
         # sfe
         if should_use_log(min(self.sfe_array), max(self.sfe_array)):
-            print(f"Using LOG sampling for sfe: {min(self.sfe_array)} to {max(self.sfe_array)}")
             toolbox.register("sfe_attr", log_uniform, min(self.sfe_array), max(self.sfe_array))
         else:
-            print(f"Using LINEAR sampling for sfe: {min(self.sfe_array)} to {max(self.sfe_array)}")
             toolbox.register("sfe_attr", random.uniform, min(self.sfe_array), max(self.sfe_array))
 
         # delta_sfe
         if should_use_log(min(self.delta_sfe_array), max(self.delta_sfe_array)):
-            print(f"Using LOG sampling for delta_sfe: {min(self.delta_sfe_array)} to {max(self.delta_sfe_array)}")
             toolbox.register("delta_sfe_attr", log_uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
         else:
-            print(f"Using LINEAR sampling for delta_sfe: {min(self.delta_sfe_array)} to {max(self.delta_sfe_array)}")
             toolbox.register("delta_sfe_attr", random.uniform, min(self.delta_sfe_array), max(self.delta_sfe_array))
 
         # imf_upper
         if should_use_log(min(self.imf_upper_limits), max(self.imf_upper_limits)):
-            print(f"Using LOG sampling for imf_upper: {min(self.imf_upper_limits)} to {max(self.imf_upper_limits)}")
             toolbox.register("imf_upper_attr", log_uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
         else:
-            print(f"Using LINEAR sampling for imf_upper: {min(self.imf_upper_limits)} to {max(self.imf_upper_limits)}")
             toolbox.register("imf_upper_attr", random.uniform, min(self.imf_upper_limits), max(self.imf_upper_limits))
 
         # mgal
         if should_use_log(min(self.mgal_values), max(self.mgal_values)):
-            print(f"Using LOG sampling for mgal: {min(self.mgal_values)} to {max(self.mgal_values)}")
             toolbox.register("mgal_attr", log_uniform, min(self.mgal_values), max(self.mgal_values))
         else:
-            print(f"Using LINEAR sampling for mgal: {min(self.mgal_values)} to {max(self.mgal_values)}")
             toolbox.register("mgal_attr", random.uniform, min(self.mgal_values), max(self.mgal_values))
 
         # nb
         if should_use_log(min(self.nb_array), max(self.nb_array)):
-            print(f"Using LOG sampling for nb: {min(self.nb_array)} to {max(self.nb_array)}")
             toolbox.register("nb_attr", log_uniform, min(self.nb_array), max(self.nb_array))
         else:
-            print(f"Using LINEAR sampling for nb: {min(self.nb_array)} to {max(self.nb_array)}")
             toolbox.register("nb_attr", random.uniform, min(self.nb_array), max(self.nb_array))
 
         # Create an individual by combining all attributes
@@ -612,6 +597,9 @@ class GalacticEvolutionGA:
             # Within bounds, no reflection needed
             return value
 
+
+
+
     def update_operator_rates(self, population, generation, num_generations):
         """Fitness-guided exploration with Voronoi dearth exploration always active"""
         
@@ -644,44 +632,57 @@ class GalacticEvolutionGA:
         best_fitness = min(fitnesses)
         worst_fitness = max(fitnesses)
         fitness_range = worst_fitness - best_fitness
-        
         # 3. ADAPTIVE STRATEGY BASED ON SEARCH STATE
-        
-        # If fitness diversity is high (population spread across fitness landscape)
-        if fitness_range > 0.1 and fitness_std > 0.05:
-            # EXPLORATION MODE: High mutation, moderate crossover
-            self.mutpb = 0.6
-            self.cxpb = 0.4
-            strategy = "EXPLORATION"
-            exploration_fraction = 0.3  # High Voronoi exploration
-            
-        # If fitness diversity is low but spatial diversity is high  
-        elif avg_nearest_neighbor_dist > 0.1:
-            # CONVERGENCE MODE: Lower mutation, higher crossover
-            self.mutpb = 0.2
-            self.cxpb = 0.7
-            strategy = "CONVERGENCE"
-            exploration_fraction = 0.15  # Moderate Voronoi exploration
-            
-        # If both fitness and spatial diversity are low
-        else:
-            # INTENSIFICATION MODE: Focus on local search around best solutions
-            self.mutpb = 0.3
-            self.cxpb = 0.6
-            strategy = "INTENSIFICATION"
-            exploration_fraction = 0.1  # Lower but still active Voronoi exploration
-        
-        # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
-        self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
-        exploration_fraction = max(0.05, exploration_fraction)  # Always maintain some Voronoi exploration
+        if generation < 10:
+
+            if self.backup_tournament_size == 0:
+                self.backup_tournament_size = self.tournament_size
+
+            self.mutpb = 0.8
+            self.cxpb = 0.2
+            strategy = "INITIAL EXPLORATION"
+            exploration_fraction = 0.4
+
+        else:            
+            self.tournament_size = self.backup_tournament_size
+            # If fitness diversity is high (population spread across fitness landscape)
+            if fitness_range > 0.1 and fitness_std > 0.05:
+                # EXPLORATION MODE: High mutation, moderate crossover
+                self.mutpb = 0.6
+                self.cxpb = 0.4
+                strategy = "EXPLORATION"
+                exploration_fraction = 0.3  # High Voronoi exploration
                 
+            # If fitness diversity is low but spatial diversity is high  
+            elif avg_nearest_neighbor_dist > 0.1:
+                # CONVERGENCE MODE: Lower mutation, higher crossover
+                self.mutpb = 0.2
+                self.cxpb = 0.7
+                strategy = "CONVERGENCE"
+                exploration_fraction = 0.15  # Moderate Voronoi exploration
+                
+            # If both fitness and spatial diversity are low
+            else:
+                # INTENSIFICATION MODE: Focus on local search around best solutions
+                self.mutpb = 0.3
+                self.cxpb = 0.6
+                strategy = "INTENSIFICATION"
+                exploration_fraction = 0.1  # Lower but still active Voronoi exploration
+            
+            # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
+            self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
+            exploration_fraction = max(0.05, exploration_fraction)  # Always maintain some Voronoi exploration
+                    
         # 6. VORONOI EXPLORATION VIRTUALLY ALWAYS (magnitude guided by strategy)
         voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
         
-        if generation % 5 == 0:
+        if True:#generation % 5 == 0:
             print(f"Gen {generation}: Strategy={strategy}, NN_dist={avg_nearest_neighbor_dist:.3f}, "
                   f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}, "
                   f"Voronoi={exploration_fraction:.2f}")
+
+
+
 
 
     def get_param_bounds(self, index):
@@ -735,32 +736,6 @@ class GalacticEvolutionGA:
         
         return individual,
 
-
-
-    def adaptive_mutation_rate(self, individual, population):
-        """Calculate adaptive mutation rate based on fitness rank"""
-        
-        # Get fitness values and sort
-        fitnesses = [ind.fitness.values[0] for ind in population if ind.fitness.valid]
-        if not fitnesses:
-            return self.mutpb
-        
-        fitnesses.sort()
-        
-        if individual.fitness.valid:
-            current_fitness = individual.fitness.values[0]
-            
-            # Find percentile rank (0 = best, 1 = worst)
-            rank = sum(1 for f in fitnesses if f < current_fitness) / len(fitnesses)
-            
-            # High-fitness individuals get lower mutation rates
-            # Low-fitness individuals get higher mutation rates
-            base_rate = self.mutpb
-            fitness_factor = 0.5 + 1.5 * rank  # 0.5x to 2x multiplier
-            
-            return min(base_rate * fitness_factor, 0.8)  # Cap at 80%
-        
-        return self.mutpb
 
 
 
@@ -849,10 +824,19 @@ class GalacticEvolutionGA:
 
         self.num_generations = num_generations
 
+        num_cores = cpu_count()
+
+        print('GA CONFIGURATION:')
+        print(f'├─ Generations: {num_generations}')
+        print(f'├─ Population Size: {population_size}')
+        print(f"└─ Number of CPU cores: {num_cores}")
+        print('═' * 80)
+        print()
+
         # Use a context manager for the multiprocessing pool
         if self.PP:
 
-            with Pool(processes=16) as pool:
+            with Pool(processes=num_cores) as pool:
                 toolbox.register("map", pool.map)
                 self._run_genetic_algorithm(
                     population,
@@ -863,6 +847,7 @@ class GalacticEvolutionGA:
                     checkpoint_manager=checkpoint_manager,
                     output_interval=output_interval,
                 )
+
         else:
             self._run_genetic_algorithm(
                 population,
@@ -973,9 +958,11 @@ class GalacticEvolutionGA:
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
 
+        if self.obs_age_data_loss_metric:
+            obs_age_loss_value = age_meta_loss(age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
+            primary_loss_value = (obs_age_loss_value * 1.0 - self.mdf_vs_age_weight) + (primary_loss_value * self.mdf_vs_age_weight)
+
         # Apply physics penalty
-
-
         if self.physics_timer < self.physical_constraints_freq:
             self.physics_timer = self.physics_timer + 1
 

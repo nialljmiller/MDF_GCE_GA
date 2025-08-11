@@ -787,7 +787,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
                           feh_mdf, normalized_count_mdf, results_df=None, 
                           save_path='GA/Omni_Info_Figure.png'):
     """
-    Create a comprehensive dashboard showing the best-fit model parameters and performance
+    Create a dashboard showing the best-fit model parameters and performance
     across all key observational diagnostics.
     
     Parameters:
@@ -837,7 +837,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
         ]
         best_row = dict(zip(col_names, r))
     
-    # Create comprehensive figure with custom layout
+    # Create figure with custom layout
     fig = plt.figure(figsize=(20, 16))
     gs = GridSpec(4, 6, figure=fig, hspace=0.3, wspace=0.3,
                   left=0.05, right=0.98, top=0.95, bottom=0.05)
@@ -1048,7 +1048,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close(fig)
     
-    print(f"Comprehensive dashboard saved to {save_path}")
+    print(f"dashboard saved to {save_path}")
     print(f"Best-fit parameters:")
     print(f"  σ₂ = {best_row['sigma_2']:.1f}")
     print(f"  t₂ = {best_row['t_2']:.3f} Gyr") 
@@ -1064,7 +1064,7 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
 
 
 def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
-    """Generate all plots from GalGA results including comprehensive parameter combinations"""
+    """Generate all plots from GalGA results including parameter combinations"""
     
     # Load observational alpha element data
     f = open('data/Bensby_Data.tsv')
@@ -1150,8 +1150,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     print("Generating more physics plots...")
     generate_physics_plots(GalGA, results_file=results_file)
 
-    # 3. Comprehensive 2D scatter plots
-    print("Generating comprehensive 2D scatter plots...")
+    # 3. 2D scatter plots
+    print("Generating 2D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         
         # ========== INFALL PARAMETERS ==========
@@ -1193,8 +1193,8 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
         plot_2d_scatter(nb_vals, mgal_vals, metric_vals, metric_name + '_nb_mgal', xlabel='SN1a per Solar Mass', ylabel='M_gal (M_sun)')
         plot_2d_scatter(nb_vals, sigma_2_vals, metric_vals, metric_name + '_nb_sigma2', xlabel='SN1a per Solar Mass', ylabel='sigma_2')
 
-    # 4. Comprehensive 3D scatter plots
-    print("Generating comprehensive 3D scatter plots...")
+    # 4. 3D scatter plots
+    print("Generating 3D scatter plots...")
     for metric_name, metric_vals in metrics_dict.items():
         
         # ========== INFALL-FOCUSED 3D PLOTS ==========
@@ -1251,15 +1251,17 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     for metric in ['wrmse', 'huber', 'ks', 'cosine', 'ensemble']:
         plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
         
-        plot_walker_success_rate(GalGA.walker_history, results_csv=results_file, loss_metric=metric, threshold=0.1)
-    
+        plot_multiple_success_thresholds(GalGA.walker_history, results_csv=results_file, thresholds=[0.01, 0.1, 0.001], loss_metric=metric)
+
+
+
     # 7. Create 3D animation
     #print("Generating 3D animation...")
     #create_3d_animation(GalGA.walker_history)
 
 
-    # Generate the comprehensive omni info figure
-    print("Generating comprehensive dashboard figure...")
+    # Generate the omni info figure
+    print("Generating dashboard figure...")
     plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, 
                           Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
                           feh, normalized_count, df)
@@ -1272,7 +1274,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     age_meta.plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=df, save_path='GA/Age_FeH_detailed_results.png', n_bins=10)
 
     print("All plotting complete! Check the GA directory for results.")
-    print(f"Generated comprehensive parameter space exploration plots:")
+    print(f"Generated parameter space exploration plots:")
     print(f"- {len(metrics_dict)} metrics × 24 2D plots = {len(metrics_dict) * 24} 2D scatter plots")
     print(f"- {len(metrics_dict)} metrics × 16 3D plots = {len(metrics_dict) * 16} 3D scatter plots")
     print(f"- Plus walker evolution, loss history, PCA analysis, and correlation matrix plots")

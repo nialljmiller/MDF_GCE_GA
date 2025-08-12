@@ -238,7 +238,7 @@ def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.
 
 def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_results.csv', 
                                    thresholds=[0.01, 0.1, 0.001], loss_metric='wrmse', 
-                                   save_path='GA/loss/walker_success_rates_multiple.png'):
+                                   save_path='GA/loss/walker_success_rates_multiple_'):
     """
     Plot success rates for multiple thresholds on the same plot.
     """

@@ -107,7 +107,7 @@ class GalacticEvolutionGA:
                 stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, obs_age_data,
                 loss_metric='huber', obs_age_data_loss_metric = 'None', mdf_vs_age_weight = 1, fancy_mutation = 'gaussian', 
                 shrink_range = False, tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, 
-                gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, PP = False):
+                gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, exploration_steps=10, PP = False):
 
         # Initialize parameters as instance variables
         self.sn1a_header = sn1a_header
@@ -161,7 +161,7 @@ class GalacticEvolutionGA:
         self.gaussian_sigma_scale = gaussian_sigma_scale
         self.crossover_noise_fraction = crossover_noise_fraction
         self.perturbation_strength = perturbation_strength
-
+        self.exploration_steps = exploration_steps
 
         
         # Calculate parameter space dimensions for reporting
@@ -633,7 +633,7 @@ class GalacticEvolutionGA:
         worst_fitness = max(fitnesses)
         fitness_range = worst_fitness - best_fitness
         # 3. ADAPTIVE STRATEGY BASED ON SEARCH STATE
-        if generation < 10:
+        if generation < self.exploration_steps:
 
             if self.backup_tournament_size == 0:
                 self.backup_tournament_size = self.tournament_size
@@ -957,8 +957,7 @@ class GalacticEvolutionGA:
         # Use selected loss
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
-
-        if self.obs_age_data_loss_metric:
+        if self.obs_age_data_loss_metric is not None:
             obs_age_loss_value = age_meta_loss(age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
             primary_loss_value = (obs_age_loss_value * 1.0 - self.mdf_vs_age_weight) + (primary_loss_value * self.mdf_vs_age_weight)
 

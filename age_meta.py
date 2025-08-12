@@ -374,10 +374,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
                                            statistic='std', bins=age_bins)
     bin_counts_bensby, _, _ = binned_statistic(age_Bensby[mask_bensby], Fe_H[mask_bensby], 
                                              statistic='count', bins=age_bins)
-    
-    # Calculate comprehensive metrics for both datasets
-    print("Calculating comprehensive statistical metrics...")
-    
+
     # For Joyce data
     joyce_uncertainties = bin_stds_joyce / np.sqrt(np.maximum(bin_counts_joyce, 1))
     valid_joyce_bins = (np.isfinite(bin_means_joyce) & 
@@ -416,11 +413,7 @@ def plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=None, s
     if joyce_metrics and bensby_metrics:
         best_metric, joyce_best_val, bensby_best_val, improvement_ratio = find_best_metric_for_joyce(
             joyce_metrics, bensby_metrics)
-        
-        print(f"Best metric for Joyce: {best_metric}")
-        print(f"Joyce value: {joyce_best_val:.4f}, Bensby value: {bensby_best_val:.4f}")
-        print(f"Joyce improvement ratio: {improvement_ratio:.3f}x")
-        
+
         # Create supplementary metrics comparison plot
         metrics_save_path = save_path.replace('.png', '_metrics_comparison.png')
         create_metrics_comparison_plot(joyce_metrics, bensby_metrics, metrics_save_path)
@@ -588,17 +581,15 @@ def age_meta_loss(model_age_x, model_age_y, obs_age_data, loss_metric, dataset='
     clean_ages = obs_ages[mask]
     clean_feh = obs_feh[mask]
     
-    # Interpolate model to observation ages
-    if len(model_age_gyr) > 1:
-        model_interp = np.interp(clean_ages, model_age_gyr, model_feh)
-        return _calculate_single_loss(model_interp, clean_feh, loss_metric)
-    else:
-        return 10.0  # High penalty if model has insufficient points
+# Interpolate model to observation ages
+    model_interp = np.interp(clean_ages, model_age_gyr, model_feh)
+    return _calculate_single_loss(model_interp, clean_feh, loss_metric)
+
 
 
 def _calculate_single_loss(model_vals, obs_vals, loss_metric):
     """Calculate loss for a single dataset comparison"""
-    
+
     if loss_metric == 'mae':
         return np.mean(np.abs(model_vals - obs_vals))
         
@@ -614,7 +605,7 @@ def _calculate_single_loss(model_vals, obs_vals, loss_metric):
         weights = 1.0 / np.maximum(np.abs(obs_vals), 0.1)  
         return np.sqrt(np.average((model_vals - obs_vals)**2, weights=weights))
         
-    elif loss_metric == 'huber_loss':
+    elif loss_metric == 'huber':
         return huber_loss(obs_vals, model_vals, delta=0.2)
         
     elif loss_metric == 'log_likelihood':
@@ -665,8 +656,4 @@ def _calculate_single_loss(model_vals, obs_vals, loss_metric):
         else:
             return 1.0
     
-    else:
-        # Default to MAE if unknown metric
-        return np.mean(np.abs(model_vals - obs_vals))
 
-    

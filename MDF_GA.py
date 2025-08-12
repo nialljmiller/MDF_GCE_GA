@@ -65,7 +65,7 @@ A2 = params['A2']
 A1 = params['A1']
 physical_constraints_freq = params['physical_constraints_freq']
 delta_sfe_array = params['delta_sfe_array']
-
+exploration_steps = params['exploration_steps']
 popsize = params['popsize']
 generations = params['generations']
 crossover_probability = params['crossover_probability']
@@ -211,6 +211,7 @@ def run_ga(cp_manager):
         cxpb=crossover_probability,
         mutpb=mutation_probability,
         physical_constraints_freq=physical_constraints_freq,
+        exploration_steps=exploration_steps,
         PP=True
     )
 
@@ -320,6 +321,7 @@ def load_ga_for_plotting():
         cxpb=crossover_probability,
         mutpb=mutation_probability,
         physical_constraints_freq=physical_constraints_freq,
+        exploration_steps=exploration_steps,        
         PP=False  # Don't use parallel processing for plot-only
     )
     

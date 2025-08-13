@@ -679,7 +679,8 @@ class GalacticEvolutionGA:
         if True:#generation % 5 == 0:
             print(f"Gen {generation}: Strategy={strategy}, NN_dist={avg_nearest_neighbor_dist:.3f}, "
                   f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}, "
-                  f"Voronoi={exploration_fraction:.2f}")
+                  f"Voronoi={exploration_fraction:.2f}, " 
+                  f"Tournament Size={self.tournament_size:.2f}")
 
 
 
@@ -959,21 +960,26 @@ class GalacticEvolutionGA:
 
         if self.obs_age_data_loss_metric is not None:
             obs_age_loss_value = age_meta_loss(age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
-            primary_loss_value = (obs_age_loss_value * 1.0 - self.mdf_vs_age_weight) + (primary_loss_value * self.mdf_vs_age_weight)
+            primary_loss_value = (obs_age_loss_value * (1.0 - self.mdf_vs_age_weight)) + (primary_loss_value * self.mdf_vs_age_weight)
 
-        # Apply physics penalty
-        if self.physics_timer < self.physical_constraints_freq:
-            self.physics_timer = self.physics_timer + 1
+        penalty_factor = 1.0
 
-        else:
+        if self.physical_constraints_freq > 0:
+            # Apply physics penalty
+            if self.physics_timer < self.physical_constraints_freq:
+                self.physics_timer = self.physics_timer + 1
 
-            self.physics_timer = 0
-            primary_loss_value = apply_physics_penalty(
-                primary_loss_value, 
-                MDF_x_data, MDF_y_data, 
-                alpha_arrs, 
-                age_x_data, age_y_data
-            )
+            else:
+
+                self.physics_timer = 0
+                penalty_factor = apply_physics_penalty(
+                    primary_loss_value, 
+                    MDF_x_data, MDF_y_data, 
+                    alpha_arrs, 
+                    age_x_data, age_y_data
+                )
+                primary_loss_value * penalty_factor
+
 
         # Return the result with a detailed label
         label = (f'comp: {comp}, imf: {imf_val}, sn1a: {sn1a}, sy: {sy}, sn1ar: {sn1ar}, '
@@ -990,7 +996,7 @@ class GalacticEvolutionGA:
             sigma_2, t_1, t_2, infall_1, infall_2,
             sfe_val, delta_sfe_val, imf_upper, mgal, nb,
             ks, ensemble, wrmse, mae, mape, huber,
-            cos_similarity, log_cosh, primary_loss_value,
+            cos_similarity, log_cosh, primary_loss_value, obs_age_loss_value, penalty_factor
         ]
 
         result = {
@@ -1137,7 +1143,7 @@ class GalacticEvolutionGA:
             'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
             'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
             'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber',
-            'cosine', 'log_cosh', 'fitness'
+            'cosine', 'log_cosh', 'fitness', 'age_meta_fitness', 'physics_penalty'
         ]
 
         df = pd.DataFrame(self.results, columns=col_names)

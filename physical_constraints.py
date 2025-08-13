@@ -415,11 +415,5 @@ def apply_physics_penalty(loss_value, MDF_x_data, MDF_y_data, alpha_arrs, age_x_
     """
     
     is_physical, penalty_factor = check_physical_plausibility(MDF_x_data, MDF_y_data, alpha_arrs, age_x_data, age_y_data, liberal=True, age_meta_check=True)
-    
-    if not is_physical:
-        # Return a very high loss for unphysical models
-        #return 1000.0
-        return loss_value * penalty_factor        
-    else:
-        # Apply penalty factor
-        return loss_value * penalty_factor
+
+    return penalty_factor

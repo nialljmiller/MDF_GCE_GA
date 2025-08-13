@@ -1006,25 +1006,27 @@ def run_analysis(GalGA, results_file='GA/simulation_results.csv'):
     island_results = None
     #island_results = identify_solution_islands(results_file, percentile_threshold=90)
 
-    plot_pca_degeneracy_analysis(GalGA, results_file)
-    
-    plot_parameter_correlation_matrix(results_file)
-    
-    
-    df = pd.read_csv(results_file)
-    fitness_col = 'fitness' if 'fitness' in df.columns else 'wrmse'
-    
-    print(f"Total models evaluated: {len(df)}")
-    print(f"Best fitness: {df[fitness_col].min():.6f}")
-    print(f"Fitness range: {df[fitness_col].min():.6f} - {df[fitness_col].max():.6f}")
-    
-    if island_results:
-        print(f"\nSolution structure:")
-        print(f"  - DBSCAN clusters: {island_results['n_clusters_dbscan']}")
-        print(f"  - Noise points: {island_results['n_noise']}")
-        print(f"  - Optimal K-means k: {island_results['optimal_k_means']}")
-        print(f"  - Silhouette score: {island_results['silhouette_score']:.3f}")
-    
+    try:    
+        plot_pca_degeneracy_analysis(GalGA, results_file)
+        
+        plot_parameter_correlation_matrix(results_file)
+        
+        
+        df = pd.read_csv(results_file)
+        fitness_col = 'fitness' if 'fitness' in df.columns else 'wrmse'
+        
+        print(f"Total models evaluated: {len(df)}")
+        print(f"Best fitness: {df[fitness_col].min():.6f}")
+        print(f"Fitness range: {df[fitness_col].min():.6f} - {df[fitness_col].max():.6f}")
+        
+        if island_results:
+            print(f"\nSolution structure:")
+            print(f"  - DBSCAN clusters: {island_results['n_clusters_dbscan']}")
+            print(f"  - Noise points: {island_results['n_noise']}")
+            print(f"  - Optimal K-means k: {island_results['optimal_k_means']}")
+            print(f"  - Silhouette score: {island_results['silhouette_score']:.3f}")
+    except:
+        print("Probably not yet enough trials for stats analysis.")    
 
 # Add this to the end of the file to make it runnable
 if __name__ == "__main__":

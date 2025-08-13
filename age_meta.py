@@ -11,7 +11,7 @@ def huber_loss(y_true, y_pred, delta=1.0):
     is_small_error = np.abs(error) <= delta
     squared_loss = 0.5 * np.square(error)
     linear_loss = delta * (np.abs(error) - 0.5 * delta)
-    return np.where(is_small_error, squared_loss, linear_loss).mean()
+    return np.where(is_small_error, squared_loss, linear_loss).mean() * 10
 
 def calculate_likelihood_metrics(model_vals, obs_vals, obs_uncertainties):
     """Calculate likelihood-based metrics"""
@@ -606,7 +606,7 @@ def _calculate_single_loss(model_vals, obs_vals, loss_metric):
         return np.sqrt(np.average((model_vals - obs_vals)**2, weights=weights))
         
     elif loss_metric == 'huber':
-        return huber_loss(obs_vals, model_vals, delta=0.2)
+        return huber_loss(obs_vals, model_vals, delta=0.1)
         
     elif loss_metric == 'log_likelihood':
         # Assume fixed uncertainty of 0.1 dex for metallicity

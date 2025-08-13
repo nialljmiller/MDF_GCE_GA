@@ -508,7 +508,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     # Column mapping
     loss_metrics = {
         'ks': 15, 'ensemble': 16, 'wrmse': 17, 'mae': 18, 'mape': 19,
-        'huber': 20, 'cosine': 21, 'log_cosh': 22, 'fitness': 23
+        'huber': 20, 'cosine': 21, 'log_cosh': 22, 'fitness': 23, 'age_meta_fitness': 24, 'physics_penalty': 25
     }
 
     if loss_metric not in loss_metrics:

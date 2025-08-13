@@ -48,7 +48,7 @@ sn1a_header: 'yield_tables/'
 # NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
 # Justification: 128 allows diversity while feasible computationally; scales with param dimensions (~15 here).
 # References: Goldberg (1989, Genetic Algorithms book) for popsize ~100-200 in complex spaces.
-popsize:128
+popsize:32
 
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
@@ -122,7 +122,7 @@ physical_constraints_freq: 0
 # Loss metric for age-metallicity relation fitting
 # Available options: 'mae', 'rmse', 'weighted_mae', 'weighted_rmse', 'huber_loss', 
 # 'log_likelihood', 'aic', 'bic', 'correlation', 'spearman_correlation'
-obs_age_data_loss_metric: 'huber'
+obs_age_data_loss_metric: 'mae'
 
 # Weight for combining MDF loss vs age-metallicity loss
 # Range: 0.0 to 1.0, where higher values favor MDF fitting
@@ -345,7 +345,7 @@ sn1a_rates: ['power_law','gauss','exp']
 # Justification: Increased to 500 for finer resolution in rapid bulge phases; balances accuracy and speed.
 # References: Cote et al. (2016, ApJ, 825, 126) for OMEGA timestep convergence ~100-1000.
 ############################################################
-timesteps: 100
+timesteps: 10
 
 ############################################################
 #

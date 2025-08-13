@@ -639,11 +639,9 @@ def _calculate_single_loss(model_vals, obs_vals, loss_metric):
         
     elif loss_metric == 'correlation':
         # Return 1 - correlation so lower is better
-        if len(model_vals) > 1 and np.std(model_vals) > 0 and np.std(obs_vals) > 0:
-            corr = np.corrcoef(model_vals, obs_vals)[0, 1]
-            return 1.0 - np.abs(corr)  # Use absolute correlation
-        else:
-            return 1.0  # No correlation
+        corr = np.corrcoef(model_vals, obs_vals)[0, 1]
+        return (1.0 - np.abs(corr))  # Use absolute correlation
+
             
     elif loss_metric == 'spearman_correlation':
         # Return 1 - spearman correlation so lower is better

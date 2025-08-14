@@ -243,7 +243,7 @@ def run_ga(cp_manager):
         'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
         'sfe', 'delta_sfe', 'imf_upper', 'mgal', 'nb',
         'ks', 'ensemble', 'wrmse', 'mae', 'mape', 'huber',
-        'cosine', 'log_cosh', 'fitness'
+        'cosine', 'log_cosh', 'fitness', 'age_meta_fitness', 'physics_penalty'
     ]
 
     # Create DataFrame from results

@@ -956,6 +956,11 @@ class GalacticEvolutionGA:
         # Compare with the observed distribution
         ks, ensemble, wrmse, mae, mape, huber, cos_similarity, log_cosh = calculate_all_metrics(self, theory_count_array)
 
+        penalty_factor = 1.0
+        obs_age_loss_value = 1.0
+        primary_loss_value = 1.0
+
+
         # Use selected loss
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
@@ -963,7 +968,6 @@ class GalacticEvolutionGA:
             obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
             primary_loss_value = (obs_age_loss_value * (1.0 - self.mdf_vs_age_weight)) + (primary_loss_value * self.mdf_vs_age_weight)
 
-        penalty_factor = 1.0
 
         if self.physical_constraints_freq > 0:
             # Apply physics penalty

@@ -7,6 +7,20 @@ sys.path.append('../')
 from JINAPyCEE import omega_plus
 
 
+plt.rcParams.update({
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'font.family': 'serif',
+    'font.size': 12,
+    'axes.labelsize': 18,
+    'axes.titlesize': 16,
+    'legend.fontsize': 12,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
+    'lines.linewidth': 1.5,
+})
+
+
 def reconstruct_best_model(GalGA, results_df=None):
     """Reconstruct the omega_plus model for the best-fit parameters"""
     
@@ -68,12 +82,14 @@ def reconstruct_best_model(GalGA, results_df=None):
     
     return GCE_model
 
-def plot_real_infall_physics(GalGA, results_df=None, save_path='GA/Real_Infall_Physics.png'):
+def plot_real_infall_physics(GalGA, results_df=None, save_path='Real_Infall_Physics.png'):
     """
     Generate an enhanced visualization of galactic chemical evolution model physics,
     emphasizing the two-infall paradigm with improved scientific presentation.
     """
     
+    save_path = GalGA.output_path + save_path
+
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Reconstruct the best model
@@ -399,9 +415,13 @@ Mass:
     
     return fig
 
-def plot_omega_diagnostics(GalGA, results_df=None, save_path='GA/Omega_Model_Diagnostics.png'):
+def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagnostics.png'):
     """Plot additional diagnostics from the omega model"""
     
+
+    save_path = GalGA.output_path + save_path
+
+
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Reconstruct the best model

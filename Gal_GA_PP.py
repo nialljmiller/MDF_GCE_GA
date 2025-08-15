@@ -30,7 +30,7 @@ from loss import *
 from physical_constraints import apply_physics_penalty
 from explore_dearth import voronoi_explore_dearths
 import ast
-from age_meta import age_meta_loss
+from age_meta import age_meta_loss, test_age_meta_loss_function
 
 # Function to find the index of the nearest value in an array
 def find_nearest(array, value):
@@ -102,7 +102,7 @@ def should_use_log(min_val, max_val, threshold=2.0):
 
 class GalacticEvolutionGA:
 
-    def __init__(self, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, 
+    def __init__(self, output_path, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, 
                 infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits, sn1a_assumptions,
                 stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, obs_age_data,
                 loss_metric='huber', obs_age_data_loss_metric = 'None', mdf_vs_age_weight = 1, fancy_mutation = 'gaussian', 
@@ -110,6 +110,7 @@ class GalacticEvolutionGA:
                 gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, exploration_steps=10, PP = False):
 
         # Initialize parameters as instance variables
+        self.output_path = output_path
         self.sn1a_header = sn1a_header
         self.iniab_header = iniab_header
         self.sigma_2_list = sigma_2_list
@@ -182,11 +183,6 @@ class GalacticEvolutionGA:
         observational_constraints = len(feh)
 
 
-        print('═' * 80)
-        print('GALACTIC CHEMICAL EVOLUTION OPTIMIZATION FRAMEWORK')
-        print('Two-Infall Paradigm Parameter Estimation via Genetic Algorithm')
-        print('═' * 80)
-        print()
         
         print('THEORETICAL MODEL CONFIGURATION:')
         print(f'├─ Temporal Range: t₁ ∈ [{min(tmax_1_list):.3f}, {max(tmax_1_list):.3f}] Gyr')
@@ -395,6 +391,11 @@ class GalacticEvolutionGA:
         toolbox.register("mutate", mutate_with_population)
         
         toolbox.register("select", self.selTournament, tournsize=self.tournament_size)#, lambda_diversity=self.lambda_diversity)
+
+
+
+        #test that supid ass age meta stuff. 
+        test_age_meta_loss_function(self)
 
         # Create the initial population
         population = toolbox.population(n=population_size)
@@ -959,7 +960,7 @@ class GalacticEvolutionGA:
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
         if self.obs_age_data_loss_metric is not None:
-            obs_age_loss_value = age_meta_loss(age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
+            obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
             primary_loss_value = (obs_age_loss_value * (1.0 - self.mdf_vs_age_weight)) + (primary_loss_value * self.mdf_vs_age_weight)
 
         penalty_factor = 1.0
@@ -1123,8 +1124,8 @@ class GalacticEvolutionGA:
             self.update_operator_rates(population, gen, num_generations)
 
             # Step 9: Debug output and housekeeping
-            if output_interval and ((gen) % max(1,int(output_interval/2)) == 0 or gen == num_generations - 1):
-                print_population(self, population, generation=gen)
+            #if output_interval and ((gen) % max(1,int(output_interval/2)) == 0 or gen == num_generations - 1):
+            #    print_population(self, population, generation=gen)
 
             gc.collect()  # clean up
 
@@ -1151,8 +1152,8 @@ class GalacticEvolutionGA:
         df.sort_values('loss', inplace=True)
         df.reset_index(drop=True, inplace=True)
 
-        os.makedirs('GA', exist_ok=True)
-        results_file = f"GA/simulation_results_gen_{generation}.csv"
+        os.makedirs(self.output_path, exist_ok=True)
+        results_file = self.output_path + f"simulation_results_gen_{generation}.csv"
         df.to_csv(results_file, index=False)
         print(f"Results saved to: {results_file}")
 

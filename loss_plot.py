@@ -32,13 +32,15 @@ from phys_plot import generate_physics_plots
 
 
 
-def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
+def plot_walker_loss_history(GalGA, walker_history, results_csv='simulation_results.csv', loss_metric='wrmse'):
     """
     Plot the evolution of loss for all walkers with median and IQR shading.
     Mirrors the style of plot_walker_history.
     """
 
-    os.makedirs("GA/loss", exist_ok=True)
+    save_path = GalGA.output_path + save_path
+
+    os.makedirs(GalGA.output_path + "/loss", exist_ok=True)
 
     # Load full GA results
     results_df = pd.read_csv(results_csv)
@@ -120,8 +122,8 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
 
 
 
-def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.csv', 
-                             threshold=0.1, loss_metric='wrmse', save_path='GA/loss/walker_success_rate_'):
+def plot_walker_success_rate(walker_history, results_csv='simulation_results.csv', 
+                             threshold=0.1, loss_metric='wrmse', save_path='loss/walker_success_rate_'):
     """
     Plot the fraction of walkers with loss below threshold over generations.
     
@@ -139,7 +141,7 @@ def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.
         Where to save the plot
     """
     
-    save_path = save_path + str(loss_metric) + '.png'
+    save_path = GalGA.output_path + save_path + str(loss_metric) + '.png'
 
     if not walker_history:
         print("Walker history data not available. Skipping success rate plot.")
@@ -236,14 +238,14 @@ def plot_walker_success_rate(walker_history, results_csv='GA/simulation_results.
     return fig
 
 
-def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_results.csv', 
+def plot_multiple_success_thresholds(GalGA, walker_history, results_csv='simulation_results.csv', 
                                    thresholds=[0.01, 0.1, 0.001], loss_metric='wrmse', 
-                                   save_path='GA/loss/walker_success_rates_multiple_'):
+                                   save_path='loss/walker_success_rates_multiple_'):
     """
     Plot success rates for multiple thresholds on the same plot.
     """
 
-    save_path = save_path + str(loss_metric) + '.png'
+    save_path =GalGA.output_path +  save_path + str(loss_metric) + '.png'
     
     if not walker_history:
         print("Walker history data not available.")
@@ -326,7 +328,7 @@ def plot_multiple_success_thresholds(walker_history, results_csv='GA/simulation_
 
 
 
-def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
+def plot_3d_scatter(GalGA, x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2', zlabel='infall_2'):
     """Plot 3D scatter plot with color indicating a specific metric.
     Two plots:
       - All data, color scaled [0, 1]
@@ -338,7 +340,7 @@ def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2'
 
     x, y, z, color_metric = map(np.array, (x, y, z, color_metric))
 
-    def make_plot(x_data, y_data, z_data, color_data, vmin, vmax, suffix):
+    def make_plot(GalGA, x_data, y_data, z_data, color_data, vmin, vmax, suffix):
         # Sort to plot best points on top
         idx = np.argsort(color_data)[::-1]
         x_sorted, y_sorted, z_sorted, color_sorted = x_data[idx], y_data[idx], z_data[idx], color_data[idx]
@@ -365,20 +367,20 @@ def plot_3d_scatter(x, y, z, color_metric, label, xlabel='sigma_2', ylabel='t_2'
         ax.set_ylabel(ylabel)
         ax.set_zlabel(zlabel)
         plt.colorbar(sc, label=label)
-        plt.savefig(f'GA/loss/{label}_loss_3d{suffix}.png', bbox_inches='tight')
+        plt.savefig(GalGA.output_path + f'/loss/{label}_loss_3d{suffix}.png', bbox_inches='tight')
         plt.close()
 
     # Full plot
-    make_plot(x, y, z, color_metric, 0, 1, '')
+    make_plot(GalGA, x, y, z, color_metric, 0, 1, '')
 
     # Filtered plot for low loss
     mask = color_metric < 0.1
     if np.any(mask):
-        make_plot(x[mask], y[mask], z[mask], color_metric[mask], 0, 0.1, '_lowloss')
+        make_plot(GalGA, x[mask], y[mask], z[mask], color_metric[mask], 0, 0.1, '_lowloss')
 
 
 
-def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
+def plot_2d_scatter(GalGA, x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
     """Plot 2D scatter plot with color indicating a specific metric.
     Two plots:
       - All data, color scaled [0, 1]
@@ -389,7 +391,7 @@ def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
 
     x, y, color_metric = map(np.array, (x, y, color_metric))
 
-    def make_plot(x_data, y_data, color_data, vmin, vmax, suffix):
+    def make_plot(GalGA, x_data, y_data, color_data, vmin, vmax, suffix):
         idx = np.argsort(color_data)[::-1]
         x_sorted, y_sorted, color_sorted = x_data[idx], y_data[idx], color_data[idx]
 
@@ -410,22 +412,22 @@ def plot_2d_scatter(x, y, color_metric, label, xlabel='t_2', ylabel='infall_2'):
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.colorbar(sc, label=label)
-        plt.savefig(f'GA/loss/{label}_loss_2d{suffix}.png', bbox_inches='tight')
+        plt.savefig(GalGA.output_path + f'/loss/{label}_loss_2d{suffix}.png', bbox_inches='tight')
         plt.close()
 
     # Full plot
-    make_plot(x, y, color_metric, 0, 1, '')
+    make_plot(GalGA, x, y, color_metric, 0, 1, '')
 
     # Filtered plot for low loss
     mask = color_metric < 0.1
     if np.any(mask):
-        make_plot(x[mask], y[mask], color_metric[mask], 0, 0.1, '_lowloss')
+        make_plot(GalGA, x[mask], y[mask], color_metric[mask], 0, 0.1, '_lowloss')
 
 
 
 
 
-def plot_walker_history(walker_history, param_names, param_indices):
+def plot_walker_history(GalGA, walker_history, param_names, param_indices):
     """
     Plot the evolution of parameters for all walkers with median + spread.
     """
@@ -433,7 +435,8 @@ def plot_walker_history(walker_history, param_names, param_indices):
         print("Walker history data not available. Skipping walker evolution plots.")
         return None
 
-    os.makedirs("GA/loss", exist_ok=True)
+    os.makedirs(GalGA.output_path + "/loss", exist_ok=True)
+
     figs = []
 
     for idx, param_name in enumerate(param_names):
@@ -478,7 +481,7 @@ def plot_walker_history(walker_history, param_names, param_indices):
         ax.grid(True)
 
         fig.tight_layout()
-        fig.savefig(f'GA/loss/walker_evolution_{param_name}.png', bbox_inches='tight')
+        fig.savefig(GalGA.output_path + f'/loss/walker_evolution_{param_name}.png', bbox_inches='tight')
         plt.close(fig)
 
     print("Generated walker evolution plots with clarity enhancements")
@@ -490,7 +493,7 @@ def plot_walker_history(walker_history, param_names, param_indices):
 
 
 
-def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.csv', loss_metric='wrmse'):
+def plot_walker_loss_history(GalGA, walker_history, results_csv='simulation_results.csv', loss_metric='wrmse'):
     """
     Plot the evolution of loss for all walkers with median and IQR shading.
     Now with logarithmic y-axis for better visualization of loss ranges.
@@ -500,7 +503,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     import numpy as np
     import matplotlib.pyplot as plt
 
-    os.makedirs("GA/loss", exist_ok=True)
+    os.makedirs(GalGA.output_path + "/loss", exist_ok=True)
 
     # Load full GA results
     results_df = pd.read_csv(results_csv)
@@ -609,7 +612,7 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
                        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
 
     fig.tight_layout()
-    outpath = f'GA/loss/walker_loss_history_{loss_metric}.png'
+    outpath = GalGA.output_path + f'loss/walker_loss_history_{loss_metric}.png'
     fig.savefig(outpath, bbox_inches='tight', dpi=300)
     plt.close(fig)
 
@@ -617,9 +620,9 @@ def plot_walker_loss_history(walker_history, results_csv='GA/simulation_results.
     return fig
 
 
-def plot_multiple_loss_metrics_evolution(walker_history, results_csv='GA/simulation_results.csv', 
+def plot_multiple_loss_metrics_evolution(GalGA, walker_history, results_csv='simulation_results.csv', 
                                        metrics=['wrmse', 'huber', 'ks', 'fitness'], 
-                                       save_path='GA/loss/multiple_loss_evolution.png'):
+                                       save_path='loss/multiple_loss_evolution.png'):
     """
     Plot evolution of multiple loss metrics on the same figure with subplots.
     All use logarithmic y-axis for better comparison.
@@ -629,7 +632,9 @@ def plot_multiple_loss_metrics_evolution(walker_history, results_csv='GA/simulat
     import numpy as np
     import matplotlib.pyplot as plt
 
-    os.makedirs("GA/loss", exist_ok=True)
+    save_path = GalGA.output_path + save_path
+
+    os.makedirs(GalGA.output_path + "/loss", exist_ok=True)
 
     # Load full GA results
     results_df = pd.read_csv(results_csv)
@@ -747,8 +752,12 @@ def plot_multiple_loss_metrics_evolution(walker_history, results_csv='GA/simulat
     return fig
 
 
-def plot_loss_convergence_analysis(walker_history, results_csv='GA/simulation_results.csv',
-                                 loss_metric='wrmse', save_path='GA/loss/convergence_analysis.png'):
+
+
+
+
+def plot_loss_convergence_analysis(GalGA, walker_history, results_csv='simulation_results.csv',
+                                 loss_metric='wrmse', save_path='loss/convergence_analysis.png'):
     """
     Analyze and plot convergence characteristics of the loss evolution.
     """
@@ -758,7 +767,9 @@ def plot_loss_convergence_analysis(walker_history, results_csv='GA/simulation_re
     import matplotlib.pyplot as plt
     from scipy import stats
 
-    os.makedirs("GA/loss", exist_ok=True)
+    save_path = GalGA.output_path + save_path
+
+    os.makedirs(GalGA.output_path + "/loss", exist_ok=True)
 
     # Load results and extract loss histories (same as before)
     results_df = pd.read_csv(results_csv)
@@ -936,3 +947,269 @@ Performance:
 
     print(f"Saved convergence analysis plot: {save_path}")
     return fig
+
+
+
+
+
+
+
+
+
+
+# --- Improved binned maps & deltas (drop-in) ---
+from scipy.stats import binned_statistic_2d, iqr
+from scipy.ndimage import gaussian_filter
+
+def _auto_bins_1d(x, nmax=60, nmin=8):
+    """Freedman–Diaconis with sane guards."""
+    x = np.asarray(x)
+    n = len(x)
+    if n < 50:
+        return max(nmin, int(np.sqrt(n)))  # tiny samples
+    h = 2 * iqr(x, nan_policy='omit') * n ** (-1/3)
+    if not np.isfinite(h) or h <= 0:
+        return max(nmin, min(nmax, int(np.sqrt(n))))
+    bins = int(np.ceil((np.nanmax(x) - np.nanmin(x)) / h))
+    return max(nmin, min(nmax, bins))
+
+def _choose_bins(x, y, bins):
+    if isinstance(bins, tuple):
+        return bins
+    if bins == 'auto':
+            return (_auto_bins_1d(x), _auto_bins_1d(y))
+    if isinstance(bins, int):
+        return (bins, bins)
+    return (_auto_bins_1d(x), _auto_bins_1d(y))
+
+def plot_binned_loss(
+    df, xcol, ycol, losscol='fitness',
+    bins='auto', agg='median', min_per_bin=6, smooth_sigma=1.0,
+    cmap='viridis', hatch_lowN='///', overlay_samples=True,
+    overlay_contours=True, contour_levels=7, scatter_alpha=0.25,
+    save_prefix='GA/analysis/binned'
+):
+    """
+    Creates three figures:
+      1) Aggregated loss heatmap (median/mean/min) with hatching where N<min_per_bin
+      2) Δ-loss (relative to global min over valid bins)
+      3) |∇loss| magnitude + quiver
+    Also overlays sample locations and optional contours.
+
+    Returns: (Z, xedges, yedges, N)
+    """
+    os.makedirs(os.path.dirname(save_prefix), exist_ok=True)
+
+    # data
+    x = np.asarray(df[xcol].values, dtype=float)
+    y = np.asarray(df[ycol].values, dtype=float)
+    z = np.asarray(df[losscol].values, dtype=float)
+
+    bx, by = _choose_bins(x, y, bins)
+
+    # aggregate
+    stat_name = {'median':'median', 'mean':'mean'}.get(agg, 'median')
+    if agg in ('median','mean'):
+        Z, xedges, yedges, _ = binned_statistic_2d(
+            x, y, z, statistic=stat_name, bins=(bx, by)
+        )
+    elif agg == 'min':
+        Z, xedges, yedges, _ = binned_statistic_2d(
+            x, y, z, statistic=np.min, bins=(bx, by)
+        )
+    else:
+        raise ValueError("agg must be 'median', 'mean', or 'min'")
+
+    # counts (for hatching & masking)
+    N, _, _, _ = binned_statistic_2d(x, y, None, statistic='count', bins=(bx, by))
+    Z = Z.astype(float)
+    Z[N < min_per_bin] = np.nan  # mask sparse bins
+
+    # optional smoothing (keep mask)
+    if smooth_sigma and smooth_sigma > 0:
+        Zfilled = np.nanmedian(Z) if np.isfinite(np.nanmedian(Z)) else 0.0
+        Zs = gaussian_filter(np.nan_to_num(Z, nan=Zfilled), smooth_sigma)
+        Z = np.where(np.isnan(Z), np.nan, Zs)
+
+    # convenient centers for overlays
+    Xc = 0.5 * (xedges[:-1] + xedges[1:])
+    Yc = 0.5 * (yedges[:-1] + yedges[1:])
+
+    # common draw helper
+    def _draw_base(fig, ax, data, cbar_label, title):
+        im = ax.pcolormesh(xedges, yedges, data.T, shading='auto', cmap=cmap)
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label(cbar_label)
+        ax.set_xlabel(xcol.replace('_',' '))
+        ax.set_ylabel(ycol.replace('_',' '))
+        ax.set_title(title)
+
+        # hatch low-N bins
+        low = (N < min_per_bin).T
+        if np.any(low) and hatch_lowN:
+            ax.contourf(
+                Xc, Yc, low, levels=[0.5, 1.5],
+                colors='none', hatches=[hatch_lowN], alpha=0
+            )
+            ax.text(0.98, 0.02, f'hatched: N<{min_per_bin}', transform=ax.transAxes,
+                    ha='right', va='bottom', fontsize=9)
+
+        # overlay samples
+        if overlay_samples:
+            ax.scatter(x, y, s=6, c='k', alpha=scatter_alpha, linewidths=0, zorder=3)
+
+        # overlay contours on valid region
+        if overlay_contours:
+            try:
+                valid = np.isfinite(Z)
+                if np.count_nonzero(valid) > 5:
+                    ax.contour(Xc, Yc, Z.T, levels=contour_levels, colors='k',
+                               alpha=0.35, linewidths=0.8)
+            except Exception:
+                pass
+
+        ax.margins(x=0.02, y=0.02)
+        ax.tick_params(direction='out', length=4)
+
+    # 1) aggregated map
+    fig1, ax1 = plt.subplots(figsize=(8.2, 6.2))
+    _draw_base(fig1, ax1, Z, f'{agg.capitalize()} {losscol}',
+               f'{agg.capitalize()} {losscol} in {xcol}–{ycol} space')
+    fig1.savefig(f'{save_prefix}_{xcol}_{ycol}.png', bbox_inches='tight', dpi=200)
+    plt.close(fig1)
+
+    # 2) delta loss relative to best valid bin
+    Zm = np.ma.masked_invalid(Z)
+    if not Zm.mask.all():
+        Zmin = Zm.min()
+        dL = Zm - Zmin
+        fig2, ax2 = plt.subplots(figsize=(8.2, 6.2))
+        _draw_base(fig2, ax2, dL, 'Δ loss (relative to global min)',
+                   f'Delta loss surface ({xcol}–{ycol})')
+        fig2.savefig(f'{save_prefix}_{xcol}_{ycol}_delta.png', bbox_inches='tight', dpi=200)
+        plt.close(fig2)
+
+        # 3) gradient magnitude + quiver
+        Zfill = Zm.filled(np.nanmedian(Zm))
+        gY, gX = np.gradient(Zfill)  # note order (rows, cols)
+        grad_mag = np.sqrt(gX**2 + gY**2)
+        fig3, ax3 = plt.subplots(figsize=(8.2, 6.2))
+        _draw_base(fig3, ax3, grad_mag, '|∇ loss|',
+                   f'Gradient magnitude and direction ({xcol}–{ycol})')
+
+        # quiver on coarse grid
+        step = max(2, int(np.ceil(max(bx, by) / 20)))
+        ax3.quiver(
+            Xc[::step], Yc[::step],
+            gX[::step, ::step].T, gY[::step, ::step].T,
+            color='k', alpha=0.55, pivot='mid', linewidth=0.5, scale_units='xy', scale=1
+        )
+        fig3.savefig(f'{save_prefix}_{xcol}_{ycol}_grad.png', bbox_inches='tight', dpi=200)
+        plt.close(fig3)
+
+    return Z, xedges, yedges, N
+
+
+# ---------- DELTA LOSS & GRADIENT VISUALS ----------
+def plot_delta_and_gradient(Z, xedges, yedges,
+                            save_prefix='GA/analysis/binned_loss',
+                            quiver_step=3):
+    """
+    From a binned loss surface Z, plot:
+      (a) ΔL = Z - Z_min (relative to global min over valid bins)
+      (b) |∇L| magnitude and quiver of gradient (∂L/∂x, ∂L/∂y)
+    """
+    # Build centers
+    Xc = 0.5*(xedges[:-1] + xedges[1:])
+    Yc = 0.5*(yedges[:-1] + yedges[1:])
+
+    # mask invalid
+    Zm = np.ma.masked_invalid(Z)
+    if Zm.mask.all():
+        print("All bins invalid; nothing to plot.")
+        return
+
+    Zmin = Zm.min()
+    dL = Zm - Zmin
+
+    # (a) Delta loss map
+    fig1, ax1 = plt.subplots(figsize=(8,6))
+    im1 = ax1.pcolormesh(xedges, yedges, dL.T, shading='auto', cmap='magma')
+    c1 = fig1.colorbar(im1, ax=ax1)
+    c1.set_label('Δ loss (relative to global min)')
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
+    ax1.set_title('Delta loss surface')
+    plt.tight_layout()
+    fig1.savefig(f'{save_prefix}_delta.png', bbox_inches='tight')
+    plt.close(fig1)
+
+    # (b) Gradient field (finite difference on masked array)
+    # Fill NaNs for gradient calc but keep mask for display
+    Zfill = Zm.filled(np.nanmedian(Zm))
+    # central differences on grid of centers
+    dZdx, dZdy = np.gradient(Zfill)
+    grad_mag = np.sqrt(dZdx**2 + dZdy**2)
+
+    fig2, ax2 = plt.subplots(figsize=(8,6))
+    im2 = ax2.pcolormesh(xedges, yedges, grad_mag.T, shading='auto', cmap='cubehelix')
+    c2 = fig2.colorbar(im2, ax=ax2)
+    c2.set_label('|∇ loss|')
+
+    # quiver on a subsampled grid
+    xs = Xc[::quiver_step]
+    ys = Yc[::quiver_step]
+    U = dZdx[::quiver_step, ::quiver_step].T
+    V = dZdy[::quiver_step, ::quiver_step].T
+    # scale arrows to be readable
+    ax2.quiver(xs, ys, U, V, color='k', alpha=0.6, pivot='mid')
+
+    ax2.set_xlabel('x')
+    ax2.set_ylabel('y')
+    ax2.set_title('Gradient magnitude and direction')
+    plt.tight_layout()
+    fig2.savefig(f'{save_prefix}_grad.png', bbox_inches='tight')
+    plt.close(fig2)
+
+def plot_marginal_loss(df, param, losscol='fitness', bins=60,
+                       agg='median', save_path='GA/analysis/marginal_loss.png'):
+    """
+    1D marginal: aggregated loss vs a single parameter, with sample counts.
+    """
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    x = df[param].values
+    z = df[losscol].values
+
+    if agg == 'mean':
+        stat = 'mean'
+    elif agg == 'median':
+        stat = 'median'
+    elif agg == 'min':
+        stat = np.min
+    else:
+        raise ValueError("agg must be 'mean' | 'median' | 'min'")
+
+    # Bin centers
+    counts, edges = np.histogram(x, bins=bins)
+    idx = np.digitize(x, edges) - 1
+    idx = np.clip(idx, 0, bins-1)
+
+    # Aggregate per bin
+    vals = [[] for _ in range(bins)]
+    for ii, zz in zip(idx, z):
+        vals[ii].append(zz)
+    agg_vals = np.array([stat(v) if len(v) else np.nan for v in vals])
+    centers = 0.5*(edges[:-1] + edges[1:])
+
+    fig, ax1 = plt.subplots(figsize=(8,4))
+    ax1.plot(centers, agg_vals, '-', lw=2)
+    ax1.set_xlabel(param)
+    ax1.set_ylabel(f'{agg} {losscol}')
+
+    ax2 = ax1.twinx()
+    ax2.bar(centers, counts[:-1], width=np.diff(edges), alpha=0.2, edgecolor='none')
+    ax2.set_ylabel('samples / bin')
+
+    plt.tight_layout()
+    fig.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)

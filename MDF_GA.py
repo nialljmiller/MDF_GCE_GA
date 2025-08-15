@@ -18,6 +18,7 @@ import os
 import checkpoint  # checkpointing utilities
 # Import plotting module
 import mdf_plotting
+from multiprocessing import cpu_count
 
 
 def load_bensby_data(file_path='data/Bensby_Data.tsv'):
@@ -32,17 +33,11 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 # Adding custom paths
 sys.path.append('../')
 
-# Create argument parser
-parser = argparse.ArgumentParser(description='Run MDF Genetic Algorithm with optional plotting only')
-parser.add_argument('--plot-only', action='store_true', help='Skip computation and only generate plots')
-parser.add_argument('--results-file', type=str, default='GA/simulation_results.csv', 
-                   help='CSV file containing results (for plot-only mode)')
-args = parser.parse_args()
-
 # Parse parameters from the 'bulge_pcard.txt' file
 params = Gal_GA.parse_inlist('bulge_pcard.txt')
 
 # Assign parsed parameters to variables
+output_path = params['output_path']
 obs_file = params['obs_file']
 iniab_header = params['iniab_header']
 sn1a_header = params['sn1a_header']
@@ -67,6 +62,9 @@ physical_constraints_freq = params['physical_constraints_freq']
 delta_sfe_array = params['delta_sfe_array']
 exploration_steps = params['exploration_steps']
 popsize = params['popsize']
+if popsize < 0:
+    popsize = cpu_count() * (popsize * -1)
+
 generations = params['generations']
 crossover_probability = params['crossover_probability']
 mutation_probability = params['mutation_probability']
@@ -77,6 +75,13 @@ obs_age_data_loss_metric = params['obs_age_data_loss_metric']
 mdf_vs_age_weight = params['mdf_vs_age_weight']
 
 
+
+# Create argument parser
+parser = argparse.ArgumentParser(description='Run MDF Genetic Algorithm with optional plotting only')
+parser.add_argument('--plot-only', action='store_true', help='Skip computation and only generate plots')
+parser.add_argument('--results-file', type=str, default=output_path + 'simulation_results.csv', 
+                   help='CSV file containing results (for plot-only mode)')
+args = parser.parse_args()
 
 
 
@@ -133,8 +138,8 @@ for col in key_columns:
 GalGA = None
 
 os.makedirs('GA', exist_ok=True)
-os.makedirs('GA/loss', exist_ok=True)
-os.makedirs('GA/analysis', exist_ok=True)
+os.makedirs(output_path + 'loss', exist_ok=True)
+os.makedirs(output_path + 'analysis', exist_ok=True)
 
 # Save/load walker history
 def save_walker_history():
@@ -142,7 +147,7 @@ def save_walker_history():
         return
 
     np.savez_compressed(
-        'GA/walker_history.npz',
+        output_path + 'walker_history.npz',
         walker_ids=np.array(list(GalGA.walker_history.keys()), dtype=np.int32),
         histories=[np.array(h) for h in GalGA.walker_history.values()],
         mdf_data=np.array(GalGA.mdf_data, dtype=object),      # your [Fe/H] vs count
@@ -152,10 +157,10 @@ def save_walker_history():
     print("Walker history saved")
 
 def load_walker_history():
-    if not os.path.exists('GA/walker_history.npz'):
+    if not os.path.exists(output_path + 'walker_history.npz'):
         return {}
         
-    data = np.load('GA/walker_history.npz', allow_pickle=True)
+    data = np.load(output_path + 'walker_history.npz', allow_pickle=True)
     walker_ids = data['walker_ids']
     histories = data['histories']
     
@@ -175,6 +180,7 @@ def run_ga(cp_manager):
     
     # Initialize the Galactic Evolution Genetic Algorithm class with parsed parameters
     GalGA = Gal_GA.GalacticEvolutionGA(
+        output_path=output_path,
         iniab_header=iniab_header,
         sn1a_header=sn1a_header,
         sigma_2_list=sigma_2_list,
@@ -257,7 +263,7 @@ def run_ga(cp_manager):
     results_df.reset_index(drop=True, inplace=True)
 
     # Save the results to a CSV file
-    results_file = 'GA/simulation_results.csv'
+    results_file = output_path + 'simulation_results.csv'
     results_df.to_csv(results_file, index=False)
     print(f"Results saved to: {results_file}")
 
@@ -266,6 +272,9 @@ def run_ga(cp_manager):
     print("Best model from results dataframe:")
     print(best_model)
     
+
+
+
     return results_file
 
 def load_ga_for_plotting():
@@ -285,6 +294,7 @@ def load_ga_for_plotting():
     
     # Initialize a basic GalGA object
     GalGA = Gal_GA.GalacticEvolutionGA(
+        output_path=output_path,        
         iniab_header=iniab_header,
         sn1a_header=sn1a_header,
         sigma_2_list=sigma_2_list,
@@ -355,11 +365,11 @@ def load_ga_for_plotting():
 
 if __name__ == "__main__":
 
-    results_file = 'GA/simulation_results.csv'
+    results_file = output_path + 'simulation_results.csv'
 
     make_history = True
     if make_history:
-        results_file = checkpoint.run_with_checkpoint(run_ga)
+        results_file = checkpoint.run_with_checkpoint(run_ga, output_path)
         save_walker_history()
     else:
         load_ga_for_plotting()

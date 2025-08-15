@@ -71,7 +71,7 @@ def extract_metrics(results_file):
 
 
 
-def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv', save_path='GA/analysis/pca_degeneracy_analysis.png'):
+def plot_pca_degeneracy_analysis(GalGA, results_file='simulation_results.csv', save_path='analysis/pca_degeneracy_analysis.png'):
     """
     Perform PCA analysis on the fittest 10% of the population to reveal parameter degeneracies.
     Shows how the best models spread along degenerate manifolds vs constrained directions.
@@ -82,6 +82,10 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
     from sklearn.preprocessing import StandardScaler
     import pandas as pd
     
+
+    save_path = GalGA.output_path + save_path
+
+
     # Load results and extract continuous parameters
     df = pd.read_csv(results_file)
     
@@ -304,13 +308,14 @@ def plot_pca_degeneracy_analysis(GalGA, results_file='GA/simulation_results.csv'
 
 
 
-def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', save_path='GA/analysis/parameter_correlations.png'):
+def plot_parameter_correlation_matrix(GalGA, results_file='GA/simulation_results.csv', save_path='GA/analysis/parameter_correlations.png'):
     """
     Create a correlation matrix heatmap showing parameter relationships for the fittest 10% of individuals.
     Complements the PCA analysis by showing direct pairwise correlations.
     """
 
-    
+    save_path = GalGA.output_path + save_path
+
     df = pd.read_csv(results_file)
     
     # Sort by fitness (assuming lower is better) and take top 10%
@@ -370,10 +375,13 @@ def plot_parameter_correlation_matrix(results_file='GA/simulation_results.csv', 
 
 
 
-def analyze_best_fit_parameters(results_file='GA/simulation_results.csv', save_path='GA/analysis/best_fit_summary.png'):
+def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv', save_path='GA/analysis/best_fit_summary.png'):
     """
     Analyze the single best-fit model parameters with proper statistical context.
     """
+
+    save_path = GalGA.output_path + save_path
+
     df = pd.read_csv(results_file)
     fitness_col = 'fitness' if 'fitness' in df.columns else 'wrmse'
     df_sorted = df.sort_values(fitness_col, ascending=True)
@@ -468,7 +476,7 @@ def analyze_best_fit_parameters(results_file='GA/simulation_results.csv', save_p
 
 
 
-def analyze_top_percentile_parameters(results_file='GA/simulation_results.csv', percentile=10, 
+def analyze_top_percentile_parameters(GalGA, results_file='GA/simulation_results.csv', percentile=10, 
                                       save_path='GA/analysis/top_percentile_analysis.png'):
     """
     Comprehensive analysis of top N% models with proper uncertainty quantification.
@@ -477,6 +485,8 @@ def analyze_top_percentile_parameters(results_file='GA/simulation_results.csv', 
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
+
+    save_path = GalGA.output_path + save_path
 
     df = pd.read_csv(results_file)
     fitness_col = 'fitness' if 'fitness' in df.columns else 'wrmse'
@@ -634,11 +644,15 @@ def analyze_top_percentile_parameters(results_file='GA/simulation_results.csv', 
 
 
 
-def identify_solution_islands(results_file='GA/simulation_results.csv', percentile_threshold=90,
-                               save_path='GA/analysis/solution_islands.png'):
+def identify_solution_islands(GalGA, results_file='simulation_results.csv', percentile_threshold=90,
+                               save_path='analysis/solution_islands.png'):
     """
     Identify and analyze distinct clusters/islands of solutions in parameter space.
     """
+
+    save_path = GalGA.output_path + save_path
+
+
     df = pd.read_csv(results_file)
     fitness_col = 'fitness' if 'fitness' in df.columns else 'wrmse'
   
@@ -992,16 +1006,19 @@ def identify_solution_islands(results_file='GA/simulation_results.csv', percenti
 
 
 
-def run_analysis(GalGA, results_file='GA/simulation_results.csv'):
+def run_analysis(GalGA, results_file='simulation_results.csv'):
     """
     Run all analysis functions and create a summary report.
     """
-    ensure_analysis_dir()
+
+    results_file = GalGA.output_path + results_file
+
+    ensure_analysis_dir(GalGA)
     
     # Run all analyses
-    analyze_best_fit_parameters(results_file)
+    analyze_best_fit_parameters(GalGA, results_file)
     
-    analyze_top_percentile_parameters(results_file, percentile=10)
+    analyze_top_percentile_parameters(GalGA, results_file, percentile=10)
 
     island_results = None
     #island_results = identify_solution_islands(results_file, percentile_threshold=90)
@@ -1009,7 +1026,7 @@ def run_analysis(GalGA, results_file='GA/simulation_results.csv'):
     try:    
         plot_pca_degeneracy_analysis(GalGA, results_file)
         
-        plot_parameter_correlation_matrix(results_file)
+        plot_parameter_correlation_matrix(GalGA, results_file)
         
         
         df = pd.read_csv(results_file)

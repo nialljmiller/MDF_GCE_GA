@@ -5,8 +5,8 @@ import pickle
 
 class CheckpointManager:
     """Simple checkpoint manager for GA runs."""
-    def __init__(self, filename='GA/ga_checkpoint.pkl'):
-        self.filename = filename
+    def __init__(self, save_path='GA/'):
+        self.filename = save_path + 'ga_checkpoint.pkl'
 
     def save(self, generation, population, ga_state):
         data = {
@@ -31,8 +31,8 @@ class CheckpointManager:
         if os.path.exists(self.filename):
             os.remove(self.filename)
 
-def run_with_checkpoint(run_fn):
-    manager = CheckpointManager()
+def run_with_checkpoint(run_fn, output_path):
+    manager = CheckpointManager(save_path = output_path)
     result = run_fn(manager)
     manager.clear()
     return result

@@ -30,6 +30,7 @@ from phys_plot import generate_physics_plots
 from loss_plot import *
 from analysis_plot import run_analysis
 import age_meta
+
 # ---------------------------------------------------
 # Global style for paper-quality figures
 # ---------------------------------------------------
@@ -39,7 +40,7 @@ plt.rcParams.update({
     'savefig.dpi': 300,
     'font.family': 'serif',
     'font.size': 12,
-    'axes.labelsize': 14,
+    'axes.labelsize': 18,
     'axes.titlesize': 16,
     'legend.fontsize': 12,
     'xtick.labelsize': 12,
@@ -48,10 +49,10 @@ plt.rcParams.update({
 })
 
 # ---------------------------------------------------
-def ensure_dirs():
+def ensure_dirs(output_path):
     """Ensure necessary directories exist."""
-    os.makedirs('GA/loss', exist_ok=True)
-    os.makedirs('GA/analysis', exist_ok=True)
+    os.makedirs(output_path + 'loss', exist_ok=True)
+    os.makedirs(output_path + 'analysis', exist_ok=True)
 
 
 def extract_metrics(results_file):
@@ -86,12 +87,16 @@ def extract_metrics(results_file):
 
 
 
+
 # ---------------------------------------------------
-def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
+def plot_sfr_history(bulge_dict, output_path, save_path=None):
     """
     Plot star formation rate (SFR) history vs Age for bulge models.
     bulge_dict: mapping of label -> model with inner.history.age and .sfr_abs
     """
+    if save_path is None:
+        save_path = output_path + 'SFR_history.png'
+    
     fig, ax = plt.subplots(figsize=(6,5))
     for label, model in bulge_dict.items():
         age_gyr = np.array(model.inner.history.age) / 1e9
@@ -103,6 +108,7 @@ def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
     ax.set_xlim(0, np.max([np.max(np.array(m.inner.history.age)/1e9) for m in bulge_dict.values()]))
     ax.legend(frameon=False, fontsize='small')
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, bbox_inches='tight')
     plt.close(fig)
     return fig
@@ -110,11 +116,14 @@ def plot_sfr_history(bulge_dict,save_path='GA/SFR_history.png'):
 
 
 # ---------------------------------------------------
-def plot_mass_evolution(bulge_dict,save_path='GA/Mass_age.png'):
+def plot_mass_evolution(bulge_dict, output_path, save_path=None):
     """
     Plot bulge mass (locked + gas) evolution vs Age.
     bulge_dict: mapping of label -> model with inner.history.m_locked, .m_gas_exp (or .m_gas)
     """
+    if save_path is None:
+        save_path = output_path + 'Mass_age.png'
+    
     fig, ax = plt.subplots(figsize=(6,5))
     for label, model in bulge_dict.items():
         age_gyr = np.array(model.inner.history.age) / 1e9
@@ -129,17 +138,21 @@ def plot_mass_evolution(bulge_dict,save_path='GA/Mass_age.png'):
     ax.axhline(2e10, ls='--', color='k', label='Reference 2e10 $M_\odot$')
     ax.legend(frameon=False, fontsize='small')
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, bbox_inches='tight')
     plt.close(fig)
     return fig
 
 # ---------------------------------------------------
-def plot_alpha_histograms(obs_dict, model_dict, bins=25, save_path='GA/alpha_histograms.png'):
+def plot_alpha_histograms(obs_dict, model_dict, output_path, bins=25, save_path=None):
     """
     Plot histograms of alpha-element distributions for observation and models.
     obs_dict: {'[Mg/Fe]': array, ...}
     model_dict: {'label': [array_Mg, array_Si, array_Ca, array_Ti], ...}
     """
+    if save_path is None:
+        save_path = output_path + 'alpha_histograms.png'
+    
     elts = list(obs_dict.keys())
     n = len(elts)
     ncols = 2
@@ -165,6 +178,7 @@ def plot_alpha_histograms(obs_dict, model_dict, bins=25, save_path='GA/alpha_his
         ax.legend(frameon=False, fontsize='small')
 
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, bbox_inches='tight')
     plt.close(fig)
     return fig
@@ -172,51 +186,13 @@ def plot_alpha_histograms(obs_dict, model_dict, bins=25, save_path='GA/alpha_his
 # ---------------------------------------------------
 # Existing MDF and GA plotting functions (slightly tweaked for style)
 # ---------------------------------------------------
-def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA/MDF_multiple_results.png'):
-    """
-    Plot all model MDFs, highlight the best model, and overlay data.
-    """
-    fig, ax = plt.subplots(figsize=(9,6))
-    # Determine best model parameters
-    if results_df is not None and not results_df.empty:
-        bm = results_df.iloc[0]
-        best_params = (bm['sigma_2'], bm['t_2'], bm['infall_2'])
-    else:
-        r = GalGA.results[0]
-        best_params = (r[5], r[7], r[9])
-
-    best_flag = False
-    # plot curves
-    for (x, y), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
-        params = (res[5], res[7], res[9])
-        is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
-        if is_best:
-            best_x = x
-            best_y = y
-
-            ax.plot(x, y, color='C3', linewidth=2.5,
-                    label='Best Model' if not best_flag else None)
-            best_flag = True
-        else:
-            ax.plot(x, y, color='gray', alpha=0.01)
-
-    # observational data
-    ax.plot(feh, normalized_count, 'x', ms=8, color='k', label='Observational Data')
-    ax.plot(best_x, best_y, color='C3', linewidth=2.5)
-    ax.set_xlabel('[Fe/H]')
-    ax.set_ylabel('Normalized Number Density')
-    ax.set_xlim(-2, 1)
-    ax.legend(loc='upper left', frameon=False)
-    plt.tight_layout()
-    fig.savefig(save_path, bbox_inches='tight')
-    plt.close(fig)
-    return fig
-
-
-def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA/MDF_multiple_results.png'):
+def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path=None):
     """
     Plot all model MDFs, highlight the best model, overlay data, and show residuals.
     """
+    if save_path is None:
+        save_path = GalGA.output_path + 'MDF_multiple_results.png'
+    
     import numpy as np
     from scipy.interpolate import interp1d
     
@@ -235,7 +211,8 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     best_flag = False
     best_x = None
     best_y = None
-    
+
+    alpha = 10/len(GalGA.results)    
     # Plot all model curves on main panel
     for (x, y), label, res in zip(GalGA.mdf_data, GalGA.labels, GalGA.results):
         params = (res[5], res[7], res[9])
@@ -243,14 +220,13 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
         if is_best:
             best_x = np.array(x)
             best_y = np.array(y)
-            ax_main.plot(x, y, color='C3', linewidth=2.5,
-                        label='Best Model' if not best_flag else None)
+            ax_main.plot(x, y, color='C3', linewidth=2.5, zorder=10, label='Best Model' if not best_flag else None)
             best_flag = True
         else:
-            ax_main.plot(x, y, color='gray', alpha=0.01)
+            ax_main.plot(x, y, linewidth=1, color='gray', alpha=alpha)
     
     # Plot observational data on main panel
-    ax_main.plot(feh, normalized_count, 'x', ms=8, color='k', label='Observational Data')
+    ax_main.plot(feh, normalized_count, 'x', ms=8, color='k', zorder=11, label='Observational Data')
     
     # Calculate and plot residuals
     if best_x is not None and best_y is not None:
@@ -280,9 +256,9 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
             valid_residuals = residuals[~np.isnan(residuals)]
             if len(valid_residuals) > 0:
                 rms_residual = np.sqrt(np.mean(valid_residuals**2))
-                ax_res.text(0.02, 0.95, f'RMS = {rms_residual:.3f}', 
+                ax_res.text(0.02, 0.9, f'RMS = {rms_residual:.3f}', 
                            transform=ax_res.transAxes, fontsize=10,
-                           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+                           bbox=dict(boxstyle="round,pad=0.1", facecolor="white", alpha=0.8))
     
     # Format main plot
     ax_main.set_ylabel('Normalized Number Density')
@@ -294,7 +270,6 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
     ax_res.set_xlabel('[Fe/H]')
     ax_res.set_ylabel('Model - Obs')
     ax_res.set_xlim(-2, 1)
-    ax_res.grid(True, alpha=0.3)
     
     # Set reasonable y-limits for residuals
     if 'residuals' in locals() and len(valid_residuals) > 0:
@@ -302,12 +277,13 @@ def plot_mdf_curves(GalGA, feh, normalized_count, results_df=None, save_path='GA
         ax_res.set_ylim(-3*res_std, 3*res_std)
     
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, bbox_inches='tight')
     plt.close(fig)
     return fig
 
 
-def create_3d_animation(walker_history):
+def create_3d_animation(walker_history, output_path):
     """Create an animated 3D visualization of walker evolution"""
     if not walker_history:
         print("Walker history data not available. Skipping 3D animation.")
@@ -349,7 +325,8 @@ def create_3d_animation(walker_history):
     ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=200, blit=False)
     
     # Save as GIF with lower fps and dpi
-    gif_path = "GA/loss/walker_evolution_3D.gif"
+    gif_path = output_path + "loss/walker_evolution_3D.gif"
+    os.makedirs(os.path.dirname(gif_path), exist_ok=True)
     ani.save(gif_path, writer="pillow", fps=5, dpi=72)
     plt.close()
     
@@ -358,322 +335,11 @@ def create_3d_animation(walker_history):
 
 
 
+def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path=None):
 
 
-
-def plot_mutation_info_3D(GA, population, fitnesses, base_sigma=1.0, mutation_type='gaussian'):
-    #print('Starting plot...')
-
-    # Calculate losses
-    losses = [fit[0] for fit in fitnesses]
-    max_loss = max(losses)
-    min_loss = min(losses)
-
-    # Update global min and max loss
-    if GA.global_min_loss is None or min_loss < GA.global_min_loss:
-        GA.global_min_loss = min_loss
-    if GA.global_max_loss is None or max_loss > GA.global_max_loss:
-        GA.global_max_loss = max_loss
-
-    threshold = np.median(losses)
-
-    # Identify successful and unsuccessful individuals
-    successful_inds = []
-    unsuccessful_inds = []
-    for ind, fit in zip(population, fitnesses):
-        if fit[0] <= threshold:
-            successful_inds.append((ind, fit[0]))
-        else:
-            unsuccessful_inds.append((ind, fit[0]))
-
-    # Number of genes
-    gene_names = ['sigma_2', 't_2', 'infall_2']
-    num_genes = len(gene_names)
-
-    # Collect data for accumulation
-    # Successful individuals
-    gene_values_successful = []
-    losses_successful = []
-    for ind, loss in successful_inds:
-        genes = ind[:num_genes]
-        gene_values_successful.append(genes)
-        losses_successful.append(loss)
-    GA.all_gene_values_successful.extend(gene_values_successful)
-    GA.all_losses_successful.extend(losses_successful)
-
-    # Unsuccessful individuals
-    gene_values_unsuccessful = []
-    losses_unsuccessful = []
-    for ind, loss in unsuccessful_inds:
-        genes = ind[:num_genes]
-        gene_values_unsuccessful.append(genes)
-        losses_unsuccessful.append(loss)
-    GA.all_gene_values_unsuccessful.extend(gene_values_unsuccessful)
-    GA.all_losses_unsuccessful.extend(losses_unsuccessful)
-
-    # Store gene bounds
-    current_gene_bounds = {
-        'xmin': GA.sigma_2_min,
-        'xmax': GA.sigma_2_max,
-        'ymin': GA.t_2_min,
-        'ymax': GA.t_2_max,
-        'zmin': GA.infall_2_min,
-        'zmax': GA.infall_2_max
-    }
-    GA.gene_bounds.append(current_gene_bounds)
-
-    # At the end of all generations, plot the accumulated data
-    if GA.gen + 1 == GA.num_generations:
-        # Prepare the colormap for losses in log space for better contrast
-        all_losses = GA.all_losses_successful + GA.all_losses_unsuccessful
-        log_all = [np.log10(max(l, 1e-10)) for l in all_losses]
-        min_loss = min(log_all)
-        max_loss = max(log_all)
-        loss_range = max_loss - min_loss if max_loss != min_loss else 1.0
-
-        losses_successful_norm = [
-            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_successful
-        ]
-        losses_unsuccessful_norm = [
-            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_unsuccessful
-        ]
-
-        # Create colormap (darker color for lower loss)
-        succmap = cm.get_cmap('YlGn')  # Reverse Greys for darker color at lower values
-        unsuccmap = cm.get_cmap('Reds_r')  # Reverse Greys for darker color at lower values
-        
-        colors_successful = [succmap(loss_norm) for loss_norm in losses_successful_norm]
-        colors_unsuccessful = [unsuccmap(loss_norm) for loss_norm in losses_unsuccessful_norm]
-
-
-        # Prepare the colormap for bounding boxes
-        num_generations = GA.num_generations
-        bbox_cmap = cm.get_cmap('Greys')
-        colors_bounding_boxes = [bbox_cmap(i / (num_generations - 1)) for i in range(num_generations)]
-
-        # Create a 3D scatter plot
-        fig = plt.figure(figsize=(12, 9))
-        ax = fig.add_subplot(111, projection='3d')
-
-        # Plot successful individuals
-        if len(GA.all_gene_values_successful) > 0:
-            gene_values_successful = np.array(GA.all_gene_values_successful)
-            ax.scatter(
-                gene_values_successful[:, 0],
-                gene_values_successful[:, 1],
-                gene_values_successful[:, 2],
-                color=colors_successful,
-                label='Successful',
-                alpha=0.6,
-                marker='o'
-            )
-
-        # Plot unsuccessful individuals
-        if len(GA.all_gene_values_unsuccessful) > 0:
-            gene_values_unsuccessful = np.array(GA.all_gene_values_unsuccessful)
-            ax.scatter(
-                gene_values_unsuccessful[:, 0],
-                gene_values_unsuccessful[:, 1],
-                gene_values_unsuccessful[:, 2],
-                color=colors_unsuccessful,
-                label='Unsuccessful',
-                alpha=0.6,
-                marker='^'
-            )
-
-        # Define the edges of the bounding box
-        edges = [
-            [0, 1], [0, 2], [0, 4],
-            [1, 3], [1, 5],
-            [2, 3], [2, 6],
-            [3, 7],
-            [4, 5], [4, 6],
-            [5, 7],
-            [6, 7]
-        ]
-
-        # Plot the bounding boxes
-        for i, gene_bound in enumerate(GA.gene_bounds):
-            color = colors_bounding_boxes[i]
-            # Extract bounds
-            xmin = gene_bound['xmin']
-            xmax = gene_bound['xmax']
-            ymin = gene_bound['ymin']
-            ymax = gene_bound['ymax']
-            zmin = gene_bound['zmin']
-            zmax = gene_bound['zmax']
-
-            # Define the corners of the bounding box
-            corners = np.array([
-                [xmin, ymin, zmin],
-                [xmin, ymin, zmax],
-                [xmin, ymax, zmin],
-                [xmin, ymax, zmax],
-                [xmax, ymin, zmin],
-                [xmax, ymin, zmax],
-                [xmax, ymax, zmin],
-                [xmax, ymax, zmax]
-            ])
-
-            # Plot the edges of the bounding box
-            for edge in edges:
-                x = [corners[edge[0], 0], corners[edge[1], 0]]
-                y = [corners[edge[0], 1], corners[edge[1], 1]]
-                z = [corners[edge[0], 2], corners[edge[1], 2]]
-                ax.plot(x, y, z, color=color, linestyle='--', alpha=0.5)
-
-        # Customize plot
-        ax.set_xlabel(gene_names[0])
-        ax.set_ylabel(gene_names[1])
-        ax.set_zlabel(gene_names[2])
-        ax.legend()
-
-        # Adjust the viewing angle for better visualization
-        ax.view_init(elev=20., azim=-35)
-
-        plt.tight_layout()
-        plt.savefig('GA/MDF_individuals_3D.png', bbox_inches='tight')
-        ##plt.show()
-        print('...plot made!')
-
-
-
-def plot_mutation_info_2d(GA, population, fitnesses, base_sigma=1.0, mutation_type='gaussian'):
-    # Calculate losses
-    losses = [fit[0] for fit in fitnesses]
-    max_loss = max(losses)
-    min_loss = min(losses)
-
-    # Update global min and max loss
-    if GA.global_min_loss is None or min_loss < GA.global_min_loss:
-        GA.global_min_loss = min_loss
-    if GA.global_max_loss is None or max_loss > GA.global_max_loss:
-        GA.global_max_loss = max_loss
-
-    threshold = np.median(losses)
-
-    # Identify successful and unsuccessful individuals
-    successful_inds = []
-    unsuccessful_inds = []
-    for ind, fit in zip(population, fitnesses):
-        if fit[0] <= threshold:
-            successful_inds.append((ind, fit[0]))
-        else:
-            unsuccessful_inds.append((ind, fit[0]))
-
-    # Number of genes (excluding sigma)
-    gene_names = ['t_2', 'infall_2']
-    num_genes = len(gene_names)
-
-    # Collect data for accumulation
-    # Successful individuals
-    gene_values_successful = []
-    losses_successful = []
-    for ind, loss in successful_inds:
-        genes = ind[1:num_genes+1]  # Only take `t_2` and `infall_2`
-        gene_values_successful.append(genes)
-        losses_successful.append(loss)
-    GA.all_gene_values_successful.extend(gene_values_successful)
-    GA.all_losses_successful.extend(losses_successful)
-
-    # Unsuccessful individuals
-    gene_values_unsuccessful = []
-    losses_unsuccessful = []
-    for ind, loss in unsuccessful_inds:
-        genes = ind[1:num_genes+1]  # Only take `t_2` and `infall_2`
-        gene_values_unsuccessful.append(genes)
-        losses_unsuccessful.append(loss)
-    GA.all_gene_values_unsuccessful.extend(gene_values_unsuccessful)
-    GA.all_losses_unsuccessful.extend(losses_unsuccessful)
-
-    # Store gene bounds
-    current_gene_bounds = {
-        'xmin': GA.t_2_min,
-        'xmax': GA.t_2_max,
-        'ymin': GA.infall_2_min,
-        'ymax': GA.infall_2_max
-    }
-    GA.gene_bounds.append(current_gene_bounds)
-
-    # At the end of all generations, plot the accumulated data
-    if GA.gen + 1 == GA.num_generations:
-        # Prepare the colormap for losses using log scale
-        all_losses = GA.all_losses_successful + GA.all_losses_unsuccessful
-        log_all = [np.log10(max(l, 1e-10)) for l in all_losses]
-        min_loss = min(log_all)
-        max_loss = max(log_all)
-        loss_range = max_loss - min_loss if max_loss != min_loss else 1.0
-
-        losses_successful_norm = [
-            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_successful
-        ]
-        losses_unsuccessful_norm = [
-            (np.log10(max(l, 1e-10)) - min_loss) / loss_range for l in GA.all_losses_unsuccessful
-        ]
-
-        # Create colormaps
-        succmap = cm.get_cmap('YlGn')
-        unsuccmap = cm.get_cmap('Reds_r')
-
-        colors_successful = [succmap(loss_norm) for loss_norm in losses_successful_norm]
-        colors_unsuccessful = [unsuccmap(loss_norm) for loss_norm in losses_unsuccessful_norm]
-
-        # Prepare the colormap for bounding boxes
-        num_generations = GA.num_generations
-        bbox_cmap = cm.get_cmap('Greys')
-        colors_bounding_boxes = [bbox_cmap(i / (num_generations - 1)) for i in range(num_generations)]
-
-        # Create a 2D scatter plot
-        fig, ax = plt.subplots(figsize=(10, 8))
-
-        # Plot successful individuals
-        if len(GA.all_gene_values_successful) > 0:
-            gene_values_successful = np.array(GA.all_gene_values_successful)
-            ax.scatter(
-                gene_values_successful[:, 0],  # t_2
-                gene_values_successful[:, 1],  # infall_2
-                color=colors_successful,
-                label='Successful',
-                alpha=0.6,
-                marker='o'
-            )
-
-        # Plot unsuccessful individuals
-        if len(GA.all_gene_values_unsuccessful) > 0:
-            gene_values_unsuccessful = np.array(GA.all_gene_values_unsuccessful)
-            ax.scatter(
-                gene_values_unsuccessful[:, 0],  # t_2
-                gene_values_unsuccessful[:, 1],  # infall_2
-                color=colors_unsuccessful,
-                label='Unsuccessful',
-                alpha=0.6,
-                marker='^'
-            )
-
-        # Plot the bounding boxes
-        for i, gene_bound in enumerate(GA.gene_bounds):
-            color = colors_bounding_boxes[i]
-            xmin, xmax = gene_bound['xmin'], gene_bound['xmax']
-            ymin, ymax = gene_bound['ymin'], gene_bound['ymax']
-
-            # Plot the bounding box as a rectangle
-            ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                                       edgecolor=color, fill=False, linestyle='--', alpha=0.5))
-
-        # Customize plot
-        ax.set_xlabel(gene_names[0])
-        ax.set_ylabel(gene_names[1])
-        #ax.legend()
-        plt.tight_layout()
-        plt.savefig('GA/MDF_individuals_2D.png', bbox_inches='tight')
-        print('...2D plot made!')
-
-
-def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path='GA/Four_Panel_Alpha.png'):
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from scipy.stats import gaussian_kde
-    import os
+    if save_path is None:
+        save_path = GalGA.output_path + 'Four_Panel_Alpha.png'
 
     element_names = ['Mg', 'Si', 'Ca', 'Ti']
     observational_data = [Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe]
@@ -694,7 +360,7 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
 
         # Position for marginal KDE plot (DO NOT use sharey=ax_main)
         rect = ax_main.get_position()
-        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.1, rect.height])
+        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.07, rect.height])
 
         # Ensure y-axis is visible on main plots
         ax_main.tick_params(axis='y', which='both', left=True, labelleft=True, right=False, labelright=False)
@@ -756,7 +422,7 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
         ax_main.set_ylim(-0.8, 0.8)
         ax_main.set_xlabel("[Fe/H]")
         ax_main.set_ylabel(f"[{element}/Fe]")
-        ax_main.text(-1.8, 0.85, element, fontsize=14, weight='bold')
+        #ax_main.text(-1.8, 0.85, element, fontsize=14, weight='bold')
 
         # Move top row x-axis to top
         if row == 0:
@@ -780,12 +446,9 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
 
 
 
-
-
-
 def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, 
                           feh_mdf, normalized_count_mdf, results_df=None, 
-                          save_path='GA/Omni_Info_Figure.png'):
+                          save_path=None):
     """
     Create a dashboard showing the best-fit model parameters and performance
     across all key observational diagnostics.
@@ -805,6 +468,9 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     from scipy.stats import gaussian_kde, binned_statistic
     from matplotlib.gridspec import GridSpec
     import os
+    
+    if save_path is None:
+        save_path = GalGA.output_path + 'Omni_Info_Figure.png'
     
     # Ensure we have the required data
     if not hasattr(GalGA, 'age_data') or len(GalGA.age_data) == 0:
@@ -1058,13 +724,196 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     
     return fig
 
+def plot_omni_figure(
+    GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
+    feh_mdf, normalized_count_mdf, results_df=None, save_path=None
+):
+    """
+    ApJ-clean figure: MDF (top-left), AMR (top-right), 4×alpha panels (bottom).
+    Minimal legends/labels. Tight spacing. Same IO pattern as your code.
+    Returns the Matplotlib Figure.
+    """
+    import numpy as np
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+    import os
+
+    # ------ Minimal, print-safe style ------
+    mpl.rcParams.update({
+        "figure.dpi": 300, "savefig.dpi": 300,
+        "font.family": "serif", "font.size": 10,
+        "axes.linewidth": 0.8,
+        "xtick.direction": "in", "ytick.direction": "in",
+        "xtick.major.size": 3.2, "ytick.major.size": 3.2,
+        "legend.frameon": False,
+    })
+
+    if save_path is None:
+        save_path = os.path.join(getattr(GalGA, "output_path", ""), "Omni_Info_Figure_ApJ.png")
+
+
+    # ------ Select best model tuple ------
+    if results_df is not None and hasattr(results_df, "empty") and not results_df.empty:
+        bm = results_df.iloc[0]
+        best_params = (bm["sigma_2"], bm["t_2"], bm["infall_2"])
+    else:
+        r = GalGA.results[0]
+        best_params = (r[5], r[7], r[9])
+
+    # ------ Figure layout (tight, no wasted whitespace) ------
+    fig = plt.figure(figsize=(7.1, 6.2))  # ApJ 2-col width
+    gs = GridSpec(
+        2, 8, figure=fig,
+        left=0.065, right=0.995, bottom=0.10, top=0.965,
+        wspace=0.16, hspace=0.2  # small gap between rows, as requested
+    )
+
+    # Top row
+    ax_mdf = fig.add_subplot(gs[0, 0:4])
+    ax_amr = fig.add_subplot(gs[0, 4:8])
+
+    # ------ MDF ------
+    best_x = best_y = None
+    for (x, y), res in zip(GalGA.mdf_data, GalGA.results):
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip((res[5], res[7], res[9]), best_params))
+        if is_best:
+            best_x, best_y = np.asarray(x), np.asarray(y)
+        else:
+            ax_mdf.plot(x, y, color="0.75", alpha=0.001, lw=0.8, zorder=1)
+
+    if best_x is not None:
+        ax_mdf.plot(best_x, best_y, color="crimson", lw=1.8, label="Model", zorder=3)
+
+    ax_mdf.plot(feh_mdf, normalized_count_mdf, "x", color="k", ms=4.5, mew=0.9, label="Data", zorder=4)
+
+    ax_mdf.set_xlim(-2, 1)
+    ax_mdf.set_ylabel("Normalized number")
+
+    # x-axis at top only
+    ax_mdf.xaxis.set_ticks_position("top")
+    ax_mdf.xaxis.set_label_position("top")
+    ax_mdf.set_xlabel("[Fe/H]")
+    ax_mdf.tick_params(axis="x", bottom=False)
+
+    ax_mdf.legend(loc="upper left", fontsize=9, handlelength=1.6)
+
+    # ------ AMR (y-axis on right) ------
+    best_age_x = best_age_y = None
+    for (t_arr, feh_arr), res in zip(GalGA.age_data, GalGA.results):
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip((res[5], res[7], res[9]), best_params))
+        if is_best:
+            t = np.asarray(t_arr, float)  # years
+            age = (t[-1] - t) / 1e9       # Age (Gyr), increasing to the right
+            best_age_x, best_age_y = age, np.asarray(feh_arr, float)
+        else:
+            t = np.asarray(t_arr, float)  # years
+            age = (t[-1] - t) / 1e9       # Age (Gyr), increasing to the right
+            age_x, age_y = age, np.asarray(feh_arr, float)            
+            ax_amr.plot(age_x, age_y, color="0.75", alpha=0.001, lw=0.8, zorder=1)
+
+    ax_amr.scatter(age_Joyce, Fe_H, s=10, facecolor="none", edgecolor="0.35", lw=0.7, label="Joyce")
+    ax_amr.scatter(age_Bensby, Fe_H, s=10, marker="^", facecolor="none", edgecolor="0.55", lw=0.7, label="Bensby")
+    if best_age_x is not None:
+        ax_amr.plot(best_age_x, best_age_y, color="crimson", lw=1.8, label="Model", zorder=3)
+
+    ax_amr.set_xlim(0, 14)
+    ax_amr.set_ylim(-2, 1)
+
+    # x-axis at top only
+    ax_amr.xaxis.set_ticks_position("top")
+    ax_amr.xaxis.set_label_position("top")
+    ax_amr.set_xlabel("Age (Gyr)")
+    ax_amr.tick_params(axis="x", bottom=False)
+
+    # y-axis on right
+    ax_amr.yaxis.tick_right()
+    ax_amr.yaxis.set_label_position("right")
+    ax_amr.set_ylabel("[Fe/H]")
+
+    ax_amr.legend(loc="lower left", fontsize=9, ncol=3, columnspacing=0.9, handlelength=1.6)
+
+    # ------ Alpha row ------
+    alpha_elems = ["Mg", "Si", "Ca", "Ti"]
+    alpha_obs   = [Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe]
+    axes_alpha  = [fig.add_subplot(gs[1, 2*i:2*i+2]) for i in range(4)]
+
+    # Fetch best alpha arrays once
+    best_alpha = None
+    for alpha_arrs, res in zip(GalGA.alpha_data, GalGA.results):
+        is_best = all(abs(p - b) < 1e-5 for p, b in zip((res[5], res[7], res[9]), best_params))
+        if is_best:
+            best_alpha = alpha_arrs
+            break
+
+    xlim = (-2, 1)
+    ylim = (-0.6, 0.8)
+
+    for i, (elt, obs, ax) in enumerate(zip(alpha_elems, alpha_obs, axes_alpha)):
+        # Observations
+        obs_clean = np.where((obs > -2.5) & (obs < 2.5), obs, np.nan)
+        mask = np.isfinite(Fe_H) & np.isfinite(obs_clean)
+        if np.count_nonzero(mask) > 5:
+            ax.scatter(Fe_H[mask], obs_clean[mask], s=10, color="0.35", alpha=0.9, edgecolor="none", label="Data")
+
+        # Model
+        if best_alpha is not None and i < len(best_alpha):
+            mx, my = best_alpha[i]
+            ax.plot(mx, my, color="crimson", lw=1.6, label="Model")
+
+        # Limits, labels
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_xlabel("[Fe/H]")
+
+        # Only leftmost has y-label
+        if i == 0:
+            ax.set_ylabel("[α/Fe]")
+        else:
+            ax.set_ylabel("")
+
+        # Element tag
+        ax.text(0.03, 0.95, elt, transform=ax.transAxes, ha="left", va="top", fontsize=17)
+
+        # Middle two: hide y-numbering (keep ticks for alignment)
+        if i in (1, 2):
+            ax.set_yticklabels([])
+
+        # Rightmost: y-axis on right (no y-label)
+        if i == 3:
+            ax.yaxis.tick_right()
+            ax.yaxis.set_label_position("right")
+
+    # Single small legend for the alpha set inside the last panel
+    h, l = axes_alpha[-1].get_legend_handles_labels()
+    if h:
+        axes_alpha[-1].legend(loc="lower right", fontsize=9, handlelength=1.6)
+
+    # ------ Save & return ------
+    os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+    fig.savefig(save_path, bbox_inches="tight")
+    return fig
 
 
 
 
 
-def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation_results.csv'):
+
+
+
+
+
+
+
+
+
+
+
+def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
     """Generate all plots from GalGA results including parameter combinations"""
+    
+    if results_file is None:
+        results_file = GalGA.output_path + 'simulation_results.csv'
     
     # Load observational alpha element data
     f = open('data/Bensby_Data.tsv')
@@ -1126,7 +975,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     Ti_Fe = np.array(Ti_Fe)
     
     # Ensure directories exist
-    ensure_dirs()
+    ensure_dirs(GalGA.output_path)
     
     # Extract metrics for scatter plots
     sigma_2_vals, t_1_vals, t_2_vals, infall_1_vals, infall_2_vals, sfe_vals, delta_sfe_vals, imf_upper_vals, mgal_vals, nb_vals, metrics_dict, df = extract_metrics(results_file)
@@ -1151,127 +1000,182 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file='GA/simulation
     # 3. 2D scatter plots
     print("Generating 2D scatter plots...")
 
-
     metric_name = 'fitness'
     metric_vals = metrics_dict['fitness']        
+
+
+
+    # === NEW: binned loss + delta + gradient + 1D marginals for key parameter pairs ===
+    analysis_dir = os.path.join(GalGA.output_path, 'analysis')
+    os.makedirs(analysis_dir, exist_ok=True)
+
+    # Key pairs we care about most
+    key_pairs = [
+        ('t_2', 'infall_2'),
+        ('sigma_2', 't_2'),
+        ('sigma_2', 'infall_2'),
+    ]
+
+    # 1D marginals (quick structure scans)
+    for p in {'t_2', 'infall_2', 'sigma_2'}:
+        if p in df.columns and 'fitness' in df.columns:
+            try:
+                plot_marginal_loss(
+                    df, p, losscol='fitness', bins=60, agg='median',
+                    save_path=os.path.join(analysis_dir, f'marginal_{p}.png')
+                )
+            except Exception as e:
+                print(f"[marginal {p}] skipped: {e}")
+
+    # 2D binned surfaces + Δ-loss + gradient fields
+    for xcol, ycol in key_pairs:
+        if all(c in df.columns for c in [xcol, ycol, 'fitness']):
+            try:
+                out_base = os.path.join(analysis_dir, f"binned_fitness_{xcol}_{ycol}")
+                Z, xedges, yedges, N = plot_binned_loss(
+                    GalGA, df, xcol=xcol, ycol=ycol, losscol='fitness',
+                    bins=(50, 50), agg='median', min_per_bin=6, smooth_sigma=1.0,
+                    cmap='viridis', save_path=out_base + ".png"
+                )
+                plot_delta_and_gradient(
+                    Z, xedges, yedges, save_prefix=out_base, quiver_step=3
+                )
+            except Exception as e:
+                print(f"[binned {xcol} vs {ycol}] skipped: {e}")
+        else:
+            missing = [c for c in [xcol, ycol, 'fitness'] if c not in df.columns]
+            print(f"[binned {xcol} vs {ycol}] missing columns: {missing}")
+
+
+
+
     # ========== INFALL PARAMETERS ==========
     # Second infall episode (most important)
-    plot_2d_scatter(t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_infall2', xlabel='t_2 (Gyr)', ylabel='infall_2 (Gyr)')
-    plot_2d_scatter(sigma_2_vals, infall_2_vals, metric_vals, metric_name + '_sigma2_infall2', xlabel='sigma_2', ylabel='infall_2 (Gyr)')
-    plot_2d_scatter(sigma_2_vals, t_2_vals, metric_vals, metric_name + '_sigma2_t2', xlabel='sigma_2', ylabel='t_2 (Gyr)')
+
+    plot_2d_scatter(GalGA, t_2_vals, infall_2_vals, metric_vals, metric_name + '_t2_infall2', xlabel='t_2 (Gyr)', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, sigma_2_vals, infall_2_vals, metric_vals, metric_name + '_sigma2_infall2', xlabel='sigma_2', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, sigma_2_vals, t_2_vals, metric_vals, metric_name + '_sigma2_t2', xlabel='sigma_2', ylabel='t_2 (Gyr)')
     
     # First infall episode
-    plot_2d_scatter(t_1_vals, infall_1_vals, metric_vals, metric_name + '_t1_infall1', xlabel='t_1 (Gyr)', ylabel='infall_1 (Gyr)')
-    plot_2d_scatter(t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_infall2', xlabel='t_1 (Gyr)', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, t_1_vals, infall_1_vals, metric_vals, metric_name + '_t1_infall1', xlabel='t_1 (Gyr)', ylabel='infall_1 (Gyr)')
+    plot_2d_scatter(GalGA, t_1_vals, infall_2_vals, metric_vals, metric_name + '_t1_infall2', xlabel='t_1 (Gyr)', ylabel='infall_2 (Gyr)')
     
     # Cross-infall comparisons
-    plot_2d_scatter(t_1_vals, t_2_vals, metric_vals, metric_name + '_t1_t2', xlabel='t_1 (Gyr)', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(infall_1_vals, infall_2_vals, metric_vals, metric_name + '_infall1_infall2', xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, t_1_vals, t_2_vals, metric_vals, metric_name + '_t1_t2', xlabel='t_1 (Gyr)', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, infall_1_vals, infall_2_vals, metric_vals, metric_name + '_infall1_infall2', xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)')
     
     # ========== STAR FORMATION EFFICIENCY ==========
-    plot_2d_scatter(sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_sfe_deltasfe', xlabel='SFE', ylabel='Delta SFE')
-    plot_2d_scatter(sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='SFE', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='SFE', ylabel='sigma_2')
-    plot_2d_scatter(delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_deltasfe_t2', xlabel='Delta SFE', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_infall2', xlabel='Delta SFE', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_sfe_deltasfe', xlabel='SFE', ylabel='Delta SFE')
+    plot_2d_scatter(GalGA, sfe_vals, t_2_vals, metric_vals, metric_name + '_sfe_t2', xlabel='SFE', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, sfe_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_sigma2', xlabel='SFE', ylabel='sigma_2')
+    plot_2d_scatter(GalGA, delta_sfe_vals, t_2_vals, metric_vals, metric_name + '_deltasfe_t2', xlabel='Delta SFE', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_infall2', xlabel='Delta SFE', ylabel='infall_2 (Gyr)')
     
     # ========== GALAXY MASS RELATIONS ==========
-    plot_2d_scatter(mgal_vals, sfe_vals, metric_vals, metric_name + '_mgal_sfe', xlabel='M_gal (M_sun)', ylabel='SFE')
-    plot_2d_scatter(mgal_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_sigma2', xlabel='M_gal (M_sun)', ylabel='sigma_2')
-    plot_2d_scatter(mgal_vals, t_2_vals, metric_vals, metric_name + '_mgal_t2', xlabel='M_gal (M_sun)', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(mgal_vals, infall_2_vals, metric_vals, metric_name + '_mgal_infall2', xlabel='M_gal (M_sun)', ylabel='infall_2 (Gyr)')
+    plot_2d_scatter(GalGA, mgal_vals, sfe_vals, metric_vals, metric_name + '_mgal_sfe', xlabel='M_gal (M_sun)', ylabel='SFE')
+    plot_2d_scatter(GalGA, mgal_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_sigma2', xlabel='M_gal (M_sun)', ylabel='sigma_2')
+    plot_2d_scatter(GalGA, mgal_vals, t_2_vals, metric_vals, metric_name + '_mgal_t2', xlabel='M_gal (M_sun)', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, mgal_vals, infall_2_vals, metric_vals, metric_name + '_mgal_infall2', xlabel='M_gal (M_sun)', ylabel='infall_2 (Gyr)')
     
     # ========== IMF AND STELLAR PARAMETERS ==========
-    plot_2d_scatter(imf_upper_vals, sfe_vals, metric_vals, metric_name + '_imf_sfe', xlabel='IMF Upper (M_sun)', ylabel='SFE')
-    plot_2d_scatter(imf_upper_vals, t_2_vals, metric_vals, metric_name + '_imf_t2', xlabel='IMF Upper (M_sun)', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(imf_upper_vals, mgal_vals, metric_vals, metric_name + '_imf_mgal', xlabel='IMF Upper (M_sun)', ylabel='M_gal (M_sun)')
-    plot_2d_scatter(nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF Upper (M_sun)')
+    plot_2d_scatter(GalGA, imf_upper_vals, sfe_vals, metric_vals, metric_name + '_imf_sfe', xlabel='IMF Upper (M_sun)', ylabel='SFE')
+    plot_2d_scatter(GalGA, imf_upper_vals, t_2_vals, metric_vals, metric_name + '_imf_t2', xlabel='IMF Upper (M_sun)', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, imf_upper_vals, mgal_vals, metric_vals, metric_name + '_imf_mgal', xlabel='IMF Upper (M_sun)', ylabel='M_gal (M_sun)')
+    plot_2d_scatter(GalGA, nb_vals, imf_upper_vals, metric_vals, metric_name + '_nb_imf', xlabel='SN1a per Solar Mass', ylabel='IMF Upper (M_sun)')
     
     # ========== SN1A PARAMETERS ==========
-    plot_2d_scatter(nb_vals, sfe_vals, metric_vals, metric_name + '_nb_sfe', xlabel='SN1a per Solar Mass', ylabel='SFE')
-    plot_2d_scatter(nb_vals, t_2_vals, metric_vals, metric_name + '_nb_t2', xlabel='SN1a per Solar Mass', ylabel='t_2 (Gyr)')
-    plot_2d_scatter(nb_vals, mgal_vals, metric_vals, metric_name + '_nb_mgal', xlabel='SN1a per Solar Mass', ylabel='M_gal (M_sun)')
-    plot_2d_scatter(nb_vals, sigma_2_vals, metric_vals, metric_name + '_nb_sigma2', xlabel='SN1a per Solar Mass', ylabel='sigma_2')
+    plot_2d_scatter(GalGA, nb_vals, sfe_vals, metric_vals, metric_name + '_nb_sfe', xlabel='SN1a per Solar Mass', ylabel='SFE')
+    plot_2d_scatter(GalGA, nb_vals, t_2_vals, metric_vals, metric_name + '_nb_t2', xlabel='SN1a per Solar Mass', ylabel='t_2 (Gyr)')
+    plot_2d_scatter(GalGA, nb_vals, mgal_vals, metric_vals, metric_name + '_nb_mgal', xlabel='SN1a per Solar Mass', ylabel='M_gal (M_sun)')
+    plot_2d_scatter(GalGA, nb_vals, sigma_2_vals, metric_vals, metric_name + '_nb_sigma2', xlabel='SN1a per Solar Mass', ylabel='sigma_2')
 
     # ========== INFALL-FOCUSED 3D PLOTS ==========
     # Primary infall relationships
-    plot_3d_scatter(sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_infall2_complete', 
+    plot_3d_scatter(GalGA, sigma_2_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_infall2_complete',
                    xlabel='sigma_2', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_timing_comparison', 
+    plot_3d_scatter(GalGA, t_1_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_timing_comparison',
                    xlabel='t_1 (Gyr)', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(infall_1_vals, infall_2_vals, sigma_2_vals, metric_vals, metric_name + '_infall_timescales', 
+    plot_3d_scatter(GalGA, infall_1_vals, infall_2_vals, sigma_2_vals, metric_vals, metric_name + '_infall_timescales',
                    xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)', zlabel='sigma_2')
     
     # ========== SFE-FOCUSED 3D PLOTS ==========
-    plot_3d_scatter(sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sfe_evolution', 
+    plot_3d_scatter(GalGA, sfe_vals, delta_sfe_vals, infall_2_vals, metric_vals, metric_name + '_sfe_evolution',
                    xlabel='SFE', ylabel='Delta SFE', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sfe_timing', 
+    plot_3d_scatter(GalGA, sfe_vals, t_1_vals, infall_2_vals, metric_vals, metric_name + '_sfe_timing',
                    xlabel='SFE', ylabel='t_1 (Gyr)', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(sfe_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_infall2_params', 
+    plot_3d_scatter(GalGA, sfe_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_sfe_infall2_params',
                    xlabel='SFE', ylabel='t_2 (Gyr)', zlabel='sigma_2')
-    plot_3d_scatter(delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_timing', 
+    plot_3d_scatter(GalGA, delta_sfe_vals, t_2_vals, infall_2_vals, metric_vals, metric_name + '_deltasfe_timing',
                    xlabel='Delta SFE', ylabel='t_2 (Gyr)', zlabel='infall_2 (Gyr)')
     
     # ========== GALAXY MASS-FOCUSED 3D PLOTS ==========
-    plot_3d_scatter(mgal_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_mgal_sfe_infall', 
+    plot_3d_scatter(GalGA, mgal_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_mgal_sfe_infall',
                    xlabel='M_gal (M_sun)', ylabel='SFE', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(mgal_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_infall2_params', 
+    plot_3d_scatter(GalGA, mgal_vals, t_2_vals, sigma_2_vals, metric_vals, metric_name + '_mgal_infall2_params',
                    xlabel='M_gal (M_sun)', ylabel='t_2 (Gyr)', zlabel='sigma_2')
-    plot_3d_scatter(mgal_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_mgal_sfe_evolution', 
+    plot_3d_scatter(GalGA, mgal_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_mgal_sfe_evolution',
                    xlabel='M_gal (M_sun)', ylabel='SFE', zlabel='Delta SFE')
     
     # ========== STELLAR/IMF-FOCUSED 3D PLOTS ==========
-    plot_3d_scatter(imf_upper_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_imf_sfe_infall', 
+    plot_3d_scatter(GalGA, imf_upper_vals, sfe_vals, infall_2_vals, metric_vals, metric_name + '_imf_sfe_infall',
                    xlabel='IMF Upper (M_sun)', ylabel='SFE', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(nb_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_stellar_params_infall', 
+    plot_3d_scatter(GalGA, nb_vals, imf_upper_vals, infall_2_vals, metric_vals, metric_name + '_stellar_params_infall',
                    xlabel='SN1a per Solar Mass', ylabel='IMF Upper (M_sun)', zlabel='infall_2 (Gyr)')
-    plot_3d_scatter(nb_vals, sfe_vals, t_2_vals, metric_vals, metric_name + '_sn1a_sfe_timing', 
+    plot_3d_scatter(GalGA, nb_vals, sfe_vals, t_2_vals, metric_vals, metric_name + '_sn1a_sfe_timing',
                    xlabel='SN1a per Solar Mass', ylabel='SFE', zlabel='t_2 (Gyr)')
     
     # ========== CROSS-PARAMETER EXPLORATION ==========
-    plot_3d_scatter(sigma_2_vals, sfe_vals, mgal_vals, metric_vals, metric_name + '_sigma_sfe_mgal', 
+    plot_3d_scatter(GalGA, sigma_2_vals, sfe_vals, mgal_vals, metric_vals, metric_name + '_sigma_sfe_mgal',
                    xlabel='sigma_2', ylabel='SFE', zlabel='M_gal (M_sun)')
-    plot_3d_scatter(t_1_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_t1_sfe_evolution', 
+    plot_3d_scatter(GalGA, t_1_vals, sfe_vals, delta_sfe_vals, metric_vals, metric_name + '_t1_sfe_evolution',
                    xlabel='t_1 (Gyr)', ylabel='SFE', zlabel='Delta SFE')
-    plot_3d_scatter(infall_1_vals, infall_2_vals, sfe_vals, metric_vals, metric_name + '_infall_timescales_sfe', 
+    plot_3d_scatter(GalGA, infall_1_vals, infall_2_vals, sfe_vals, metric_vals, metric_name + '_infall_timescales_sfe',
                    xlabel='infall_1 (Gyr)', ylabel='infall_2 (Gyr)', zlabel='SFE')
-
-
 
     # 5. Walker evolution plots
     print("Generating walker evolution plots...")
     param_names = ["sigma_2", "t_2", "infall_2", "sfe", "delta_sfe"]
     param_indices = [5, 7, 9, 10, 11]
-    plot_walker_history(GalGA.walker_history, param_names, param_indices)
-    
+    plot_walker_history(GalGA, GalGA.walker_history, param_names, param_indices)
+
     # 6. Plot loss history for each walker
     print("Generating walker loss history plots...")
 
     for metric in ['ks', 'huber','cosine', 'log_cosh', 'fitness', 'age_meta_fitness', 'physics_penalty']:
-        plot_walker_loss_history(GalGA.walker_history, results_file, loss_metric=metric)
+        plot_walker_loss_history(GalGA, GalGA.walker_history, results_file, loss_metric=metric)
         
-        plot_multiple_success_thresholds(GalGA.walker_history, results_csv=results_file, thresholds=[0.01, 0.1, 0.001], loss_metric=metric)
-
+        plot_multiple_success_thresholds(GalGA, GalGA.walker_history, results_csv=results_file, thresholds=[0.01, 0.1, 0.001], loss_metric=metric)
 
     # 7. Create 3D animation
     #print("Generating 3D animation...")
-    #create_3d_animation(GalGA.walker_history)
-
+    #create_3d_animation(GalGA.walker_history, GalGA.output_path)
 
     # Generate the omni info figure
     print("Generating dashboard figure...")
     plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, 
                           Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
                           feh, normalized_count, df)
+
+
+    plot_omni_figure(GalGA, Fe_H, age_Joyce, age_Bensby, 
+                      Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe,
+                      feh, normalized_count, df)
+
+
+
     
     print("Omni info figure generated!")
 
-
     # FIXED: Import age_meta and pass DataFrame instead of string
     # Pass the DataFrame (df) instead of the file path string (results_file)
-    age_meta.plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=df, save_path='GA/Age_FeH_detailed_results.png', n_bins=10)
+    age_meta.plot_age_feh_detailed(GalGA, Fe_H, age_Joyce, age_Bensby, results_df=df, n_bins=10)
 
-    print("All plotting complete! Check the GA directory for results.")
+    print("Generating Age-Metallicity curves with residuals...")
+    age_meta.plot_age_metallicity_curves(GalGA, Fe_H, age_Joyce, age_Bensby, df)
+    
+
+
+    print("All plotting complete! Check the output directory for results.")
     print(f"Generated parameter space exploration plots:")
     print(f"- {len(metrics_dict)} metrics × 24 2D plots = {len(metrics_dict) * 24} 2D scatter plots")
     print(f"- {len(metrics_dict)} metrics × 16 3D plots = {len(metrics_dict) * 16} 3D scatter plots")

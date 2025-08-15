@@ -93,70 +93,51 @@ def _analyze_voronoi_2d(GA_instance, population, param1_idx, param2_idx,
         
         points.append([norm1, norm2])
     
-    points = np.array(points)
-    
-    # Handle edge case
-    if len(points) < 4:
-        return []
-    
-    try:
-        # Create Voronoi diagram
-        vor = Voronoi(points)
-        
-        # Find largest finite regions (indicating sparse areas)
-        large_regions = []
-        
-        for i, region in enumerate(vor.regions):
-            if len(region) > 0 and -1 not in region:  # Valid finite region
-                vertices = vor.vertices[region]
-                if len(vertices) >= 3:  # Need at least 3 vertices for area calculation
-                    # Calculate area
-                    area = _polygon_area(vertices)
-                    
-                    # Calculate centroid
-                    centroid = np.mean(vertices, axis=0)
-                    
-                    # Only consider regions within [0,1] bounds
-                    if (0 <= centroid[0] <= 1) and (0 <= centroid[1] <= 1):
-                        large_regions.append({
-                            'area': area,
-                            'centroid_norm': centroid,
-                            'param1_name': param1_name,
-                            'param2_name': param2_name,
-                            'param1_idx': param1_idx,
-                            'param2_idx': param2_idx
-                        })
-        
-        # Sort by area and return largest regions
-        large_regions.sort(key=lambda x: x['area'], reverse=True)
-        
-        # Convert back to parameter space
-        sparse_regions = []
-        for region in large_regions[:n_regions_per_pair]:
-            # Denormalize centroid
-            min1, max1 = GA_instance.get_param_bounds(param1_idx)
-            min2, max2 = GA_instance.get_param_bounds(param2_idx)
-            
-            param1_val = min1 + region['centroid_norm'][0] * (max1 - min1)
-            param2_val = min2 + region['centroid_norm'][1] * (max2 - min2)
-            
-            sparse_regions.append({
-                'target_params': {
-                    param1_name: param1_val,
-                    param2_name: param2_val
-                },
-                'area': region['area'],
-                'param_indices': {
-                    param1_name: param1_idx,
-                    param2_name: param2_idx
-                }
-            })
-        
-        return sparse_regions
-        
-    except Exception as e:
-        print(f"Voronoi analysis failed for {param1_name}-{param2_name}: {e}")
-        return []
+
+        if len(points) < 4:
+            return []
+
+        try:
+            vor = Voronoi(points)
+
+            # 1) Keep only finite vertices inside the [0,1]^2 box
+            verts = []
+            for v in vor.vertices:
+                if 0.0 <= v[0] <= 1.0 and 0.0 <= v[1] <= 1.0:
+                    verts.append(v)
+            if not verts:
+                return []
+
+            verts = np.array(verts)
+
+            # 2) For each vertex, compute distance to nearest sample (largest empty circle radius)
+            #    That distance is the "emptiness" measure we want to maximize.
+            from scipy.spatial import cKDTree
+            tree = cKDTree(points)
+            dists, _ = tree.query(verts, k=1)
+            # Rank by distance descending (emptiest first)
+            order = np.argsort(-dists)
+            top = verts[order[:n_regions_per_pair]]
+
+            # 3) Denormalize to parameter space
+            min1, max1 = GA_instance.get_param_bounds(p1_idx)
+            min2, max2 = GA_instance.get_param_bounds(p2_idx)
+
+            sparse_regions = []
+            for v in top:
+                param1_val = min1 + v[0] * (max1 - min1)
+                param2_val = min2 + v[1] * (max2 - min2)
+                sparse_regions.append({
+                    'target_params': {p1_name: param1_val, p2_name: param2_val},
+                    'area': None,  # not used anymore
+                    'param_indices': {p1_name: p1_idx, p2_name: p2_idx}
+                })
+
+            return sparse_regions
+
+        except Exception as e:
+            print(f"Voronoi analysis failed for {p1_name}-{p2_name}: {e}")
+            return []
 
 
 def _polygon_area(vertices):

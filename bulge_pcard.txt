@@ -30,7 +30,7 @@ iniab_header: 'yield_tables/iniabu/'
 # References: Kobayashi et al. (2020, ApJ, 900, 179) for metallicity-dependent SN Ia in GCE.
 sn1a_header: 'yield_tables/'
 
-output_path: 'bc_test/'
+output_path: 'bc_joyce_09/'
 
 ##################yeah ##########################################
 #
@@ -124,13 +124,17 @@ physical_constraints_freq: 0
 # Loss metric for age-metallicity relation fitting
 # Available options: 'mae', 'rmse', 'weighted_mae', 'weighted_rmse', 'huber_loss', 
 # 'log_likelihood', 'aic', 'bic', 'correlation', 'spearman_correlation'
-obs_age_data_loss_metric: 'correlation'
+obs_age_data_loss_metric: 'mae'
+
+#'joyce' or 'bensby'
+obs_age_data_target: 'joyce'
+
 
 # Weight for combining MDF loss vs age-metallicity loss
 # Range: 0.0 to 1.0, where higher values favor MDF fitting
 # 0.8 = 80% MDF loss + 20% age-metallicity loss
 # 0.5 = equal weighting
-mdf_vs_age_weight: 0.001
+mdf_vs_age_weight: 0.1
 
 ############################################################
 #

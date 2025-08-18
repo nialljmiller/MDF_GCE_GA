@@ -19,6 +19,8 @@ import checkpoint  # checkpointing utilities
 # Import plotting module
 import mdf_plotting
 from multiprocessing import cpu_count
+import shutil
+import os
 
 
 def load_bensby_data(file_path='data/Bensby_Data.tsv'):
@@ -33,11 +35,15 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 # Adding custom paths
 sys.path.append('../')
 
+
 # Parse parameters from the 'bulge_pcard.txt' file
 params = Gal_GA.parse_inlist('bulge_pcard.txt')
 
 # Assign parsed parameters to variables
 output_path = params['output_path']
+os.makedirs(output_path, exist_ok=True)
+shutil.copy('bulge_pcard.txt', os.path.join(output_path, 'bulge_pcard.txt'))
+
 obs_file = params['obs_file']
 iniab_header = params['iniab_header']
 sn1a_header = params['sn1a_header']
@@ -72,6 +78,7 @@ tournament_size = params['tournament_size']
 selection_threshold = params['selection_threshold']
 
 obs_age_data_loss_metric = params['obs_age_data_loss_metric']
+obs_age_data_target = params['obs_age_data_target']
 mdf_vs_age_weight = params['mdf_vs_age_weight']
 
 
@@ -206,6 +213,7 @@ def run_ga(cp_manager):
         obs_age_data=obs_age_data,
         loss_metric=loss_metric,
         obs_age_data_loss_metric = obs_age_data_loss_metric,
+        obs_age_data_target = obs_age_data_target,
         mdf_vs_age_weight = mdf_vs_age_weight,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
@@ -320,6 +328,7 @@ def load_ga_for_plotting():
         obs_age_data=obs_age_data,
         loss_metric=loss_metric,
         obs_age_data_loss_metric = obs_age_data_loss_metric,
+        obs_age_data_target = obs_age_data_target,
         mdf_vs_age_weight = mdf_vs_age_weight,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,

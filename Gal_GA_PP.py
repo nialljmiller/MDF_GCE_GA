@@ -105,7 +105,7 @@ class GalacticEvolutionGA:
     def __init__(self, output_path, sn1a_header, iniab_header, sigma_2_list, tmax_1_list, tmax_2_list, infall_timescale_1_list, 
                 infall_timescale_2_list, comp_array, imf_array, sfe_array, delta_sfe_array, imf_upper_limits, sn1a_assumptions,
                 stellar_yield_assumptions, mgal_values, nb_array, sn1a_rates, timesteps,A1, A2, feh, normalized_count, obs_age_data,
-                loss_metric='huber', obs_age_data_loss_metric = 'None', mdf_vs_age_weight = 1, fancy_mutation = 'gaussian', 
+                loss_metric='huber', obs_age_data_loss_metric = 'None', obs_age_data_target = 'joyce', mdf_vs_age_weight = 1, fancy_mutation = 'gaussian', 
                 shrink_range = False, tournament_size = 3, lambda_diversity = 0.01, threshold = -1, cxpb=0.5, mutpb=0.5, 
                 gaussian_sigma_scale=0.01, crossover_noise_fraction=0.05, perturbation_strength=0.1, physical_constraints_freq = 10, exploration_steps=10, PP = False):
 
@@ -155,6 +155,7 @@ class GalacticEvolutionGA:
 
         self.loss_metric = loss_metric
         self.obs_age_data_loss_metric = obs_age_data_loss_metric
+        self.obs_age_data_target = obs_age_data_target
         self.mdf_vs_age_weight = mdf_vs_age_weight
 
         self.cxpb=cxpb
@@ -206,7 +207,7 @@ class GalacticEvolutionGA:
         print('OBSERVATIONAL CONSTRAINTS:')
         print(f'├─ Metallicity Distribution: {observational_constraints} observational data points')
         print(f'├─ [Fe/H] Range: [{min(feh):.2f}, {max(feh):.2f}] dex')
-        print(f'├─ Target Diagnostic: Normalized stellar MDF')
+        print(f'├─ AMR target: {self.obs_age_data_target}')
         print(f'└─ Loss Function: {loss_metric.upper()} metric optimization')
         print()
         
@@ -965,7 +966,7 @@ class GalacticEvolutionGA:
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
         if self.obs_age_data_loss_metric is not None:
-            obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='bensby')
+            obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='joyce')
             primary_loss_value = (obs_age_loss_value * (1.0 - self.mdf_vs_age_weight)) + (primary_loss_value * self.mdf_vs_age_weight)
 
 

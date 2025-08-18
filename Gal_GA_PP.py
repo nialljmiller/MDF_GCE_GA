@@ -966,7 +966,7 @@ class GalacticEvolutionGA:
         primary_loss_value = self.selected_loss_function(self,theory_count_array)
 
         if self.obs_age_data_loss_metric is not None:
-            obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset='joyce')
+            obs_age_loss_value = age_meta_loss(self, age_x_data, age_y_data, self.obs_age_data, self.obs_age_data_loss_metric, dataset=self.obs_age_data_target)
             primary_loss_value = (obs_age_loss_value * (1.0 - self.mdf_vs_age_weight)) + (primary_loss_value * self.mdf_vs_age_weight)
 
 

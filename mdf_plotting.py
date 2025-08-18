@@ -508,10 +508,6 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     gs = GridSpec(4, 6, figure=fig, hspace=0.3, wspace=0.3,
                   left=0.05, right=0.98, top=0.95, bottom=0.05)
     
-    # Add main title
-    fig.suptitle('Best-Fit Galactic Chemical Evolution Model Dashboard', 
-                 fontsize=20, fontweight='bold', y=0.98)
-    
     # =====================================================
     # PANEL 1: MODEL PARAMETERS (Top Left)
     # =====================================================
@@ -616,7 +612,6 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     
     ax_mdf.set_xlabel('[Fe/H]', fontsize=14)
     ax_mdf.set_ylabel('Normalized Number Density', fontsize=14)
-    ax_mdf.set_title('Metallicity Distribution Function', fontsize=16, fontweight='bold')
     ax_mdf.set_xlim(-2, 1)
     ax_mdf.legend(fontsize=12)
     ax_mdf.grid(True, alpha=0.3)
@@ -648,7 +643,6 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
     
     ax_age.set_xlabel('Age (Gyr)', fontsize=14)
     ax_age.set_ylabel('[Fe/H]', fontsize=14)
-    ax_age.set_title('Age-Metallicity Relation', fontsize=16, fontweight='bold')
     ax_age.set_xlim(0, 14)
     ax_age.set_ylim(-2, 1)
     ax_age.legend(fontsize=11)
@@ -691,7 +685,6 @@ def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_F
         
         ax_alpha.set_xlabel('[Fe/H]', fontsize=12)
         ax_alpha.set_ylabel(f'[{element}/Fe]', fontsize=12)
-        ax_alpha.set_title(f'{element} Abundance', fontsize=14, fontweight='bold')
         ax_alpha.set_xlim(-2, 1)
         ax_alpha.set_ylim(-0.6, 0.8)
         ax_alpha.legend(fontsize=10, loc='upper right')
@@ -1021,7 +1014,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
         if p in df.columns and 'fitness' in df.columns:
             try:
                 plot_marginal_loss(
-                    df, p, losscol='fitness', bins=60, agg='median',
+                    df, p, losscol='fitness', bins=50, agg='median',
                     save_path=os.path.join(analysis_dir, f'marginal_{p}.png')
                 )
             except Exception as e:
@@ -1034,10 +1027,10 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
                 out_base = os.path.join(analysis_dir, f"binned_fitness_{xcol}_{ycol}")
                 Z, xedges, yedges, N = plot_binned_loss(
                     GalGA, df, xcol=xcol, ycol=ycol, losscol='fitness',
-                    bins=(50, 50), agg='median', min_per_bin=6, smooth_sigma=1.0,
-                    cmap='viridis', save_path=out_base + ".png"
+                    bins=(50, 50), agg='median', min_per_bin=1, smooth_sigma=1.0,
+                    cmap='rainbow', save_path=out_base + ".png"
                 )
-                plot_delta_and_gradient(
+                plot_delta_and_gradient(xcol, ycol,
                     Z, xedges, yedges, save_prefix=out_base, quiver_step=3
                 )
             except Exception as e:

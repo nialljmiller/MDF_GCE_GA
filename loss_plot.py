@@ -106,8 +106,7 @@ def plot_walker_loss_history(GalGA, walker_history, results_csv='simulation_resu
     ax.plot(generations, median, color='black', label='Median', linewidth=2)
     ax.fill_between(generations, lower, upper, color='blue', alpha=0.2, label='25–75% range')
 
-    ax.set_title(f"Walker Evolution: {loss_metric.upper()}")
-    ax.set_xlabel("Generation")
+    ax.set_xlabel(f"Generation ({loss_metric.upper()})")
     ax.set_ylabel(f"{loss_metric.upper()}")
     ax.grid(True)
     ax.legend(loc='best')
@@ -214,7 +213,6 @@ def plot_walker_success_rate(walker_history, results_csv='simulation_results.csv
     # Formatting
     ax.set_xlabel('Generation')
     ax.set_ylabel(f'Fraction of Walkers with {loss_metric.upper()} < {threshold}')
-    ax.set_title(f'Walker Success Rate Over Generations\n({loss_metric.upper()} threshold = {threshold})')
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -313,7 +311,6 @@ def plot_multiple_success_thresholds(GalGA, walker_history, results_csv='simulat
     
     ax.set_xlabel('Generation')
     ax.set_ylabel(f'Fraction of Walkers Below Threshold ({loss_metric.upper()})')
-    ax.set_title(f'Walker Success Rates for Multiple Thresholds')
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3)
     ax.legend(title='Threshold')
@@ -476,7 +473,6 @@ def plot_walker_history(GalGA, walker_history, param_names, param_indices):
 
         ax.set_xlabel("Generation")
         ax.set_ylabel(f"{param_name}")
-        ax.set_title(f"Walker Evolution: {param_name}")
         ax.legend(loc='best')
         ax.grid(True)
 
@@ -585,7 +581,6 @@ def plot_walker_loss_history(GalGA, walker_history, results_csv='simulation_resu
             ax.fill_between(generations[valid_fill], lower[valid_fill], upper[valid_fill], 
                            color='blue', alpha=0.2, label='25–75% range')
 
-    ax.set_title(f"Walker Evolution: {loss_metric.upper()} (Log Scale)")
     ax.set_xlabel("Generation")
     ax.set_ylabel(f"{loss_metric.upper()}")
     
@@ -741,7 +736,6 @@ def plot_multiple_loss_metrics_evolution(GalGA, walker_history, results_csv='sim
                            bbox=dict(boxstyle="round,pad=0.2", facecolor="yellow", alpha=0.7))
 
     axes[-1].set_xlabel("Generation")
-    fig.suptitle("Loss Metric Evolution (Log Scale)", fontsize=16, y=0.98)
     
     plt.tight_layout()
     plt.subplots_adjust(top=0.95)
@@ -844,8 +838,6 @@ def plot_loss_convergence_analysis(GalGA, walker_history, results_csv='simulatio
     ax1.set_xlabel('Generation')
     ax1.set_ylabel(f'{loss_metric.upper()}')
     ax1.set_yscale('log')
-    ax1.set_title(f'Loss Evolution with Convergence Analysis')
-    ax1.legend()
     ax1.grid(True, alpha=0.3)
 
     # 2. Convergence rate analysis
@@ -874,7 +866,6 @@ def plot_loss_convergence_analysis(GalGA, walker_history, results_csv='simulatio
                 ax2.axhline(0, color='red', linestyle='--', alpha=0.5)
                 ax2.set_xlabel('Generation')
                 ax2.set_ylabel('Log Improvement Rate')
-                ax2.set_title('Convergence Rate')
                 ax2.grid(True, alpha=0.3)
 
     # 3. Final distribution analysis
@@ -895,7 +886,6 @@ def plot_loss_convergence_analysis(GalGA, walker_history, results_csv='simulatio
                    label=f'Best: {np.min(final_losses):.4f}')
         ax3.set_xlabel(f'Final {loss_metric.upper()}')
         ax3.set_ylabel('Walker Count')
-        ax3.set_title('Final Loss Distribution')
         ax3.legend()
         ax3.grid(True, alpha=0.3)
 
@@ -911,7 +901,6 @@ def plot_loss_convergence_analysis(GalGA, walker_history, results_csv='simulatio
         ax4.set_xlabel('Generation')
         ax4.set_ylabel('Loss Diversity (Std Dev)')
         ax4.set_yscale('log')
-        ax4.set_title('Population Diversity')
         ax4.grid(True, alpha=0.3)
 
     # 5. Summary statistics
@@ -955,261 +944,295 @@ Performance:
 
 
 
+#!/usr/bin/env python3.8
+################################
+# Fixed plotting functions for MDF_GA
+################################
 
-
-# --- Improved binned maps & deltas (drop-in) ---
-from scipy.stats import binned_statistic_2d, iqr
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import binned_statistic_2d, iqr, gaussian_kde
 from scipy.ndimage import gaussian_filter
-
-def _auto_bins_1d(x, nmax=60, nmin=8):
-    """Freedman–Diaconis with sane guards."""
-    x = np.asarray(x)
-    n = len(x)
-    if n < 50:
-        return max(nmin, int(np.sqrt(n)))  # tiny samples
-    h = 2 * iqr(x, nan_policy='omit') * n ** (-1/3)
-    if not np.isfinite(h) or h <= 0:
-        return max(nmin, min(nmax, int(np.sqrt(n))))
-    bins = int(np.ceil((np.nanmax(x) - np.nanmin(x)) / h))
-    return max(nmin, min(nmax, bins))
-
-def _choose_bins(x, y, bins):
-    if isinstance(bins, tuple):
-        return bins
-    if bins == 'auto':
-            return (_auto_bins_1d(x), _auto_bins_1d(y))
-    if isinstance(bins, int):
-        return (bins, bins)
-    return (_auto_bins_1d(x), _auto_bins_1d(y))
-
-def plot_binned_loss(
-    df, xcol, ycol, losscol='fitness',
-    bins='auto', agg='median', min_per_bin=6, smooth_sigma=1.0,
-    cmap='viridis', hatch_lowN='///', overlay_samples=True,
-    overlay_contours=True, contour_levels=7, scatter_alpha=0.25,
-    save_prefix='GA/analysis/binned'
-):
-    """
-    Creates three figures:
-      1) Aggregated loss heatmap (median/mean/min) with hatching where N<min_per_bin
-      2) Δ-loss (relative to global min over valid bins)
-      3) |∇loss| magnitude + quiver
-    Also overlays sample locations and optional contours.
-
-    Returns: (Z, xedges, yedges, N)
-    """
-    os.makedirs(os.path.dirname(save_prefix), exist_ok=True)
-
-    # data
-    x = np.asarray(df[xcol].values, dtype=float)
-    y = np.asarray(df[ycol].values, dtype=float)
-    z = np.asarray(df[losscol].values, dtype=float)
-
-    bx, by = _choose_bins(x, y, bins)
-
-    # aggregate
-    stat_name = {'median':'median', 'mean':'mean'}.get(agg, 'median')
-    if agg in ('median','mean'):
-        Z, xedges, yedges, _ = binned_statistic_2d(
-            x, y, z, statistic=stat_name, bins=(bx, by)
-        )
-    elif agg == 'min':
-        Z, xedges, yedges, _ = binned_statistic_2d(
-            x, y, z, statistic=np.min, bins=(bx, by)
-        )
-    else:
-        raise ValueError("agg must be 'median', 'mean', or 'min'")
-
-    # counts (for hatching & masking)
-    N, _, _, _ = binned_statistic_2d(x, y, None, statistic='count', bins=(bx, by))
-    Z = Z.astype(float)
-    Z[N < min_per_bin] = np.nan  # mask sparse bins
-
-    # optional smoothing (keep mask)
-    if smooth_sigma and smooth_sigma > 0:
-        Zfilled = np.nanmedian(Z) if np.isfinite(np.nanmedian(Z)) else 0.0
-        Zs = gaussian_filter(np.nan_to_num(Z, nan=Zfilled), smooth_sigma)
-        Z = np.where(np.isnan(Z), np.nan, Zs)
-
-    # convenient centers for overlays
-    Xc = 0.5 * (xedges[:-1] + xedges[1:])
-    Yc = 0.5 * (yedges[:-1] + yedges[1:])
-
-    # common draw helper
-    def _draw_base(fig, ax, data, cbar_label, title):
-        im = ax.pcolormesh(xedges, yedges, data.T, shading='auto', cmap=cmap)
-        cbar = fig.colorbar(im, ax=ax)
-        cbar.set_label(cbar_label)
-        ax.set_xlabel(xcol.replace('_',' '))
-        ax.set_ylabel(ycol.replace('_',' '))
-        ax.set_title(title)
-
-        # hatch low-N bins
-        low = (N < min_per_bin).T
-        if np.any(low) and hatch_lowN:
-            ax.contourf(
-                Xc, Yc, low, levels=[0.5, 1.5],
-                colors='none', hatches=[hatch_lowN], alpha=0
-            )
-            ax.text(0.98, 0.02, f'hatched: N<{min_per_bin}', transform=ax.transAxes,
-                    ha='right', va='bottom', fontsize=9)
-
-        # overlay samples
-        if overlay_samples:
-            ax.scatter(x, y, s=6, c='k', alpha=scatter_alpha, linewidths=0, zorder=3)
-
-        # overlay contours on valid region
-        if overlay_contours:
-            try:
-                valid = np.isfinite(Z)
-                if np.count_nonzero(valid) > 5:
-                    ax.contour(Xc, Yc, Z.T, levels=contour_levels, colors='k',
-                               alpha=0.35, linewidths=0.8)
-            except Exception:
-                pass
-
-        ax.margins(x=0.02, y=0.02)
-        ax.tick_params(direction='out', length=4)
-
-    # 1) aggregated map
-    fig1, ax1 = plt.subplots(figsize=(8.2, 6.2))
-    _draw_base(fig1, ax1, Z, f'{agg.capitalize()} {losscol}',
-               f'{agg.capitalize()} {losscol} in {xcol}–{ycol} space')
-    fig1.savefig(f'{save_prefix}_{xcol}_{ycol}.png', bbox_inches='tight', dpi=200)
-    plt.close(fig1)
-
-    # 2) delta loss relative to best valid bin
-    Zm = np.ma.masked_invalid(Z)
-    if not Zm.mask.all():
-        Zmin = Zm.min()
-        dL = Zm - Zmin
-        fig2, ax2 = plt.subplots(figsize=(8.2, 6.2))
-        _draw_base(fig2, ax2, dL, 'Δ loss (relative to global min)',
-                   f'Delta loss surface ({xcol}–{ycol})')
-        fig2.savefig(f'{save_prefix}_{xcol}_{ycol}_delta.png', bbox_inches='tight', dpi=200)
-        plt.close(fig2)
-
-        # 3) gradient magnitude + quiver
-        Zfill = Zm.filled(np.nanmedian(Zm))
-        gY, gX = np.gradient(Zfill)  # note order (rows, cols)
-        grad_mag = np.sqrt(gX**2 + gY**2)
-        fig3, ax3 = plt.subplots(figsize=(8.2, 6.2))
-        _draw_base(fig3, ax3, grad_mag, '|∇ loss|',
-                   f'Gradient magnitude and direction ({xcol}–{ycol})')
-
-        # quiver on coarse grid
-        step = max(2, int(np.ceil(max(bx, by) / 20)))
-        ax3.quiver(
-            Xc[::step], Yc[::step],
-            gX[::step, ::step].T, gY[::step, ::step].T,
-            color='k', alpha=0.55, pivot='mid', linewidth=0.5, scale_units='xy', scale=1
-        )
-        fig3.savefig(f'{save_prefix}_{xcol}_{ycol}_grad.png', bbox_inches='tight', dpi=200)
-        plt.close(fig3)
-
-    return Z, xedges, yedges, N
-
-
-# ---------- DELTA LOSS & GRADIENT VISUALS ----------
-def plot_delta_and_gradient(Z, xedges, yedges,
-                            save_prefix='GA/analysis/binned_loss',
-                            quiver_step=3):
-    """
-    From a binned loss surface Z, plot:
-      (a) ΔL = Z - Z_min (relative to global min over valid bins)
-      (b) |∇L| magnitude and quiver of gradient (∂L/∂x, ∂L/∂y)
-    """
-    # Build centers
-    Xc = 0.5*(xedges[:-1] + xedges[1:])
-    Yc = 0.5*(yedges[:-1] + yedges[1:])
-
-    # mask invalid
-    Zm = np.ma.masked_invalid(Z)
-    if Zm.mask.all():
-        print("All bins invalid; nothing to plot.")
-        return
-
-    Zmin = Zm.min()
-    dL = Zm - Zmin
-
-    # (a) Delta loss map
-    fig1, ax1 = plt.subplots(figsize=(8,6))
-    im1 = ax1.pcolormesh(xedges, yedges, dL.T, shading='auto', cmap='magma')
-    c1 = fig1.colorbar(im1, ax=ax1)
-    c1.set_label('Δ loss (relative to global min)')
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
-    ax1.set_title('Delta loss surface')
-    plt.tight_layout()
-    fig1.savefig(f'{save_prefix}_delta.png', bbox_inches='tight')
-    plt.close(fig1)
-
-    # (b) Gradient field (finite difference on masked array)
-    # Fill NaNs for gradient calc but keep mask for display
-    Zfill = Zm.filled(np.nanmedian(Zm))
-    # central differences on grid of centers
-    dZdx, dZdy = np.gradient(Zfill)
-    grad_mag = np.sqrt(dZdx**2 + dZdy**2)
-
-    fig2, ax2 = plt.subplots(figsize=(8,6))
-    im2 = ax2.pcolormesh(xedges, yedges, grad_mag.T, shading='auto', cmap='cubehelix')
-    c2 = fig2.colorbar(im2, ax=ax2)
-    c2.set_label('|∇ loss|')
-
-    # quiver on a subsampled grid
-    xs = Xc[::quiver_step]
-    ys = Yc[::quiver_step]
-    U = dZdx[::quiver_step, ::quiver_step].T
-    V = dZdy[::quiver_step, ::quiver_step].T
-    # scale arrows to be readable
-    ax2.quiver(xs, ys, U, V, color='k', alpha=0.6, pivot='mid')
-
-    ax2.set_xlabel('x')
-    ax2.set_ylabel('y')
-    ax2.set_title('Gradient magnitude and direction')
-    plt.tight_layout()
-    fig2.savefig(f'{save_prefix}_grad.png', bbox_inches='tight')
-    plt.close(fig2)
 
 def plot_marginal_loss(df, param, losscol='fitness', bins=60,
                        agg='median', save_path='GA/analysis/marginal_loss.png'):
     """
     1D marginal: aggregated loss vs a single parameter, with sample counts.
+    
+    Fixed version that properly handles the aggregation function.
     """
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     x = df[param].values
     z = df[losscol].values
-
-    if agg == 'mean':
-        stat = 'mean'
-    elif agg == 'median':
-        stat = 'median'
-    elif agg == 'min':
-        stat = np.min
-    else:
-        raise ValueError("agg must be 'mean' | 'median' | 'min'")
-
-    # Bin centers
-    counts, edges = np.histogram(x, bins=bins)
-    idx = np.digitize(x, edges) - 1
-    idx = np.clip(idx, 0, bins-1)
-
+    
+    # Create bins
+    bin_edges = np.linspace(np.nanmin(x), np.nanmax(x), bins + 1)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    
+    # Bin the data
+    idx = np.digitize(x, bin_edges) - 1
+    idx = np.clip(idx, 0, bins - 1)
+    
     # Aggregate per bin
     vals = [[] for _ in range(bins)]
     for ii, zz in zip(idx, z):
-        vals[ii].append(zz)
-    agg_vals = np.array([stat(v) if len(v) else np.nan for v in vals])
-    centers = 0.5*(edges[:-1] + edges[1:])
-
-    fig, ax1 = plt.subplots(figsize=(8,4))
-    ax1.plot(centers, agg_vals, '-', lw=2)
-    ax1.set_xlabel(param)
+        if 0 <= ii < bins and np.isfinite(zz):
+            vals[ii].append(zz)
+    
+    # Apply aggregation function
+    if agg == 'mean':
+        agg_vals = np.array([np.mean(v) if len(v) > 0 else np.nan for v in vals])
+    elif agg == 'median':
+        agg_vals = np.array([np.median(v) if len(v) > 0 else np.nan for v in vals])
+    elif agg == 'min':
+        agg_vals = np.array([np.min(v) if len(v) > 0 else np.nan for v in vals])
+    else:
+        raise ValueError("agg must be 'mean', 'median', or 'min'")
+    
+    # Count samples per bin
+    counts = np.array([len(v) for v in vals])
+    
+    # Create plot
+    fig, ax1 = plt.subplots(figsize=(8, 4))
+    
+    # Plot aggregated values
+    valid_mask = np.isfinite(agg_vals)
+    ax1.plot(bin_centers[valid_mask], agg_vals[valid_mask], 'b-', lw=2, label=f'{agg} {losscol}')
+    ax1.set_xlabel(param.replace('_', ' '))
     ax1.set_ylabel(f'{agg} {losscol}')
-
+    ax1.grid(True, alpha=0.3)
+    
+    # Add histogram on secondary y-axis
     ax2 = ax1.twinx()
-    ax2.bar(centers, counts[:-1], width=np.diff(edges), alpha=0.2, edgecolor='none')
+    ax2.bar(bin_centers, counts, width=np.diff(bin_edges), alpha=0.2, 
+            edgecolor='none', color='gray', label='samples/bin')
     ax2.set_ylabel('samples / bin')
-
+    ax2.set_ylim(0, np.max(counts) * 1.1)
+    
+    # Add legends
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    
     plt.tight_layout()
-    fig.savefig(save_path, bbox_inches='tight')
+    plt.savefig(save_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
+    print(f"Saved marginal plot: {save_path}")
+
+
+def plot_binned_loss(GalGA, df, xcol, ycol, losscol='fitness',
+                     bins=(50, 50), agg='median', min_per_bin=6, smooth_sigma=1.0,
+                     cmap='viridis', save_path=None):
+    """
+    Fixed version of plot_binned_loss that properly handles parameters.
+    
+    Creates a binned heatmap of loss values with proper parameter handling.
+    """
+    if save_path is None:
+        save_path = os.path.join(GalGA.output_path, 'analysis', f'binned_{losscol}_{xcol}_{ycol}.png')
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Extract data
+    x = np.asarray(df[xcol].values, dtype=float)
+    y = np.asarray(df[ycol].values, dtype=float)
+    z = np.asarray(df[losscol].values, dtype=float)
+    
+    # Remove invalid data
+    valid_mask = np.isfinite(x) & np.isfinite(y) & np.isfinite(z)
+    x, y, z = x[valid_mask], y[valid_mask], z[valid_mask]
+    
+    if len(x) == 0:
+        print(f"No valid data for {xcol} vs {ycol}")
+        return None, None, None, None
+    
+    # Ensure bins is a tuple
+    if isinstance(bins, int):
+        bins = (bins, bins)
+    elif not isinstance(bins, tuple):
+        bins = (50, 50)
+    
+    # Aggregate data in bins
+    if agg == 'mean':
+        Z, xedges, yedges, _ = binned_statistic_2d(x, y, z, statistic='mean', bins=bins)
+    elif agg == 'median':
+        Z, xedges, yedges, _ = binned_statistic_2d(x, y, z, statistic='median', bins=bins)
+    elif agg == 'min':
+        Z, xedges, yedges, _ = binned_statistic_2d(x, y, z, statistic=np.min, bins=bins)
+    else:
+        Z, xedges, yedges, _ = binned_statistic_2d(x, y, z, statistic='median', bins=bins)
+    
+    # Count samples per bin
+    N, _, _, _ = binned_statistic_2d(x, y, None, statistic='count', bins=bins)
+    
+    # Mask bins with insufficient data
+    Z = Z.astype(float)
+    Z[N < min_per_bin] = np.nan
+    
+    # Optional smoothing
+    if smooth_sigma and smooth_sigma > 0:
+        Zfilled = np.nanmedian(Z) if np.isfinite(np.nanmedian(Z)) else 0.0
+        Zs = gaussian_filter(np.nan_to_num(Z, nan=Zfilled), smooth_sigma)
+        Z = np.where(np.isnan(Z), np.nan, Zs)
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Plot heatmap
+    im = ax.pcolormesh(xedges, yedges, Z.T, shading='auto', cmap=cmap)
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label(f'{agg} {losscol}')
+    
+    # Add contours
+    Xc = 0.5 * (xedges[:-1] + xedges[1:])
+    Yc = 0.5 * (yedges[:-1] + yedges[1:])
+    
+    try:
+        valid_contour = np.isfinite(Z)
+        if np.count_nonzero(valid_contour) > 5:
+            ax.contour(Xc, Yc, Z.T, levels=7, colors='k', alpha=0.3, linewidths=0.8)
+    except Exception:
+        pass
+    
+    # Overlay sample points
+    ax.scatter(x, y, s=6, c='k', alpha=0.1, linewidths=0, zorder=3)
+    
+    # Mark low-count bins
+    low_count = (N < min_per_bin).T
+    if np.any(low_count):
+        ax.contourf(Xc, Yc, low_count, levels=[0.5, 1.5], 
+                    colors='none', hatches=['///'], alpha=0)
+        ax.text(0.98, 0.02, f'hatched: N<{min_per_bin}', transform=ax.transAxes,
+                ha='right', va='bottom', fontsize=9, 
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8))
+    
+    ax.set_xlabel(xcol.replace('_', ' '))
+    ax.set_ylabel(ycol.replace('_', ' '))
+    
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    
+    print(f"Saved binned loss plot: {save_path}")
+    return Z, xedges, yedges, N
+
+
+def plot_delta_and_gradient(xcol, ycol, Z, xedges, yedges, save_prefix='GA/analysis/binned_loss', quiver_step=3):
+    """
+    Fixed version of delta and gradient plotting.
+    
+    From a binned loss surface Z, plot:
+      (a) ΔL = Z - Z_min (relative to global min over valid bins)
+      (b) |∇L| magnitude and quiver of gradient (∂L/∂x, ∂L/∂y)
+    """
+    # Build centers
+    Xc = 0.5 * (xedges[:-1] + xedges[1:])
+    Yc = 0.5 * (yedges[:-1] + yedges[1:])
+    
+    # Mask invalid
+    Zm = np.ma.masked_invalid(Z)
+    if Zm.mask.all():
+        print("All bins invalid; nothing to plot.")
+        return
+    
+    Zmin = Zm.min()
+    dL = Zm - Zmin
+    
+    # (a) Delta loss map
+    fig1, ax1 = plt.subplots(figsize=(8, 6))
+    im1 = ax1.pcolormesh(xedges, yedges, dL.T, shading='auto', cmap='magma')
+    c1 = fig1.colorbar(im1, ax=ax1)
+    c1.set_label('Δ loss (relative to global min)')
+    ax1.set_xlabel(xcol)
+    ax1.set_ylabel(ycol)
+    plt.tight_layout()
+    fig1.savefig(f'{save_prefix}_delta.png', bbox_inches='tight', dpi=200)
+    plt.close(fig1)
+    
+    # (b) Gradient field
+    Zfill = Zm.filled(np.nanmedian(Zm))
+    dZdx, dZdy = np.gradient(Zfill)
+    grad_mag = np.sqrt(dZdx**2 + dZdy**2)
+    
+    fig2, ax2 = plt.subplots(figsize=(8, 6))
+    im2 = ax2.pcolormesh(xedges, yedges, grad_mag.T, shading='auto', cmap='cubehelix')
+    c2 = fig2.colorbar(im2, ax=ax2)
+    c2.set_label('|∇ loss|')
+    
+    # Quiver on subsampled grid
+    xs = Xc[::quiver_step]
+    ys = Yc[::quiver_step]
+    U = dZdx[::quiver_step, ::quiver_step].T
+    V = dZdy[::quiver_step, ::quiver_step].T
+    ax2.quiver(xs, ys, U, V, color='k', alpha=0.6, pivot='mid')
+    
+    ax2.set_xlabel(xcol)
+    ax2.set_ylabel(ycol)
+    plt.tight_layout()
+    fig2.savefig(f'{save_prefix}_grad.png', bbox_inches='tight', dpi=200)
+    plt.close(fig2)
+    
+    print(f"Saved delta and gradient plots: {save_prefix}_delta.png, {save_prefix}_grad.png")
+
+
+# Example of how to fix the calling code in generate_all_plots:
+def fixed_analysis_section(GalGA, df, analysis_dir):
+    """
+    Fixed version of the analysis section that was causing errors.
+    """
+    # Key pairs we care about most
+    key_pairs = [
+        ('t_2', 'infall_2'),
+        ('sigma_2', 't_2'),
+        ('sigma_2', 'infall_2'),
+    ]
+
+    # 1D marginals (fixed function calls)
+    for p in {'t_2', 'infall_2', 'sigma_2'}:
+        if p in df.columns and 'fitness' in df.columns:
+            try:
+                plot_marginal_loss(
+                    df, p, losscol='fitness', bins=60, agg='median',
+                    save_path=os.path.join(analysis_dir, f'marginal_{p}.png')
+                )
+            except Exception as e:
+                print(f"[marginal {p}] skipped: {e}")
+
+    # 2D binned surfaces + Δ-loss + gradient fields (fixed function calls)
+    for xcol, ycol in key_pairs:
+        if all(c in df.columns for c in [xcol, ycol, 'fitness']):
+            try:
+                out_base = os.path.join(analysis_dir, f"binned_fitness_{xcol}_{ycol}")
+                Z, xedges, yedges, N = plot_binned_loss(
+                    GalGA, df, xcol=xcol, ycol=ycol, losscol='fitness',
+                    bins=(50, 50), agg='median', min_per_bin=6, smooth_sigma=1.0,
+                    save_path=out_base + ".png"
+                )
+                if Z is not None:
+                    plot_delta_and_gradient(
+                        Z, xedges, yedges, save_prefix=out_base, quiver_step=3
+                    )
+            except Exception as e:
+                print(f"[binned {xcol} vs {ycol}] skipped: {e}")
+        else:
+            missing = [c for c in [xcol, ycol, 'fitness'] if c not in df.columns]
+            print(f"[binned {xcol} vs {ycol}] missing columns: {missing}")
+
+
+def _auto_bins_1d(x, nmax=60, nmin=8):
+    """Freedman–Diaconis rule with sane guards."""
+    x = np.asarray(x)
+    x = x[np.isfinite(x)]
+    n = len(x)
+    if n < 50:
+        return max(nmin, int(np.sqrt(n)))
+    
+    try:
+        h = 2 * iqr(x, nan_policy='omit') * n ** (-1/3)
+        if not np.isfinite(h) or h <= 0:
+            return max(nmin, min(nmax, int(np.sqrt(n))))
+        bins = int(np.ceil((np.nanmax(x) - np.nanmin(x)) / h))
+        return max(nmin, min(nmax, bins))
+    except:
+        return max(nmin, min(nmax, int(np.sqrt(n))))

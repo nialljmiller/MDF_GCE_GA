@@ -445,7 +445,6 @@ def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagno
     ax1.plot(ages[:-1], metallicity, 'gold', linewidth=2, marker='o', markersize=2)
     ax1.set_xlabel('Age (Gyr)')
     ax1.set_ylabel('Metallicity Z')
-    ax1.set_title('Gas Metallicity Evolution')
     ax1.set_yscale('log')
     ax1.grid(True, alpha=0.3)
     
@@ -454,7 +453,6 @@ def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagno
     ax2.plot(ages[:-1], eta_outflow, 'darkgreen', linewidth=2, marker='s', markersize=2)
     ax2.set_xlabel('Age (Gyr)')
     ax2.set_ylabel('η (Mass Loading)')
-    ax2.set_title('Mass Loading Factor Evolution')
     ax2.grid(True, alpha=0.3)
     
     # 3. Total ISM mass (11 elements vs 11 elements)
@@ -462,7 +460,6 @@ def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagno
     ax3.plot(ages, m_tot_ISM, 'darkred', linewidth=2, marker='^', markersize=2)
     ax3.set_xlabel('Age (Gyr)')
     ax3.set_ylabel(r'Total ISM Mass [$M_\odot$]')
-    ax3.set_title('ISM Mass Evolution')
     ax3.set_yscale('log')
     ax3.grid(True, alpha=0.3)
     
@@ -472,7 +469,6 @@ def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagno
     ax4.plot(ages, halo_masses, 'purple', linewidth=2, marker='d', markersize=2, label='Halo Gas Mass')
     ax4.set_xlabel('Age (Gyr)')
     ax4.set_ylabel(r'Halo Gas Mass [$M_\odot$]')
-    ax4.set_title('Circumgalactic Medium Evolution')
     ax4.set_yscale('log')
     ax4.grid(True, alpha=0.3)
     ax4.legend()

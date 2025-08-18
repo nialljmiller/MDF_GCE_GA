@@ -391,7 +391,6 @@ def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv',
                         'sfe', 'delta_sfe', 'imf_upper', 'nb']
     
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-    fig.suptitle('Best-Fit Model Parameter Analysis', fontsize=18, fontweight='bold')
     
     # 1. Parameter values with population context
     param_values = [best_model[param] for param in continuous_params]
@@ -402,7 +401,6 @@ def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv',
     ax1.set_yticks(range(len(param_values)))
     ax1.set_yticklabels(param_labels)
     ax1.set_xlabel('Parameter Value')
-    ax1.set_title('Best-Fit Parameter Values')
     
     # Add value labels on bars
     for i, (bar, val) in enumerate(zip(bars, param_values)):
@@ -422,7 +420,6 @@ def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv',
     ax2.axhline(np.percentile(fitness_vals, 10), color='orange', linestyle='--', alpha=0.7, label='90th Percentile')
     ax2.set_xlabel('Model Rank')
     ax2.set_ylabel(f'{fitness_col.upper()} Loss')
-    ax2.set_title('Fitness Landscape')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
@@ -436,7 +433,6 @@ def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv',
     ax3.set_xticks(range(len(discrete_values)))
     ax3.set_xticklabels(discrete_labels, rotation=45, ha='right')
     ax3.set_ylabel('Index Choice')
-    ax3.set_title('Best-Fit Discrete Parameters')
     
     # Add value labels
     for bar, val in zip(bars, discrete_values):
@@ -454,7 +450,6 @@ def analyze_best_fit_parameters(GalGA, results_file='GA/simulation_results.csv',
         ax4.set_xticks(range(len(metric_values)))
         ax4.set_xticklabels([m.upper() for m in available_metrics], rotation=45, ha='right')
         ax4.set_ylabel('Loss Value')
-        ax4.set_title('Best-Fit Loss Metrics')
         ax4.set_yscale('log')
         
         # Add value labels
@@ -519,8 +514,7 @@ def analyze_top_percentile_parameters(GalGA, results_file='GA/simulation_results
 
     ax1.set_xticks(np.arange(len(param_labels)))
     ax1.set_xticklabels(param_labels, rotation=45, ha='right')
-    ax1.set_ylabel('Z-score')
-    ax1.set_title(f'Parameter Distributions (Top 10%, normalized) (n={n_top})')
+    ax1.set_ylabel(f'Z-score (n={n_top})')
     ax1.grid(True, alpha=0.3)
 
     # ------------------------------------------------------------------
@@ -583,7 +577,6 @@ def analyze_top_percentile_parameters(GalGA, results_file='GA/simulation_results
     ax3.set_yticks(range(len(param_labels)))
     ax3.set_xticklabels(param_labels, rotation=45, ha='right')
     ax3.set_yticklabels(param_labels)
-    ax3.set_title('Parameter Correlations')
 
     for i in range(len(param_labels)):
         for j in range(len(param_labels)):
@@ -607,7 +600,6 @@ def analyze_top_percentile_parameters(GalGA, results_file='GA/simulation_results
     ax4.set_xticks(range(len(constraint_levels)))
     ax4.set_xticklabels(param_labels, rotation=45, ha='right')
     ax4.set_ylabel('Coefficient of Variation')
-    ax4.set_title('Parameter Constraint Levels')
     ax4.axhline(0.2, color='orange', linestyle='--', alpha=0.7, label='Moderate')
     ax4.axhline(0.5, color='red', linestyle='--', alpha=0.7, label='Poor')
     ax4.set_yscale('log')
@@ -621,8 +613,7 @@ def analyze_top_percentile_parameters(GalGA, results_file='GA/simulation_results
     ax5.axvline(fitness_top[0], color='red', linestyle='--', linewidth=2, label='Best')
     ax5.axvline(np.median(fitness_top), color='orange', linestyle='--', linewidth=2, label='Median')
     ax5.set_xlabel(f'{fitness_col.upper()} Loss')
-    ax5.set_ylabel('Count')
-    ax5.set_title(f'Fitness Distribution (Top {percentile}%)')
+    ax5.set_ylabel(f'Count (Top {percentile}%)')
     ax5.grid(True, alpha=0.3)
     ax5.legend()
 
@@ -750,7 +741,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
     ax3.axvline(optimal_k, color='red', linestyle='--', label=f'Optimal k={optimal_k}')
     ax3.set_xlabel('Number of Clusters (k)')
     ax3.set_ylabel('Silhouette Score')
-    ax3.set_title('Cluster Quality Assessment')
     ax3.legend()
     ax3.grid(True, alpha=0.3)
   
@@ -768,7 +758,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
                 label=f'90th %ile = {distance_threshold:.2f}')
     ax4.set_xlabel('Pairwise Distance')
     ax4.set_ylabel('Count')
-    ax4.set_title('Parameter Space Distance Distribution')
     ax4.legend()
     ax4.set_yscale('log')
   
@@ -795,7 +784,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
       
         ax.set_xlabel(param1)
         ax.set_ylabel(param2)
-        ax.set_title(f'{param1} vs {param2}')
         if ax == axes_2d[0]:
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
   
@@ -818,7 +806,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
     ax_3d.set_xlabel(f'PC1 ({pca_3d.explained_variance_ratio_[0]:.1%})')
     ax_3d.set_ylabel(f'PC2 ({pca_3d.explained_variance_ratio_[1]:.1%})')
     ax_3d.set_zlabel(f'PC3 ({pca_3d.explained_variance_ratio_[2]:.1%})')
-    ax_3d.set_title('3D Parameter Space Clusters')
     ax_3d.legend()
   
     # 10. Cluster statistics table
@@ -910,7 +897,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
         med_table.auto_set_font_size(False)
         med_table.set_fontsize(9)
         med_table.scale(1.2, 1.5)
-    ax_details.set_title('Median Parameters by Cluster (First 6 Params)')
   
     # 11. Island separation analysis
     ax_sep = fig.add_subplot(gs[3, :2])
@@ -945,7 +931,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
             ax_sep.hist(inter_distances, bins=30, alpha=0.7, label='Inter-cluster', color='red')
             ax_sep.set_xlabel('Distance')
             ax_sep.set_ylabel('Count')
-            ax_sep.set_title('Cluster Separation Analysis')
             ax_sep.legend()
             ax_sep.set_yscale('log')
           
@@ -979,7 +964,6 @@ def identify_solution_islands(GalGA, results_file='simulation_results.csv', perc
     if coverage_data:
         ax_coverage.boxplot(coverage_data, labels=continuous_params)
         ax_coverage.set_ylabel('Fractional Parameter Range Coverage')
-        ax_coverage.set_title('Parameter Space Coverage by Clusters')
         ax_coverage.tick_params(axis='x', rotation=45)
   
     plt.tight_layout()

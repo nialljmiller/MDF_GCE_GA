@@ -1,265 +1,313 @@
-#!/usr/bin/env python3.8
+#!/usr/bin/env python3
 """
 Exploration utilities for identifying and targeting sparse regions in parameter space.
-Authors: Your Name
+This version preserves the original public API (function names) but implements
+a robust Voronoi-based "largest empty cell" search with proper polygon clipping.
+
+Public functions kept as-is:
+- voronoi_explore_dearths(GA_instance, population, exploration_fraction=0.2)
+- identify_sparse_regions_voronoi(GA_instance, population, n_regions=32)
+- _analyze_voronoi_2d(GA_instance, population, p1_idx, p2_idx, p1_name, p2_name, n_regions_per_pair=4)
+- _mutate_toward_region(GA_instance, individual, target_region)
+- _add_background_mutation(GA_instance, individual, mutation_probability=0.3)
 """
-
-import numpy as np
 import random
+import numpy as np
 from scipy.spatial import Voronoi
-from collections import defaultdict
+
+# ---------------------------- helpers ---------------------------------
+
+def _voronoi_finite_polygons_2d(vor, radius=10.0):
+    """Make infinite Voronoi regions finite (2D only)."""
+    if vor.points.shape[1] != 2:
+        raise ValueError("Only 2D supported for finite polygon reconstruction.")
+    new_regions = []
+    new_vertices = vor.vertices.tolist()
+    center = vor.points.mean(axis=0)
+    all_ridges = {}
+
+    for (p, q), (v1, v2) in zip(vor.ridge_points, vor.ridge_vertices):
+        all_ridges.setdefault(p, []).append((q, v1, v2))
+        all_ridges.setdefault(q, []).append((p, v1, v2))
+
+    for p, region_idx in enumerate(vor.point_region):
+        verts = vor.regions[region_idx]
+        if len(verts) == 0:
+            continue
+        if all(v >= 0 for v in verts):
+            new_regions.append(verts)
+            continue
+
+        # Need to close region by extending edges to a "far" point
+        ridges = all_ridges.get(p, [])
+        new_region = [v for v in verts if v >= 0]
+        for q, v1, v2 in ridges:
+            if v1 >= 0 and v2 >= 0:
+                continue
+            t = vor.points[q] - vor.points[p]
+            if np.allclose(t, 0):
+                continue
+            t = t / np.linalg.norm(t)
+            n = np.array([-t[1], t[0]])  # outward normal
+            midpoint = (vor.points[p] + vor.points[q]) * 0.5
+            direction = np.sign(np.dot(midpoint - center, n)) * n
+            # pick whichever endpoint exists
+            base = vor.vertices[v1 if v1 >= 0 else v2]
+            far = base + direction * radius
+            new_vertices.append(far.tolist())
+            new_region.append(len(new_vertices) - 1)
+
+        # order vertices counterclockwise
+        vs = np.asarray([new_vertices[v] for v in new_region])
+        c = vs.mean(axis=0)
+        angles = np.arctan2(vs[:, 1] - c[1], vs[:, 0] - c[0])
+        new_region = np.array(new_region)[np.argsort(angles)].tolist()
+        new_regions.append(new_region)
+
+    return new_regions, np.asarray(new_vertices)
 
 
-def voronoi_explore_dearths(GA_instance, population, exploration_fraction=0.2):
+def _clip_poly_to_unit_square(poly):
+    """Sutherland–Hodgman clip of polygon (Nx2) to [0,1]x[0,1]."""
+    def clip(poly, inside, intersect):
+        out = []
+        if len(poly) == 0:
+            return out
+        A = poly[-1]
+        Ain = inside(A)
+        for B in poly:
+            Bin = inside(B)
+            if Ain and Bin:
+                out.append(B)
+            elif Ain and not Bin:
+                out.append(intersect(A, B))
+            elif (not Ain) and Bin:
+                out.append(intersect(A, B))
+                out.append(B)
+            A, Ain = B, Bin
+        return out
+
+    def inter_x(A, B, xconst):
+        Ax, Ay = A; Bx, By = B
+        if np.isclose(Bx, Ax):
+            t = 0.0
+        else:
+            t = (xconst - Ax) / (Bx - Ax)
+        y = Ay + t * (By - Ay)
+        return np.array([xconst, y])
+
+    def inter_y(A, B, yconst):
+        Ax, Ay = A; Bx, By = B
+        if np.isclose(By, Ay):
+            t = 0.0
+        else:
+            t = (yconst - Ay) / (By - Ay)
+        x = Ax + t * (Bx - Ax)
+        return np.array([x, yconst])
+
+    poly = clip(list(map(np.asarray, poly)),
+                inside=lambda P: P[0] >= 0.0,
+                intersect=lambda A, B: inter_x(A, B, 0.0))
+    poly = clip(poly,
+                inside=lambda P: P[0] <= 1.0,
+                intersect=lambda A, B: inter_x(A, B, 1.0))
+    poly = clip(poly,
+                inside=lambda P: P[1] >= 0.0,
+                intersect=lambda A, B: inter_y(A, B, 0.0))
+    poly = clip(poly,
+                inside=lambda P: P[1] <= 1.0,
+                intersect=lambda A, B: inter_y(A, B, 1.0))
+    return np.array(poly)
+
+
+def _poly_area_and_centroid(poly):
+    """Return (area, centroid) for a simple polygon (Nx2)."""
+    if len(poly) < 3:
+        return 0.0, np.array([np.nan, np.nan])
+    x = poly[:, 0]; y = poly[:, 1]
+    x1 = np.roll(x, -1); y1 = np.roll(y, -1)
+    cross = x * y1 - x1 * y
+    A = 0.5 * np.sum(cross)
+    if abs(A) < 1e-15:
+        return 0.0, np.array([np.nan, np.nan])
+    cx = np.sum((x + x1) * cross) / (6.0 * A)
+    cy = np.sum((y + y1) * cross) / (6.0 * A)
+    return abs(A), np.array([cx, cy])
+
+
+def _normalize_pair(GA_instance, population, i, j):
+    lo_i, hi_i = GA_instance.get_param_bounds(i)
+    lo_j, hi_j = GA_instance.get_param_bounds(j)
+    rng_i = hi_i - lo_i
+    rng_j = hi_j - lo_j
+    pts = np.array([[(ind[i] - lo_i) / rng_i, (ind[j] - lo_j) / rng_j] for ind in population], float)
+    # dedupe to avoid Qhull issues from coincident points
+    pts = np.unique(np.round(pts, 12), axis=0)
+    return pts, (lo_i, hi_i, lo_j, hi_j)
+
+# ---------------------------- core API ---------------------------------
+
+def _analyze_voronoi_2d(GA_instance, population, p1_idx, p2_idx, p1_name, p2_name, n_regions_per_pair=4):
     """
-    Identify sparse regions using Voronoi analysis and move worst performers there.
-    
-    Parameters:
-    -----------
-    GA_instance : GalacticEvolutionGA
-        The GA instance with parameter bounds and methods
-    population : list
-        Current population of individuals
-    exploration_fraction : float
-        Fraction of worst performers to move to sparse regions (default 0.2 = 20%)
+    Build Voronoi on normalized pair (p1_idx, p2_idx), clip cells to [0,1]^2,
+    compute area and centroid, return top-N regions as dicts:
+      {
+        'pair': (p1_idx, p2_idx),
+        'param_indices': {p1_name: p1_idx, p2_name: p2_idx},
+        'target_params': {p1_name: center_i_denorm, p2_name: center_j_denorm},
+        'area_norm': area_in_unit_square,
+        'center_norm': (cx, cy),
+        'center_denorm': (val_i, val_j),
+        'polygon_norm': Nx2 array (for plotting/debug)
+      }
     """
-    
-    if len(population) < 10:  # Need minimum population for meaningful analysis
-        return
-    
-    # Step 1: Identify sparse regions using Voronoi
-    sparse_regions = identify_sparse_regions_voronoi(GA_instance, population)
-    
-    if not sparse_regions:
-        print("No sparse regions identified, skipping exploration")
-        return
-    
-    # Step 2: Identify worst performers
-    worst_performers = get_worst_performers(population, exploration_fraction)
-    
-    # Step 3: Move worst performers to sparse regions
-    move_to_sparse_regions(GA_instance, worst_performers, sparse_regions)
-    
-    print(f"Moved {len(worst_performers)} individuals to {len(sparse_regions)} sparse regions")
+    pts, (lo_i, hi_i, lo_j, hi_j) = _normalize_pair(GA_instance, population, p1_idx, p2_idx)
+    if len(pts) < 4:
+        return []
+
+    vor = Voronoi(pts)
+    regions, vertices = _voronoi_finite_polygons_2d(vor, radius=10.0)
+
+    results = []
+    for region in regions:
+        poly = vertices[region]
+        poly = _clip_poly_to_unit_square(poly)
+        if len(poly) < 3:
+            continue
+        area, centroid = _poly_area_and_centroid(poly)
+        if area <= 0.0 or not np.isfinite(centroid).all():
+            continue
+
+        # denormalize centroid to parameter space
+        center_i = lo_i + centroid[0] * (hi_i - lo_i)
+        center_j = lo_j + centroid[1] * (hi_j - lo_j)
+
+        results.append({
+            "pair": (p1_idx, p2_idx),
+            "param_indices": {p1_name: p1_idx, p2_name: p2_idx},
+            "target_params": {p1_name: float(center_i), p2_name: float(center_j)},
+            "area_norm": float(area),
+            "center_norm": np.array(centroid, float),
+            "center_denorm": np.array([center_i, center_j], float),
+            "polygon_norm": np.array(poly, float),
+        })
+
+    # largest empty cells first
+    results.sort(key=lambda r: r["area_norm"], reverse=True)
+    return results[:max(0, int(n_regions_per_pair))]
 
 
 def identify_sparse_regions_voronoi(GA_instance, population, n_regions=32):
     """
-    Use Voronoi diagrams to identify sparse regions in parameter space.
-    Works with 2D projections of most important parameter pairs.
+    Use Voronoi diagrams on several 2D parameter pairs; return up to n_regions
+    total regions ranked by area.
     """
-
-    # Define key parameter pairs for analysis (based on your plots)
+    # Keep the exact pairs you had in the original file.
     key_param_pairs = [
-        (6, 7, 't_1', 't_2'),        # t_1 vs t_2
-        (7, 9, 't_2', 'infall_2'),       # t_2 vs infall_2  
-        (5, 9, 'sigma_2', 'infall_2'),   # sigma_2 vs infall_2
-        (5, 7, 'sigma_2', 't_2'),   # sigma_2 vs infall_2
-        (5, 14, 'sigma_2', 'nb'),   # sigma_2 vs infall_2
-        (10, 5, 'sfe', 'sigma_2'),      # sfe vs delta sfe
-        (10, 11, 'sfe', 'delta_sfe'),      # sfe vs delta sfe
-        (13, 14, 'mgal', 'nb'),      # sfe vs delta sfe
+        (6, 7,  't_1',     't_2'),
+        (7, 9,  't_2',     'infall_2'),
+        (5, 9,  'sigma_2', 'infall_2'),
+        (5, 7,  'sigma_2', 't_2'),
+        (5, 14, 'sigma_2', 'nb'),
+        (10, 5, 'sfe',     'sigma_2'),
+        (10, 11,'sfe',     'delta_sfe'),
+        (13, 14,'mgal',    'nb'),
     ]
-    
-    all_sparse_regions = []
-    
-    # Analyze each parameter pair
-    for param1_idx, param2_idx, param1_name, param2_name in key_param_pairs:
-        sparse_regions = _analyze_voronoi_2d(
-            GA_instance, population, param1_idx, param2_idx, 
-            param1_name, param2_name, n_regions_per_pair=4
-        )
-        all_sparse_regions.extend(sparse_regions)
-    
-    # Remove duplicates and sort by sparsity
-    unique_regions = _deduplicate_regions(all_sparse_regions, threshold=0.1)
-    
-    return unique_regions[:n_regions]
+
+    per_pair = max(1, int(np.ceil(n_regions / max(1, len(key_param_pairs)))))
+    all_regions = []
+    for p1_idx, p2_idx, p1_name, p2_name in key_param_pairs:
+        regs = _analyze_voronoi_2d(GA_instance, population, p1_idx, p2_idx, p1_name, p2_name,
+                                   n_regions_per_pair=per_pair)
+        all_regions.extend(regs)
+
+    all_regions.sort(key=lambda r: r["area_norm"], reverse=True)
+    return all_regions[:n_regions]
 
 
-def _analyze_voronoi_2d(GA_instance, population, param1_idx, param2_idx, 
-                       param1_name, param2_name, n_regions_per_pair=2):
-    """Analyze a 2D parameter projection using Voronoi diagrams"""
-    
-    # Extract and normalize the two parameters
-    points = []
-    for ind in population:
-        # Normalize to [0,1] range
-        min1, max1 = GA_instance.get_param_bounds(param1_idx)
-        min2, max2 = GA_instance.get_param_bounds(param2_idx)
-        
-        norm1 = (ind[param1_idx] - min1) / (max1 - min1)
-        norm2 = (ind[param2_idx] - min2) / (max2 - min2)
-        
-        points.append([norm1, norm2])
-    
+def voronoi_explore_dearths(GA_instance, population, exploration_fraction=0.2):
+    """
+    Move the worst-performing individuals toward centers of the largest empty regions
+    (by Voronoi cell area in normalized space), touching only the two parameters
+    that define a given region.
+    """
+    if not 0.0 < exploration_fraction <= 1.0:
+        raise ValueError("exploration_fraction must be in (0,1].")
 
-        if len(points) < 4:
-            return []
+    # number of individuals to redirect
+    n_move = max(1, int(len(population) * exploration_fraction))
 
-        try:
-            vor = Voronoi(points)
+    # gather candidate regions
+    regions = identify_sparse_regions_voronoi(GA_instance, population, n_regions=n_move)
 
-            # 1) Keep only finite vertices inside the [0,1]^2 box
-            verts = []
-            for v in vor.vertices:
-                if 0.0 <= v[0] <= 1.0 and 0.0 <= v[1] <= 1.0:
-                    verts.append(v)
-            if not verts:
-                return []
-
-            verts = np.array(verts)
-
-            # 2) For each vertex, compute distance to nearest sample (largest empty circle radius)
-            #    That distance is the "emptiness" measure we want to maximize.
-            from scipy.spatial import cKDTree
-            tree = cKDTree(points)
-            dists, _ = tree.query(verts, k=1)
-            # Rank by distance descending (emptiest first)
-            order = np.argsort(-dists)
-            top = verts[order[:n_regions_per_pair]]
-
-            # 3) Denormalize to parameter space
-            min1, max1 = GA_instance.get_param_bounds(p1_idx)
-            min2, max2 = GA_instance.get_param_bounds(p2_idx)
-
-            sparse_regions = []
-            for v in top:
-                param1_val = min1 + v[0] * (max1 - min1)
-                param2_val = min2 + v[1] * (max2 - min2)
-                sparse_regions.append({
-                    'target_params': {p1_name: param1_val, p2_name: param2_val},
-                    'area': None,  # not used anymore
-                    'param_indices': {p1_name: p1_idx, p2_name: p2_idx}
-                })
-
-            return sparse_regions
-
-        except Exception as e:
-            print(f"Voronoi analysis failed for {p1_name}-{p2_name}: {e}")
-            return []
-
-
-def _polygon_area(vertices):
-    """Calculate area of polygon using shoelace formula"""
-    if len(vertices) < 3:
+    if len(regions) == 0:
         return 0
-    
-    x = vertices[:, 0]
-    y = vertices[:, 1]
-    return 0.5 * abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
+    # worst performers first (assume lower fitness is better; if your GA is the opposite, flip sign)
+    def _fitness_value(ind):
+        try:
+            # DEAP individuals have .fitness.values tuple; lower-is-better assumed
+            return ind.fitness.values[0] if getattr(ind.fitness, "valid", False) else float("inf")
+        except Exception:
+            return float("inf")
 
-def _deduplicate_regions(regions, threshold=0.1):
-    """Remove regions that are too close to each other"""
-    if not regions:
-        return []
-    
-    unique_regions = [regions[0]]
-    
-    for region in regions[1:]:
-        is_duplicate = False
-        for existing in unique_regions:
-            # Check if regions are too close in parameter space
-            distance = _region_distance(region, existing)
-            if distance < threshold:
-                is_duplicate = True
-                break
-        
-        if not is_duplicate:
-            unique_regions.append(region)
-    
-    return unique_regions
+    worst = sorted(population, key=_fitness_value, reverse=True)[:n_move]
 
+    moved = 0
+    for k, ind in enumerate(worst):
+        region = regions[k % len(regions)]
+        _mutate_toward_region(GA_instance, ind, region)
+        _add_background_mutation(GA_instance, ind, mutation_probability=0.2)
+        # invalidate fitness
+        try:
+            del ind.fitness.values
+        except Exception:
+            pass
+        moved += 1
 
-def _region_distance(region1, region2):
-    """Calculate distance between two regions in normalized parameter space"""
-    # Simple Euclidean distance in parameter space
-    dist = 0
-    common_params = set(region1['target_params'].keys()) & set(region2['target_params'].keys())
-    
-    if not common_params:
-        return 1.0  # Maximum distance if no common parameters
-    
-    for param in common_params:
-        # Normalize difference (assuming parameters are already in reasonable ranges)
-        diff = abs(region1['target_params'][param] - region2['target_params'][param])
-        dist += diff ** 2
-    
-    return np.sqrt(dist / len(common_params))
+    return moved
 
-
-def get_worst_performers(population, fraction):
-    """Get the worst performing fraction of the population"""
-    
-    # Sort by fitness (assuming lower is better for minimization)
-    sorted_pop = sorted(population, key=lambda x: x.fitness.values[0] if x.fitness.valid else float('inf'), reverse=True)
-    
-    n_worst = int(len(population) * fraction)
-    n_worst = max(1, n_worst)  # At least 1 individual
-    
-    return sorted_pop[:n_worst]
-
-
-def move_to_sparse_regions(GA_instance, individuals, sparse_regions):
-    """Move individuals toward sparse regions with some randomness"""
-    
-    for ind in individuals:
-        if not sparse_regions:
-            continue
-            
-        # Randomly select a sparse region to target
-        target_region = random.choice(sparse_regions)
-        
-        # Move toward the target region with some noise
-        _mutate_toward_region(GA_instance, ind, target_region)
-        
-        # Invalidate fitness since we changed the individual
-        del ind.fitness.values
-
+# --------------------- mutation utilities (kept names) ------------------
 
 def _mutate_toward_region(GA_instance, individual, target_region):
-    """Mutate an individual toward a specific sparse region"""
-    
-    target_params = target_region['target_params']
-    param_indices = target_region['param_indices']
-    
-    for param_name, target_val in target_params.items():
-        param_idx = param_indices[param_name]
-        current_val = individual[param_idx]
-        
-        # Calculate movement toward target
+    """
+    Move an individual toward region center on the two dims only.
+    target_region must contain:
+      - 'param_indices': {name: idx}
+      - 'target_params': {name: value}
+    """
+    param_indices = target_region["param_indices"]
+    target_params = target_region["target_params"]
+
+    # deterministic, strong pull; add small noise for diversity
+    for pname, pidx in param_indices.items():
+        target_val = float(target_params[pname])
+        current_val = float(individual[pidx])
         direction = target_val - current_val
-        
-        # Move partially toward target with noise
-        movement_fraction = 0.9 + 0.1 * random.random()  # 90-100% toward target
-        
-        min_bound, max_bound = GA_instance.get_param_bounds(param_idx)
-        range_size = max_bound - min_bound
-        noise_scale = 0.05 * range_size  # 5% noise
-        
-        new_val = current_val + movement_fraction * direction + random.gauss(0, noise_scale)
-        
-        # Apply bounds with reflection
-        new_val = GA_instance._reflect_at_bounds(new_val, min_bound, max_bound)
-        individual[param_idx] = new_val
-    
-    # Also add some mutation to other parameters to avoid getting stuck
-    _add_background_mutation(GA_instance, individual)
+
+        # move 90–100% of the way + small gaussian noise relative to range
+        frac = 0.9 + 0.1 * random.random()
+        lo, hi = GA_instance.get_param_bounds(pidx)
+        rng = hi - lo
+        noise = 0.02 * rng * random.gauss(0.0, 1.0)
+
+        new_val = current_val + frac * direction + noise
+        new_val = GA_instance._reflect_at_bounds(new_val, lo, hi)
+        individual[pidx] = new_val
 
 
 def _add_background_mutation(GA_instance, individual, mutation_probability=0.3):
-    """Add small mutations to other parameters to maintain exploration"""
-    
+    """
+    Light mutations on other continuous parameters to avoid collapsing diversity.
+    Adjust the index list if your GA uses different ordering.
+    """
+    # Keep the exact index set you had before to stay API-compatible
     continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-    
-    for param_idx in continuous_indices:
+
+    for idx in continuous_indices:
         if random.random() < mutation_probability:
-            min_bound, max_bound = GA_instance.get_param_bounds(param_idx)
-            range_size = max_bound - min_bound
-            
-            # Small mutation
-            mutation_size = 0.02 * range_size * random.gauss(0, 1)
-            new_val = individual[param_idx] + mutation_size
-            new_val = GA_instance._reflect_at_bounds(new_val, min_bound, max_bound)
-            individual[param_idx] = new_val
+            lo, hi = GA_instance.get_param_bounds(idx)
+            rng = hi - lo
+            step = 0.02 * rng * random.gauss(0.0, 1.0)
+            new_val = GA_instance._reflect_at_bounds(float(individual[idx]) + step, lo, hi)
+            individual[idx] = new_val

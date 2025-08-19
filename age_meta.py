@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import UnivariateSpline, interp1d
@@ -19,6 +21,8 @@ plt.rcParams.update({
 })
 
 
+
+
 def huber_loss(y_true, y_pred, delta=1.0):
     """Huber loss function (robust to outliers)"""
     error = y_pred - y_true
@@ -26,6 +30,8 @@ def huber_loss(y_true, y_pred, delta=1.0):
     squared_loss = 0.5 * np.square(error)
     linear_loss = delta * (np.abs(error) - 0.5 * delta)
     return np.where(is_small_error, squared_loss, linear_loss).mean() * 10
+
+
 
 def calculate_likelihood_metrics(model_vals, obs_vals, obs_uncertainties):
     """Calculate likelihood-based metrics"""
@@ -883,7 +889,7 @@ def age_meta_loss(GalGA, model_age_x, model_age_y, obs_age_data, loss_metric, da
     loss_value = _calculate_single_loss(model_interp, valid_bin_means, loss_metric, 
                                       uncertainties=valid_bin_uncertainties)
     
-    create_plot = (np.random.rand() < 0.01)
+    create_plot = (np.random.rand() < 0.001)
 
     # Create diagnostic plot if requested
     if create_plot:

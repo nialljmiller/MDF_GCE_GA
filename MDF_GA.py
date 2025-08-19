@@ -109,37 +109,8 @@ perturbation_strength = params.get('perturbation_strength', 0.1)
 feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
 normalized_count = count / count.max()  # Normalize count for comparison
 
-
-
 # Load the data
 obs_age_data = load_bensby_data('data/Bensby_Data.tsv')
-
-# Display basic info about the dataset
-print("\nDataset Info:")
-print(f"Number of stars: {len(obs_age_data)}")
-print(f"Number of columns: {len(obs_age_data.columns)}")
-
-print("\nFirst few rows:")
-print(obs_age_data.head())
-
-print("\nColumn data types:")
-print(obs_age_data.dtypes)
-
-# Example usage - accessing specific columns
-print(f"\nExample access:")
-print(f"Joyce ages: {obs_age_data['Joyce_age'].head()}")
-print(f"Bensby ages: {obs_age_data['Bensby'].head()}")
-print(f"[Fe/H] values: {obs_age_data['[Fe/H]'].head()}")
-print(f"[Mg/Fe] values: {obs_age_data['[Mg/Fe]'].head()}")
-
-# Show some basic statistics
-print(f"\nBasic statistics for key columns:")
-key_columns = ['Joyce_age', 'Bensby', '[Fe/H]', '[Mg/Fe]', '[Si/Fe]', '[Ca/Fe]', '[Ti/Fe]']
-for col in key_columns:
-    if col in obs_age_data.columns:
-        print(f"{col}: mean={obs_age_data[col].mean():.2f}, std={obs_age_data[col].std():.2f}, range=[{obs_age_data[col].min():.2f}, {obs_age_data[col].max():.2f}]")
-
-
 
 # Global GalGA object to be used for both computation and plotting
 GalGA = None

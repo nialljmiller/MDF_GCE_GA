@@ -9,6 +9,8 @@
 import os
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
@@ -333,11 +335,7 @@ def create_3d_animation(walker_history, output_path):
     print(f"Generated 3D animation: {gif_path}")
     return ani
 
-
-
 def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=None, save_path=None):
-
-
     if save_path is None:
         save_path = GalGA.output_path + 'Four_Panel_Alpha.png'
 
@@ -352,56 +350,48 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
         best_params = (r[5], r[7], r[9])
 
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 12), sharex=False, sharey=False)
-    fig.subplots_adjust(hspace=0.1, wspace=0.4, left=0.1)  # Add left margin for y-axis labels
+    fig.subplots_adjust(hspace=0.01, wspace=0.2, left=0.08, right=0.92, top=0.97, bottom=0.08)
+
+    # precompute color array once (unused for color now, but keeps mask logic)
+    color_array = (Mg_Fe + Si_Fe + Ca_Fe + Ti_Fe) / 4.0
 
     for idx, (element, obs_data) in enumerate(zip(element_names, observational_data)):
         row, col = divmod(idx, 2)
         ax_main = axes[row, col]
 
-        # Position for marginal KDE plot (DO NOT use sharey=ax_main)
+        # side KDE axis (no sharing)
         rect = ax_main.get_position()
-        ax_kde = fig.add_axes([rect.x1 + 0.0001, rect.y0, 0.07, rect.height])
+        ax_kde = fig.add_axes([rect.x1 + 0.002, rect.y0, 0.07, rect.height])
 
-        # Ensure y-axis is visible on main plots
-        ax_main.tick_params(axis='y', which='both', left=True, labelleft=True, right=False, labelright=False)
-        ax_main.yaxis.set_ticks_position('left')
-        ax_main.yaxis.set_label_position('left')
-        ax_main.spines['left'].set_visible(True)  # Force left spine visible
-
-        # Draw all model curves
+        # draw model curves (best in red, rest faint gray)
         for alpha_arrs, _, res in zip(GalGA.alpha_data, GalGA.labels, GalGA.results):
             params = (res[5], res[7], res[9])
-            is_best = all(abs(p - b) < 1e-5 for p, b in zip(params, best_params))
             if idx < len(alpha_arrs):
-                x_data, y_data = np.array(alpha_arrs[idx][0]), np.array(alpha_arrs[idx][1])
-                if is_best:
+                x_data = np.array(alpha_arrs[idx][0])
+                y_data = np.array(alpha_arrs[idx][1])
+                if all(abs(p - b) < 1e-5 for p, b in zip(params, best_params)):
                     ax_main.plot(x_data, y_data, color="red", linewidth=2.5, zorder=3)
                 else:
-                    ax_main.plot(x_data, y_data, color='gray', alpha=0.01, linewidth=1)
+                    ax_main.plot(x_data, y_data, color='gray', alpha=0.01, linewidth=1, zorder=1)
 
-        # Clean obs data
-        obs_data = np.where((obs_data >= -2.0) & (obs_data <= 2.0), obs_data, np.nan)
-
-        # Color by average of all four elements
-        color_array = (Mg_Fe + Si_Fe + Ca_Fe + Ti_Fe) / 4
-        mask = np.isfinite(Fe_H) & np.isfinite(obs_data) & np.isfinite(color_array)
+        # clean obs & scatter (black points)
+        obs_clipped = np.where((obs_data >= -2.0) & (obs_data <= 2.0), obs_data, np.nan)
+        mask = np.isfinite(Fe_H) & np.isfinite(obs_clipped) & np.isfinite(color_array)
         if np.sum(mask) > 10:
             x = Fe_H[mask]
-            y = obs_data[mask]
-            z = color_array[mask]
-            idxs = np.argsort(z)
-            ax_main.scatter(x[idxs], y[idxs], c=z[idxs], cmap='viridis', s=20, zorder=2, edgecolor='none')
+            y = obs_clipped[mask]
+            ax_main.scatter(x, y, c='k', s=16, zorder=2, edgecolor='none')
 
-        # KDEs
-        joint_mask = np.isfinite(obs_data) & np.isfinite(Fe_H)
+        # KDEs (obs vs best model)
+        joint_mask = np.isfinite(obs_clipped) & np.isfinite(Fe_H)
         y_vals = np.linspace(-0.8, 1.0, 200)
 
         if np.sum(joint_mask) > 2:
-            kde_obs_y = gaussian_kde(obs_data[joint_mask])
+            kde_obs_y = gaussian_kde(obs_clipped[joint_mask])
             kde_y = kde_obs_y(y_vals)
             kde_y /= np.max(kde_y)
-            ax_kde.plot(kde_y, y_vals, color='darkblue')
-            ax_kde.fill_betweenx(y_vals, 0, kde_y, color='blue', alpha=0.3)
+            ax_kde.plot(kde_y, y_vals, linestyle='-', color='darkblue')
+            ax_kde.fill_betweenx(y_vals, 0, kde_y, alpha=0.30)
 
         best_y_model = None
         for alpha_arrs, _, res in zip(GalGA.alpha_data, GalGA.labels, GalGA.results):
@@ -411,39 +401,52 @@ def plot_four_panel_alpha(GalGA, Fe_H, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, results_df=No
                 break
 
         if best_y_model is not None:
-            kde_model_y = gaussian_kde(best_y_model[np.isfinite(best_y_model)])
-            kde_model = kde_model_y(y_vals)
-            kde_model /= np.max(kde_model)
-            ax_kde.plot(kde_model, y_vals, color='darkred', linestyle='--')
-            ax_kde.fill_betweenx(y_vals, 0, kde_model, color='red', alpha=0.2)
+            finite = np.isfinite(best_y_model)
+            if np.sum(finite) > 2:
+                kde_model_y = gaussian_kde(best_y_model[finite])
+                kde_model = kde_model_y(y_vals)
+                kde_model /= np.max(kde_model)
+                ax_kde.plot(kde_model, y_vals, linestyle='--', color='red')
+                ax_kde.fill_betweenx(y_vals, 0, kde_model, alpha=0.20)
 
-        # Set limits and labels for main plot
-        ax_main.set_xlim(-2, 1)
+        # limits, labels, axes layout
+        ax_main.set_xlim(-2.0, 1.0)
         ax_main.set_ylim(-0.8, 0.8)
         ax_main.set_xlabel("[Fe/H]")
-        ax_main.set_ylabel(f"[{element}/Fe]")
-        #ax_main.text(-1.8, 0.85, element, fontsize=14, weight='bold')
 
-        # Move top row x-axis to top
+        # y-axis handling per column
+        if col == 0:
+            ax_main.set_ylabel(r"[$\alpha$/Fe]")   # only left column
+            ax_main.yaxis.set_ticks_position('left')
+            ax_main.yaxis.set_label_position('left')
+            ax_main.tick_params(axis='y', which='both', left=True, right=False)
+        else:
+            # right column: y-axis on the right, no y-label text
+            ax_main.set_ylabel("")
+            ax_main.yaxis.set_ticks_position('right')
+            ax_main.yaxis.set_label_position('right')
+            ax_main.tick_params(axis='y', which='both', left=False, right=False)
+
+        # put x-axis on top for the top row (to match your previous style)
         if row == 0:
             ax_main.xaxis.set_ticks_position('top')
             ax_main.xaxis.set_label_position('top')
 
-        # Clean KDE axis - no numbers on histogram
-        ax_kde.set_xticks([])
-        ax_kde.set_yticks([])
-        ax_kde.set_xlabel('')
-        ax_kde.set_ylabel('')
-        ax_kde.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-        ax_kde.set_ylim(-0.8, 1.0)  # Match main plot y-limits
-        ax_kde.set_xlim(0.0, 1.0)  # Match main plot y-limits
+        # element tag in top-left inside axes
+        ax_main.text(0.1, 0.9, element, transform=ax_main.transAxes,
+                     ha='left', va='top', fontsize=22, weight='bold')
+
+        # clean KDE axis
+        ax_kde.set_xticks([]); ax_kde.set_yticks([])
+        ax_kde.set_xlim(0.0, 1.0)
+        ax_kde.set_ylim(-0.8, 1.0)
+        for spine in ax_kde.spines.values():
+            spine.set_visible(False)
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"Density-enhanced four-panel alpha plot saved to {save_path}")
-
-
 
 
 def plot_omni_info_figure(GalGA, Fe_H, age_Joyce, age_Bensby, Mg_Fe, Si_Fe, Ca_Fe, Ti_Fe, 
@@ -755,7 +758,7 @@ def plot_omni_figure(
         best_params = (r[5], r[7], r[9])
 
     # ------ Figure layout (tight, no wasted whitespace) ------
-    fig = plt.figure(figsize=(7.1, 6.2))  # ApJ 2-col width
+    fig = plt.figure(figsize=(15, 8))  # ApJ 2-col width
     gs = GridSpec(
         2, 8, figure=fig,
         left=0.065, right=0.995, bottom=0.10, top=0.965,
@@ -995,6 +998,17 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
 
     metric_name = 'fitness'
     metric_vals = metrics_dict['fitness']        
+
+
+    plot_corner_of_top_params(
+        GalGA,
+        results_file=results_file,
+        losscol='fitness',
+        top_k=8,
+        preferred_params=('sigma_2','t_1','t_2','infall_1','infall_2','sfe','nb','mgal'),
+        min_unique=20,
+        triangle='lower'
+    )
 
 
 

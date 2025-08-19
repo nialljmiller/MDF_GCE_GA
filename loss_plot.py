@@ -9,6 +9,8 @@
 import os
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
@@ -17,7 +19,7 @@ from scipy.stats import linregress
 from matplotlib.ticker import MultipleLocator
 from scipy.interpolate import UnivariateSpline
 from matplotlib.gridspec import GridSpec
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, spearmanr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +30,168 @@ from scipy.interpolate import UnivariateSpline
 from numpy.polynomial.polynomial import Polynomial
 from phys_plot import generate_physics_plots
 
+
+
+
+
+def plot_corner_of_top_params(
+    GalGA,
+    results_file='simulation_results.csv',
+    losscol='fitness',
+    top_k=8,
+    bins_1d=40,
+    bins_2d=35,
+    save_path=None,
+    preferred_params=(
+        'sigma_2','t_1','t_2','infall_1','infall_2','sfe',
+        'nb','mgal','imf_upper','comp_idx','imf_idx','sn1a_idx','sy_idx','sn1ar_idx'
+    ),
+    min_unique=20,
+    triangle='lower',           # lower triangle only
+    label_fs=14,                # axis label fontsize
+    tick_fs=12                  # tick label fontsize
+):
+    import os
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    from matplotlib.gridspec import GridSpec
+    from scipy.stats import spearmanr
+
+    # ---------- data ----------
+    df = pd.read_csv(results_file)
+    if losscol not in df.columns:
+        raise ValueError(f"loss column '{losscol}' not found in {results_file}")
+
+    def is_continuous(col: pd.Series) -> bool:
+        if np.issubdtype(col.dtype, np.integer):
+            return False
+        v = col.values
+        v = v[np.isfinite(v)]
+        return (len(np.unique(v)) >= min_unique)
+
+    num_cols = [c for c in df.columns if np.issubdtype(df[c].dtype, np.number) and c != losscol]
+    cont = [c for c in num_cols if is_continuous(df[c])]
+
+    chosen = [c for c in preferred_params if c in cont]
+    if len(chosen) < top_k:
+        y = df[losscol].values
+        m_y = np.isfinite(y)
+        ranks = []
+        for c in [c for c in cont if c not in chosen]:
+            x = df[c].values
+            m = m_y & np.isfinite(x)
+            if np.count_nonzero(m) < 20:
+                continue
+            rho, _ = spearmanr(x[m], y[m])
+            if np.isfinite(rho):
+                ranks.append((c, abs(float(rho))))
+        ranks.sort(key=lambda t: t[1], reverse=True)
+        chosen.extend([c for c, _ in ranks[:max(0, top_k-len(chosen))]])
+
+    top_params = chosen[:top_k]
+    if not top_params:
+        raise ValueError("No continuous parameters available after filtering.")
+
+    # ---------- figure layout (no wasted space) ----------
+    if save_path is None:
+        base = getattr(GalGA, "output_path", "GA/")
+        save_path = os.path.join(base, "analysis", f"corner_top{len(top_params)}_{losscol}.png")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    K = len(top_params)
+
+    # Build a (K x (K+1)) grid; last column reserved for colorbar
+    fig = plt.figure(figsize=(2.35*K, 2.15*K))
+    gs = GridSpec(K, K+1, figure=fig, width_ratios=[*(1 for _ in range(K)), 0.05],
+                  wspace=0.06, hspace=0.06)
+
+    # loss scale / colormap
+    y = df[losscol].values
+    finite_y = np.isfinite(y)
+    y_valid = y[finite_y]
+    if len(y_valid) < 10:
+        raise ValueError("Insufficient finite loss values for plotting.")
+    vmin, vmax = float(np.nanmin(y_valid)), float(np.nanmax(y_valid))
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+    cmap = mpl.cm.get_cmap('viridis')
+    q01 = np.percentile(y_valid, 1)
+    q05 = np.percentile(y_valid, 5)
+
+    data = {c: df[c].values.astype(float) for c in top_params}
+
+    used_axes = []
+    for i, pi in enumerate(top_params):
+        xi = data[pi]
+        fi = np.isfinite(xi) & finite_y
+        xig = xi[fi]; yg = y[fi]
+
+        for j, pj in enumerate(top_params[:i+1]):   # lower triangle only
+            ax = fig.add_subplot(gs[i, j])
+            used_axes.append(ax)
+
+            if i == j:
+                # diagonal: histogram; NO y ticks/labels
+                ax.hist(xig, bins=bins_1d, color='0.78', edgecolor='none')
+                best5 = yg <= q05
+                if np.any(best5):
+                    ax.hist(xig[best5], bins=bins_1d, histtype='step', linewidth=1.8, color='red')
+                # axis cosmetics
+                ax.tick_params(axis='y', left=False, labelleft=False)   # <- remove y ticks/labels
+                if i == K-1:
+                    ax.set_xlabel(pi.replace('_',' '), fontsize=label_fs)
+                else:
+                    ax.tick_params(labelbottom=False)
+                # make x ticks readable (scientific if needed)
+                ax.tick_params(axis='x', labelsize=tick_fs)
+                ax.ticklabel_format(axis='x', style='sci', scilimits=(-2, 3))
+                # minimal spines
+                for s in ('top','right'):
+                    ax.spines[s].set_visible(False)
+
+            else:
+                xj = data[pj]
+                fj = np.isfinite(xj)
+                m = fi & fj
+                xv = xi[m]; yv = xj[m]; lv = y[m]
+                if len(xv) == 0:
+                    continue
+
+                hb = ax.hexbin(
+                    xv, yv, C=lv, reduce_C_function=np.nanmedian,
+                    gridsize=bins_2d, cmap=cmap, norm=norm, mincnt=1
+                )
+                best1 = lv <= q01
+                if np.any(best1):
+                    ax.plot(xv[best1], yv[best1], '.', ms=1.2, color='k', alpha=0.6)
+
+                # labels on bottom row / left col only
+                if i == K-1:
+                    ax.set_xlabel(pj.replace('_',' '), fontsize=label_fs)
+                else:
+                    ax.tick_params(labelbottom=False)
+                if j == 0:
+                    ax.set_ylabel(pi.replace('_',' '), fontsize=label_fs)
+                else:
+                    ax.tick_params(labelleft=False)
+
+                ax.tick_params(axis='both', labelsize=tick_fs)
+                ax.ticklabel_format(axis='x', style='sci', scilimits=(-2, 3))
+                ax.ticklabel_format(axis='y', style='sci', scilimits=(-2, 3))
+
+    # slim colorbar in dedicated column (no outer whitespace)
+    cax = fig.add_subplot(gs[:, -1])
+    sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, cax=cax)
+    cbar.ax.tick_params(labelsize=tick_fs)
+    cbar.set_label(f'{losscol}', fontsize=label_fs)
+
+    fig.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f"[corner] Saved: {save_path}")
+    return fig, top_params
 
 
 

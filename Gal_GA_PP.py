@@ -1140,6 +1140,9 @@ class GalacticEvolutionGA:
             # Step 10: Save checkpoints and partial results
             if checkpoint_manager:
                 checkpoint_manager.save(gen, population, self)
+            else:
+                print('checkpoint_manager missing')
+                exit()
 
             if output_interval and ((gen) % output_interval == 0 or gen == num_generations - 1):
                 self.save_partial_results(gen)

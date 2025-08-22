@@ -29,7 +29,8 @@ class CheckpointManager:
 
     def clear(self):
         if os.path.exists(self.filename):
-            os.remove(self.filename)
+            print(f"This file: {self.filename} still exists and i am not deleting it!!!!")
+            #os.remove(self.filename)
 
 def run_with_checkpoint(run_fn, output_path):
     manager = CheckpointManager(save_path = output_path)

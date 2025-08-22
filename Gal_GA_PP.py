@@ -166,6 +166,7 @@ class GalacticEvolutionGA:
         self.crossover_noise_fraction = crossover_noise_fraction
         self.perturbation_strength = perturbation_strength
         self.exploration_steps = exploration_steps
+        self.best_amr_loss = 0.10
 
         
         # Calculate parameter space dimensions for reporting

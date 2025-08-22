@@ -1305,7 +1305,7 @@ def plot_delta_and_gradient(xcol, ycol, Z, xedges, yedges, save_prefix='GA/analy
     
     # (a) Delta loss map
     fig1, ax1 = plt.subplots(figsize=(8, 6))
-    im1 = ax1.pcolormesh(xedges, yedges, dL.T, shading='auto', cmap='magma')
+    im1 = ax1.pcolormesh(xedges, yedges, dL.T, shading='auto', cmap='brg')
     c1 = fig1.colorbar(im1, ax=ax1)
     c1.set_label('Δ loss (relative to global min)')
     ax1.set_xlabel(xcol)
@@ -1320,7 +1320,7 @@ def plot_delta_and_gradient(xcol, ycol, Z, xedges, yedges, save_prefix='GA/analy
     grad_mag = np.sqrt(dZdx**2 + dZdy**2)
     
     fig2, ax2 = plt.subplots(figsize=(8, 6))
-    im2 = ax2.pcolormesh(xedges, yedges, grad_mag.T, shading='auto', cmap='cubehelix')
+    im2 = ax2.pcolormesh(xedges, yedges, grad_mag.T, shading='auto', cmap='brg')
     c2 = fig2.colorbar(im2, ax=ax2)
     c2.set_label('|∇ loss|')
     

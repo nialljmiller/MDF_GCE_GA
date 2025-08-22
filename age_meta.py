@@ -889,14 +889,17 @@ def age_meta_loss(GalGA, model_age_x, model_age_y, obs_age_data, loss_metric, da
     loss_value = _calculate_single_loss(model_interp, valid_bin_means, loss_metric, 
                                       uncertainties=valid_bin_uncertainties)
     
-    create_plot = (np.random.rand() < 0.001)
-
+    create_plot = False
+    
+    if loss_value < GalGA.best_amr_loss:
+        create_plot = True
+        GalGA.best_amr_loss = loss_value
+        print(GalGA.best_amr_loss)
     # Create diagnostic plot if requested
     if create_plot:
-        if save_path is None:
-            save_path = f'age_meta_loss_diagnostic_{dataset}_{loss_metric}.png'
-        
-        # Prepend the GalGA output path if it exists
+
+        save_path = f'age_meta_loss_diagnostic_{dataset}_{loss_metric}.png'
+
         if hasattr(GalGA, 'output_path') and GalGA.output_path is not None:
             save_path = GalGA.output_path + save_path
         

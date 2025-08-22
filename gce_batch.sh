@@ -12,15 +12,15 @@ modify_param() {
 }
 
 # Parameter grids
-timesteps=(100 500)
-weights=(0.0 0.5 1.0)
+timesteps=(500 100)
+weights=(0.25 0.5 0.75)
 targets=(joyce bensby)
 
 # Loop over combinations
 for ts in "${timesteps[@]}"; do
   for w in "${weights[@]}"; do
     for tgt in "${targets[@]}"; do
-      run_dir="bc_batch_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
+      run_dir="bc_batch_medbow_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
       mkdir -p "$run_dir"
 
       # Modify param file

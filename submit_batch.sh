@@ -16,7 +16,7 @@ echo "Starting at: $(date)"
 cd /project/galacticbulge/MDF_GCE_GA || exit 1
 source ~/python_projects/venv/bin/activate
 mkdir -p logs
-python -u gce_batch.py
+./gce_batch.sh
 
 echo "Finished at: $(date)"
 

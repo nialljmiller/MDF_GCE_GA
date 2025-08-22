@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=mdf_ga_96core
-#SBATCH --output=logs/mdf_ga_128core_%j.out
-#SBATCH --error=logs/mdf_ga_128core_%j.err
+#SBATCH --job-name=batch_GCE
+#SBATCH --output=logs/batch_GCE_%j.out
+#SBATCH --error=logs/batch_GCE_%j.err
 #SBATCH --account=galacticbulge
 #SBATCH --nodes=1
 #SBATCH --ntasks=96

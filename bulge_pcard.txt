@@ -30,7 +30,7 @@ iniab_header: 'yield_tables/iniabu/'
 # References: Kobayashi et al. (2020, ApJ, 900, 179) for metallicity-dependent SN Ia in GCE.
 sn1a_header: 'yield_tables/'
 
-output_path: 'bc_batch_50_w_10_joyce/'
+output_path: 'bc_batch_local_100_w_7_joyce/'
 
 ##################yeah ##########################################
 #
@@ -50,7 +50,7 @@ output_path: 'bc_batch_50_w_10_joyce/'
 # NB - this is not the number of evaluations as evaluations are only made if a crossover or/and mutation has been done to the individual
 # Justification: 128 allows diversity while feasible computationally; scales with param dimensions (~15 here).
 # References: Goldberg (1989, Genetic Algorithms book) for popsize ~100-200 in complex spaces.
-popsize:-2
+popsize:-1
 
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
@@ -124,7 +124,7 @@ physical_constraints_freq: 0
 # Loss metric for age-metallicity relation fitting
 # Available options: 'mae', 'rmse', 'weighted_mae', 'weighted_rmse', 'huber_loss', 
 # 'log_likelihood', 'aic', 'bic', 'correlation', 'spearman_correlation'
-obs_age_data_loss_metric: 'mae'
+obs_age_data_loss_metric: 'rms'
 
 #'joyce' or 'bensby'
 obs_age_data_target: 'joyce'
@@ -134,7 +134,7 @@ obs_age_data_target: 'joyce'
 # Range: 0.0 to 1.0, where higher values favor MDF fitting
 # 0.8 = 80% MDF loss + 20% age-metallicity loss
 # 0.5 = equal weighting
-mdf_vs_age_weight: 1.0
+mdf_vs_age_weight: 0.7
 
 ############################################################
 #

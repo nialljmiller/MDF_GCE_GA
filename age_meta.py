@@ -921,7 +921,7 @@ def _calculate_single_loss(model_vals, obs_vals, loss_metric, uncertainties=None
     if loss_metric == 'mae':
         return np.mean(np.abs(model_vals - obs_vals))
         
-    elif loss_metric == 'rmse':
+    elif loss_metric == 'rms' or loss_metric == 'rmse':
         return np.sqrt(np.mean((model_vals - obs_vals)**2))
         
     elif loss_metric == 'weighted_mae':

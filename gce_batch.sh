@@ -12,28 +12,32 @@ modify_param() {
 }
 
 # Parameter grids
-timesteps=(500 100)
-weights=(0.25 0.5 0.75)
+timesteps=(100)
+weights=(0.0)
 targets=(joyce bensby)
+attempt_no=(0 1 2 3 4)
 
 # Loop over combinations
-for ts in "${timesteps[@]}"; do
-  for w in "${weights[@]}"; do
-    for tgt in "${targets[@]}"; do
-      run_dir="bc_batch_medbow_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
-      mkdir -p "$run_dir"
 
-      # Modify param file
-      modify_param "$ts" "$w" "$tgt" "$run_dir"
+for at_no in "${attempt_no[@]}"; do
+  for ts in "${timesteps[@]}"; do
+    for w in "${weights[@]}"; do
+      for tgt in "${targets[@]}"; do
+        run_dir="bc_batch_local_${at_no}_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
+        mkdir -p "$run_dir"
 
-      # Echo and run command
-      cmd="python MDF_GA.py"
-      echo "Running: $cmd (for $run_dir)"
-      $cmd
+        # Modify param file
+        modify_param "$ts" "$w" "$tgt" "$run_dir"
 
-      # Restore original
-      cp bulge_pcard_backup.txt bulge_pcard.txt
-      echo "Completed $run_dir"
+        # Echo and run command
+        cmd="python MDF_GA.py"
+        echo "Running: $cmd (for $run_dir)"
+        $cmd
+
+        # Restore original
+        cp bulge_pcard_backup.txt bulge_pcard.txt
+        echo "Completed $run_dir"
+      done
     done
   done
 done

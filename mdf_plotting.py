@@ -1180,7 +1180,7 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
     print("Generating Age-Metallicity curves with residuals...")
     age_meta.plot_age_metallicity_curves(GalGA, Fe_H, age_Joyce, age_Bensby, df)
     
-
+    plt.close('all')               # (optional) belt-and-suspenders at the end of an iteration
 
     print("All plotting complete! Check the output directory for results.")
     print(f"Generated parameter space exploration plots:")

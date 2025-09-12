@@ -412,7 +412,8 @@ Mass:
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.close(fig)
-    
+    plt.close('all') 
+
     print(f"Enhanced physics diagnostics saved: {save_path}")
     
     return fig
@@ -478,7 +479,6 @@ def plot_omega_diagnostics(GalGA, results_df=None, save_path='Omega_Model_Diagno
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
-    
     print(f"Omega diagnostics plot saved to {save_path}")
     return fig
 
@@ -504,4 +504,5 @@ def generate_physics_plots(GalGA, results_file='GA/simulation_results.csv'):
     fig2 = plot_omega_diagnostics(GalGA, df)
     
     print("Physics plots using omega model data completed!")
+    plt.close('all')               # (optional) belt-and-suspenders at the end of an iteration
     return fig1, fig2

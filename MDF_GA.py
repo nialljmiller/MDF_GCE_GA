@@ -15,6 +15,10 @@ import random
 import Gal_GA_PP as Gal_GA
 import pandas as pd
 import os
+for v in ("OMP_NUM_THREADS","OPENBLAS_NUM_THREADS","MKL_NUM_THREADS","NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(v, "1")  # avoid BLAS thread explosion per process
+os.environ.setdefault("MPLBACKEND", "Agg")  # non-GUI backend, prevents stray GUI state
+
 import checkpoint  # checkpointing utilities
 # Import plotting module
 import mdf_plotting

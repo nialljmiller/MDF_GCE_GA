@@ -25,19 +25,7 @@ for at_no in "${attempt_no[@]}"; do
       for tgt in "${targets[@]}"; do
         run_dir="bc_batch_local_${at_no}_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
         mkdir -p "$run_dir"
-
-        # Modify param file
-        modify_param "$ts" "$w" "$tgt" "$run_dir"
-
-        # Echo and run command
-        cmd="python MDF_GA.py"
-        echo "Running: $cmd (for $run_dir)"
-        $cmd
-
-        # Restore original
-        cp bulge_pcard_backup.txt bulge_pcard.txt
-        echo "Completed $run_dir"
-      done
+        sbatch --export=ALL,TS="$ts",W="$w",TGT="$tgt",RUN_DIR="$run_dir",RUN_NAME="t${ts}_w${w}_$(basename "$tgt")" run_task.sh
     done
   done
 done

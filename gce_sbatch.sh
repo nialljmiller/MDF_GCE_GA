@@ -5,8 +5,8 @@ set -euo pipefail
 cp -f bulge_pcard.txt bulge_pcard_backup.txt
 
 # Parameter grids
-timesteps=(10)
-weights=(0.0)
+timesteps=(100)
+weights=(1.0)
 targets=(joyce)
 attempt_no=(0 1 2 3 4)
 

@@ -8,7 +8,8 @@ Authors: N Miller, based on analysis framework
 
 
 
-
+import numpy as np
+from scipy.stats import gaussian_kde
 
 import os
 import sys
@@ -1043,32 +1044,31 @@ def _weighted_hpd_1d(x, w, mass=0.68):
     return (float(xs[i]), float(xs[j]))
 
 
-def _combined_top_selection(analyzers, params, percentile=10, weight_power=1.0):
-    """
-    Select top cohort from EACH analyzer (using its mixture cutoff if available),
-    then concatenate all selections into a single DataFrame + global weights.
-    """
-    import numpy as np
-    import pandas as pd
-    frames = []
-    w_all = []
-    for a in analyzers:
-        cutoff = _cutoff_for_analyzer(a, fallback=None)
-        t, w = _select_by_cutoff_or_percentile(
-            a, cutoff=cutoff, fallback_percentile=percentile, weight_power=weight_power
-        )
-        keep_cols = [p for p in params if p in t.columns]
-        if not keep_cols:
-            continue
-        frames.append(t[keep_cols].copy())
-        w_all.append(np.asarray(w, float))
-    if not frames:
-        raise ValueError("No overlapping parameters across analyzers to combine.")
-    T = pd.concat(frames, ignore_index=True)
-    w = np.concatenate(w_all, axis=0)
-    w = w / np.sum(w) if np.sum(w) > 0 else w
-    return T, w
+# --- in unvertainty_analysis.py ---
 
+def _top_percentile_only(a, params, percentile=10, weight_power=1.0):
+    """Deterministic: top X% by fitness with weights 1/(loss^p)."""
+    col = _fitness_col_of(a)
+    df = a.df.sort_values(by=col, ascending=True)
+    n_top = max(1, int(len(df)*percentile/100.0))
+    sel = df.head(n_top)
+    w = 1.0 / np.power(sel[col].values + 1e-12, weight_power)
+    w = w / np.sum(w)
+    keep_cols = [p for p in params if p in sel.columns]
+    return sel[keep_cols].copy(), w
+
+# replace use inside _combined_top_selection(...)
+def _combined_top_selection(analyzers, params, percentile=10, weight_power=1.0):
+    frames, w_all = [], []
+    for a in analyzers:
+        t, w = _top_percentile_only(a, params, percentile=percentile, weight_power=weight_power)
+        if not t.empty:
+            frames.append(t); w_all.append(w)
+    import numpy as np, pandas as pd
+    if not frames: 
+        return pd.DataFrame(columns=params), np.array([])
+    W = np.concatenate(w_all)
+    return pd.concat(frames, axis=0, ignore_index=True), W
 
 
 
@@ -1126,6 +1126,11 @@ def plot_loss_overlays_simple(analyzers, ink_colors, legend_labels, cutoffs=None
 
 
 
+def cutoff_at_peak(losses, kde_points=2048):
+    L = np.asarray(losses, float)
+    xs = np.linspace(L.min(), L.max(), int(kde_points))
+    dens = gaussian_kde(L)(xs)
+    return 1.0#float(xs[np.argmax(dens)])   # cutoff = mode of loss KDE
 
 
 
@@ -1252,7 +1257,7 @@ def plot_corner_with_marginals_multi(
     ink_colors = _colors_for(len(analyzers), ink_colors)
 
     # per-folder cutoffs (prefer user method; else EM)
-    cutoffs = [ _cutoff_for_analyzer(a, fallback=None) for a in analyzers ]
+    cutoffs = [cutoff_at_peak(a.df_sorted[a.fitness_col].to_numpy(float)) for a in analyzers]
 
     # precompute selections using cutoff or fallback percentile
     tops, weights = [], []
@@ -1401,7 +1406,7 @@ def compute_and_plot_combined_covariant_uncertainties(
     ink_colors = _colors_for(len(analyzers), ink_colors)
 
     # per-folder cutoffs (prefer analyzer method; else EM), then select
-    cutoffs = [_cutoff_for_analyzer(a, fallback=None) for a in analyzers]
+    cutoffs = [cutoff_at_peak(a.df_sorted[a.fitness_col].to_numpy(float)) for a in analyzers]
     tops, weights = [], []
     for a, co in zip(analyzers, cutoffs):
         t, w = _select_by_cutoff_or_percentile(a, cutoff=co, fallback_percentile=percentile, weight_power=weight_power)
@@ -1644,6 +1649,54 @@ def compute_and_plot_combined_covariant_uncertainties(
     )
 
 
+def export_best_per_folder_csv(chosen, out_csv):
+    """
+    Write one-row-per-folder CSV with the best (min-loss) model's parameter values.
+
+    Parameters
+    ----------
+    chosen : list of (folder_name, folder_path, csv_list)
+        Exactly what your selection block already builds.
+    out_csv : str
+        Output CSV path.
+    """
+    import os
+    import pandas as pd
+
+    rows = []
+    all_cols = set()
+
+    for (name, path, csvs) in chosen:
+        primary_csv = _choose_primary_csv(csvs)  # your helper
+        a = UncertaintyAnalysis(               # uses 'fitness' or 'wrmse' automatically
+            results_file=primary_csv,
+            output_path=os.path.join(path, "analysis", os.path.splitext(os.path.basename(primary_csv))[0]) + os.sep
+        )
+        best = a.df_sorted.iloc[0]
+
+        # keep simple: union of declared params + fitness column
+        keep_cols = list(dict.fromkeys(a.continuous_params + a.categorical_params + [a.fitness_col]))
+        row = {
+            "folder": name,
+            "primary_csv": os.path.basename(primary_csv),
+        }
+        for c in keep_cols:
+            if c in best.index:
+                row[c] = best[c]
+                all_cols.add(c)
+        rows.append(row)
+
+    # stable column order
+    cols = ["folder", "primary_csv"]
+    # put fitness columns early if they exist, then everything else sorted
+    fit_cols = [c for c in ("fitness", "wrmse") if c in all_cols]
+    other = sorted([c for c in all_cols if c not in fit_cols])
+    cols.extend(fit_cols + other)
+
+    df = pd.DataFrame(rows, columns=cols)
+    os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+    df.to_csv(out_csv, index=False)
+    print(f"[best-per-folder] wrote: {out_csv}")
 
 
 
@@ -1695,6 +1748,13 @@ if __name__ == "__main__":
         print("No valid indices chosen. Exiting.")
         sys.exit(0)
 
+    # output dir reused later too
+    overlay_dir = os.path.join(current_dir, "analysis", "overlay")
+    os.makedirs(overlay_dir, exist_ok=True)
+
+    # ---- FIRST: export best row per selected folder
+    export_best_per_folder_csv(chosen, os.path.join(overlay_dir, "best_per_folder.csv"))
+
 
     # build analyzers for selected
     analyzers = []
@@ -1703,7 +1763,7 @@ if __name__ == "__main__":
         primary_csv = _choose_primary_csv(csvs)
         out_root = os.path.join(path, "analysis", os.path.splitext(os.path.basename(primary_csv))[0]) + os.sep
         a = UncertaintyAnalysis(results_file=primary_csv, output_path=out_root)
-        if a.df_sorted[a.fitness_col].iloc[0] < 0.033:
+        if a.df_sorted[a.fitness_col].iloc[0] < 0.1:
             # prefer folder-specific bulge_pcard.txt if present
             pcard_here = os.path.join(path, "bulge_pcard.txt")
             if os.path.isfile(pcard_here):
@@ -1739,11 +1799,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=labels,
         save_path=save_path
@@ -1754,11 +1814,11 @@ if __name__ == "__main__":
     _ = compute_and_plot_combined_covariant_uncertainties(
             analyzers,
             params=params,          # or a shorter list if you prefer
-            percentile=25,          # or use 10; selection still respects per-folder mixture cutoff when present
+            percentile=100,          # or use 10; selection still respects per-folder mixture cutoff when present
             weight_power=1.0,
             p_hpd=0.68,
             grid_n=240,
-            alpha_gamma=0.7,
+            alpha_gamma=0.9,
             ink_colors=inkcolrs,
             save_dir=save_path
     )
@@ -1775,11 +1835,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path
@@ -1792,11 +1852,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path
@@ -1808,11 +1868,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path

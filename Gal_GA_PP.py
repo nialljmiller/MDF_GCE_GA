@@ -1074,11 +1074,11 @@ class GalacticEvolutionGA:
             # Apply targeted improvement for poorly performing walkers
             for mutant in offspring:
                 if mutant.fitness.values[0] > 100.0:
-                    toolbox.mutate(mutant)
-                    toolbox.mutate(mutant)
                     best_clone = toolbox.clone(best_walker)
                     child, _ = toolbox.mate(mutant, best_clone)
                     mutant[:] = child
+                    toolbox.mutate(mutant)
+                    toolbox.mutate(mutant)
                     del mutant.fitness.values
 
 

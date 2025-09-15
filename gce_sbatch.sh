@@ -1,15 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
-# Backup original param file
-cp bulge_pcard.txt bulge_pcard_backup.txt
-
-# Function to modify param file
-modify_param() {
-  sed -i "s/^timesteps:.*/timesteps: $1/" bulge_pcard.txt
-  sed -i "s/^mdf_vs_age_weight:.*/mdf_vs_age_weight: $2/" bulge_pcard.txt
-  sed -i "s/^obs_age_data_target:.*/obs_age_data_target: '$3'/" bulge_pcard.txt
-  sed -i "s/^output_path:.*/output_path: '$4\/'/" bulge_pcard.txt
-}
+# Optional: backup of the baseline param file (not modified by this script anymore)
+cp -f bulge_pcard.txt bulge_pcard_backup.txt
 
 # Parameter grids
 timesteps=(10)
@@ -17,8 +10,9 @@ weights=(0.0)
 targets=(joyce)
 attempt_no=(0 1 2 3 4)
 
-# Loop over combinations
+mkdir -p logs
 
+# Loop over combinations
 for at_no in "${attempt_no[@]}"; do
   for ts in "${timesteps[@]}"; do
     for w in "${weights[@]}"; do
@@ -26,6 +20,7 @@ for at_no in "${attempt_no[@]}"; do
         run_dir="bc_batch_local_${at_no}_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
         mkdir -p "$run_dir"
         sbatch --export=ALL,TS="$ts",W="$w",TGT="$tgt",RUN_DIR="$run_dir",RUN_NAME="t${ts}_w${w}_$(basename "$tgt")" launch_many.sh
+      done
     done
   done
 done

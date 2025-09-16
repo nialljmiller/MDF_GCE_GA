@@ -169,7 +169,7 @@ sigma_2_list: [0.1, 10.0]
 # Contentious: Very short (<0.01 Gyr) may cause numerical instability in models, but necessary for prompt SF bursts; longer (~0.1 Gyr) debated for "inside-out" vs. monolithic collapse.
 # References: Matteucci et al. (2021, A&A, 653, A72) for ~0.1 Gyr onset in bulge models; Chiappini et al. (2001, ApJ, 554, 1044) for fast <0.01 Gyr first phase; Grisoni et al. (2017, MNRAS, 469, 4216) for 0.001-0.1 Gyr in two-infall; Wylie et al. (2024, MNRAS, 531, 386) observing old bulge ages implying <0.1 Gyr.
 ############################################################
-tmax_1_list: [0.0001, 0.1] # for two infall scenario, sweep
+tmax_1_list: [0.005, 0.1] # for two infall scenario, sweep
 
 # Justification for tmax_2: 0.1-10.0 Gyr for delayed second infall matching observed bulge age spreads (2-10 Gyr) and bimodal populations; reduced upper from 15 to 10 as late delays (>10 Gyr) unlikely for bulge enrichment, focusing on plausible merger/dilution timings.
 # Contentious: Long delays (>8 Gyr) may underproduce metal-rich stars, debated in clumpy vs. secular evolution; typical 1-5 Gyr for "knee" in [α/Fe].
@@ -215,8 +215,8 @@ infall_timescale_2_list: [0.1, 10.0]
 # Contentious: Primordial (<-2.0) rarely needed for bulge (mostly -1.5 to +0.5), but added for halo-like contributions; solar common for second infall.
 # References: Rojas-Arriagada et al. (2020, MNRAS, 499, 1037) for bulge MDF -1.5 to +0.5; Matteucci et al. (2024, A&A, 687, A11) including -2.0 for early gas; Chiappini et al. (2001) for -0.5 to solar in phases.
 ############################################################
-comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt','iniab_output_feh_m200.txt']
-
+#comp_array: ['iniab_output_feh_p050.txt','iniab_output_feh_p000.txt','iniab_output_feh_m050.txt','iniab_output_feh_m100.txt','iniab_output_feh_m150.txt','iniab_output_feh_m200.txt']
+comp_array: ['iniab_output_feh_p000.txt']
 ############################################################
 #
 # Star formation efficiency (SFE): Fraction of gas converted to stars.
@@ -235,7 +235,7 @@ sfe_array: [0.01, 0.035]
 # Justification for delta_sfe: -0.5 to 1.0 allows moderate quenching (-0.5) or burst (+1.0) at second infall; expanded negative for post-merger dilution scenarios.
 # Contentious: Negative delta (decrease) debated vs. positive (increase) in two-infall; range covers quenching in secular evolution.
 # References: Spitoni et al. (2019, A&A, 632, A58) for Δ~0.5-2 increases; Chiappini et al. (2001) variations 0-2; Matteucci et al. (2024) potential decreases ~ -0.5 for dilution; Grisoni et al. (2020) Δ~0-1.
-delta_sfe_array: [-0.005, 0.02]
+delta_sfe_array: [-0.006, 0.006]
 
 ############################################################
 #
@@ -245,7 +245,8 @@ delta_sfe_array: [-0.005, 0.02]
 # Contentious: Salpeter may overproduce massive stars; Chabrier/Kroupa preferred for integrated light, but Salpeter fits chemical yields.
 # References: Salpeter (1955, ApJ, 121, 161) original; Chabrier (2003, PASP, 115, 763); Kroupa (2001, MNRAS, 322, 231); Ballero et al. (2007, A&A, 467, 943) Salpeter for bulge MDF; Matteucci et al. (2024) comparing in bulge.
 ############################################################
-imf_array: ['salpeter', 'chabrier', 'kroupa']
+#imf_array: ['salpeter', 'chabrier', 'kroupa']
+imf_array: ['kroupa']
 
 ############################################################
 #
@@ -260,7 +261,7 @@ imf_array: ['salpeter', 'chabrier', 'kroupa']
 # Contentious: >120 M_sun debated (pair-instability limit), but evidence for ~150; lower ~40 for metal-rich suppression.
 # References: Weidner et al. (2013, MNRAS, 434, 84) 30-150; Figer (2005, Nature, 434, 192) ~150 cutoff; Maíz Apellániz et al. (2007, A&A, 464, 83) 100-200 variations; Limongi & Chieffi (2018, ApJS, 237, 13) yields up to 120.
 ############################################################
-imf_upper_limits: [30, 150]  # Allow more massive stars
+imf_upper_limits: [60, 130]  # Allow more massive stars
 
 ############################################################
 #
@@ -276,7 +277,8 @@ imf_upper_limits: [30, 150]  # Allow more massive stars
 # Contentious: Sub-Ch (Shen) may overproduce Mn, but essential for low-Z; near-Ch standard.
 # References: Gronow et al. (2021, A&A, 649, A155) near-Ch; Shen et al. (2018, ApJ, 857, 25) sub-Ch; Kobayashi et al. (2020, ApJ, 900, 179) for bulge GCE; Keegans et al. (2023, ApJ, 945, 107) benchmarking.
 ############################################################
-sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
+#sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
+sn1a_assumptions: ['sn1a_Gronow.txt']
 
 ############################################################
 #
@@ -293,7 +295,8 @@ sn1a_assumptions: ['sn1a_Gronow.txt','sn1a_shen.txt']
 # Contentious: High rotation (300 km/s) may overproduce N; average/no rotation standard for bulge.
 # References: Limongi & Chieffi (2018, ApJS, 237, 13) for rotation 0-300 km/s; Prantzos et al. (2018, A&A, 611, A92) rotation in GCE; Choplin et al. (2018, A&A, 611, A47) impact on yields; Nomoto et al. (2013, ARA&A, 51, 457) for HNe.
 ############################################################
-stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_C15_N13_0_0_HNe.txt']
+#stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_R150.txt', 'agb_and_massive_stars_K10_LC18_Ravg.txt', 'agb_and_massive_stars_K10_LC18_R000.txt', 'agb_and_massive_stars_C15_N13_0_0_HNe.txt']
+stellar_yield_assumptions: ['agb_and_massive_stars_K10_LC18_Ravg.txt']
 
 ############################################################
 #

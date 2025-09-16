@@ -1963,7 +1963,7 @@ if __name__ == "__main__":
                 '#99724B',
                 '#59454E',]
 
-    params = ['sigma_2', 't_2', 'infall_2', 't_1', 'infall_1', 'sfe', 'mgal', 'delta_sfe', 'mae']
+    params = ['sigma_2', 't_2', 'infall_2', 't_1', 'infall_1', 'sfe', 'mgal', 'delta_sfe', 'nb','imf_upper', 'mae']
 
     fig = plot_corner_points_contours(
         runs=analyzers,

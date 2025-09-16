@@ -102,16 +102,17 @@ shrink_range: 'False'
 
 # Controls the number of steps where MutPb=0.80, CxPb=0.20, Voronoi=0.40
 # This is the initial exploration stage, the number of steps where the focus is on expansive exploration
-exploration_steps: 32
+exploration_steps: 0.25
+
 
 
 # Controls the scale of gaussian mutations relative to each parameter's range
 # Justification: 0.1 as fraction of range for adaptive steps.
-gaussian_sigma_scale: 0.1
+gaussian_sigma_scale: 0.02
 
 # Fraction of the difference between parents used as noise during crossover
 # Justification: 0.05 adds small variation for fine-tuning.
-crossover_noise_fraction: 0.01
+crossover_noise_fraction: 0.001
 
 # Base strength for controlled perturbations applied to duplicate individuals
 # Justification: 0.2 to break duplicates without large jumps.

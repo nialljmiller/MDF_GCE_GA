@@ -8,7 +8,8 @@ Authors: N Miller, based on analysis framework
 
 
 
-
+import numpy as np
+from scipy.stats import gaussian_kde
 
 import os
 import sys
@@ -1043,32 +1044,31 @@ def _weighted_hpd_1d(x, w, mass=0.68):
     return (float(xs[i]), float(xs[j]))
 
 
-def _combined_top_selection(analyzers, params, percentile=10, weight_power=1.0):
-    """
-    Select top cohort from EACH analyzer (using its mixture cutoff if available),
-    then concatenate all selections into a single DataFrame + global weights.
-    """
-    import numpy as np
-    import pandas as pd
-    frames = []
-    w_all = []
-    for a in analyzers:
-        cutoff = _cutoff_for_analyzer(a, fallback=None)
-        t, w = _select_by_cutoff_or_percentile(
-            a, cutoff=cutoff, fallback_percentile=percentile, weight_power=weight_power
-        )
-        keep_cols = [p for p in params if p in t.columns]
-        if not keep_cols:
-            continue
-        frames.append(t[keep_cols].copy())
-        w_all.append(np.asarray(w, float))
-    if not frames:
-        raise ValueError("No overlapping parameters across analyzers to combine.")
-    T = pd.concat(frames, ignore_index=True)
-    w = np.concatenate(w_all, axis=0)
-    w = w / np.sum(w) if np.sum(w) > 0 else w
-    return T, w
+# --- in unvertainty_analysis.py ---
 
+def _top_percentile_only(a, params, percentile=10, weight_power=1.0):
+    """Deterministic: top X% by fitness with weights 1/(loss^p)."""
+    col = _fitness_col_of(a)
+    df = a.df.sort_values(by=col, ascending=True)
+    n_top = max(1, int(len(df)*percentile/100.0))
+    sel = df.head(n_top)
+    w = 1.0 / np.power(sel[col].values + 1e-12, weight_power)
+    w = w / np.sum(w)
+    keep_cols = [p for p in params if p in sel.columns]
+    return sel[keep_cols].copy(), w
+
+# replace use inside _combined_top_selection(...)
+def _combined_top_selection(analyzers, params, percentile=10, weight_power=1.0):
+    frames, w_all = [], []
+    for a in analyzers:
+        t, w = _top_percentile_only(a, params, percentile=percentile, weight_power=weight_power)
+        if not t.empty:
+            frames.append(t); w_all.append(w)
+    import numpy as np, pandas as pd
+    if not frames: 
+        return pd.DataFrame(columns=params), np.array([])
+    W = np.concatenate(w_all)
+    return pd.concat(frames, axis=0, ignore_index=True), W
 
 
 
@@ -1126,6 +1126,11 @@ def plot_loss_overlays_simple(analyzers, ink_colors, legend_labels, cutoffs=None
 
 
 
+def cutoff_at_peak(losses, kde_points=2048):
+    L = np.asarray(losses, float)
+    xs = np.linspace(L.min(), L.max(), int(kde_points))
+    dens = gaussian_kde(L)(xs)
+    return 1.0#float(xs[np.argmax(dens)])   # cutoff = mode of loss KDE
 
 
 
@@ -1252,7 +1257,7 @@ def plot_corner_with_marginals_multi(
     ink_colors = _colors_for(len(analyzers), ink_colors)
 
     # per-folder cutoffs (prefer user method; else EM)
-    cutoffs = [ _cutoff_for_analyzer(a, fallback=None) for a in analyzers ]
+    cutoffs = [cutoff_at_peak(a.df_sorted[a.fitness_col].to_numpy(float)) for a in analyzers]
 
     # precompute selections using cutoff or fallback percentile
     tops, weights = [], []
@@ -1401,7 +1406,7 @@ def compute_and_plot_combined_covariant_uncertainties(
     ink_colors = _colors_for(len(analyzers), ink_colors)
 
     # per-folder cutoffs (prefer analyzer method; else EM), then select
-    cutoffs = [_cutoff_for_analyzer(a, fallback=None) for a in analyzers]
+    cutoffs = [cutoff_at_peak(a.df_sorted[a.fitness_col].to_numpy(float)) for a in analyzers]
     tops, weights = [], []
     for a, co in zip(analyzers, cutoffs):
         t, w = _select_by_cutoff_or_percentile(a, cutoff=co, fallback_percentile=percentile, weight_power=weight_power)
@@ -1644,6 +1649,226 @@ def compute_and_plot_combined_covariant_uncertainties(
     )
 
 
+def export_best_per_folder_csv(chosen, out_csv):
+    """
+    Write one-row-per-folder CSV with the best (min-loss) model's parameter values.
+
+    Parameters
+    ----------
+    chosen : list of (folder_name, folder_path, csv_list)
+        Exactly what your selection block already builds.
+    out_csv : str
+        Output CSV path.
+    """
+    import os
+    import pandas as pd
+
+    rows = []
+    all_cols = set()
+
+    for (name, path, csvs) in chosen:
+        primary_csv = _choose_primary_csv(csvs)  # your helper
+        a = UncertaintyAnalysis(               # uses 'fitness' or 'wrmse' automatically
+            results_file=primary_csv,
+            output_path=os.path.join(path, "analysis", os.path.splitext(os.path.basename(primary_csv))[0]) + os.sep
+        )
+        best = a.df_sorted.iloc[0]
+
+        # keep simple: union of declared params + fitness column
+        keep_cols = list(dict.fromkeys(a.continuous_params + a.categorical_params + [a.fitness_col]))
+        row = {
+            "folder": name,
+            "primary_csv": os.path.basename(primary_csv),
+        }
+        for c in keep_cols:
+            if c in best.index:
+                row[c] = best[c]
+                all_cols.add(c)
+        rows.append(row)
+
+    # stable column order
+    cols = ["folder", "primary_csv"]
+    # put fitness columns early if they exist, then everything else sorted
+    fit_cols = [c for c in ("fitness", "wrmse") if c in all_cols]
+    other = sorted([c for c in all_cols if c not in fit_cols])
+    cols.extend(fit_cols + other)
+
+    df = pd.DataFrame(rows, columns=cols)
+    os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+    df.to_csv(out_csv, index=False)
+    print(f"[best-per-folder] wrote: {out_csv}")
+
+
+
+
+
+
+def plot_corner_points_contours(
+    runs,
+    params=None,                    # if None: common numeric cols across runs
+    run_names=None,                 # legend labels
+    include_loss_axis=True,         # add fitness/wrmse as a final axis
+    alpha_range=(0.05, 0.9),        # min,max point alpha
+    alpha_gamma=0.6,                # emphasis on low loss (higher alpha)
+    point_size=4,
+    bins=40,
+    levels=(0.68, 0.95),
+    smooth=0.9,                     # KDE smoothing for contours
+    colors=None,                    # pass your inkcolrs here
+    save_path=None,
+    show=False
+):
+    """
+    Overlay corner with ONLY:
+      - contours (KDE) per run, in color
+      - raw scatter (alpha ∝ 1/loss) per run
+    """
+    import numpy as np, pandas as pd, matplotlib.pyplot as plt
+    import corner
+    from matplotlib import colors as mcolors
+    from matplotlib.lines import Line2D
+
+    # normalize inputs -> (df, loss_col)
+    dfs, loss_cols = [], []
+    for r in runs:
+        if hasattr(r, "df") and hasattr(r, "fitness_col"):
+            df = r.df.copy(); loss_col = r.fitness_col
+        elif isinstance(r, str):
+            df = pd.read_csv(r)
+            loss_col = 'fitness' if 'fitness' in df.columns else ('wrmse' if 'wrmse' in df.columns else None)
+        elif hasattr(r, "columns"):
+            df = r.copy()
+            loss_col = 'fitness' if 'fitness' in df.columns else ('wrmse' if 'wrmse' in df.columns else None)
+        else:
+            raise TypeError("runs must be UncertaintyAnalysis, DataFrame, or CSV paths")
+        if loss_col is None:
+            raise ValueError("Need a 'fitness' or 'wrmse' column.")
+        dfs.append(df); loss_cols.append(loss_col)
+
+    # choose params (common numeric across runs, excluding loss); append loss if requested
+    if params is None:
+        common = None
+        for df, lc in zip(dfs, loss_cols):
+            cols = set(df.select_dtypes(include=[np.number]).columns)
+            for drop in ("generation","seed","id","index"): cols.discard(drop)
+            cols.discard(lc)
+            common = cols if common is None else (common & cols)
+        params = sorted(list(common or []))
+    if include_loss_axis:
+        params = list(params) + [loss_cols[0]]
+
+    k = len(params)
+    if k == 0: raise ValueError("No numeric parameters to plot.")
+
+    # global ranges (small pad)
+    ranges = []
+    for p in params:
+        vmin, vmax = np.inf, -np.inf
+        for df in dfs:
+            if p in df.columns and df[p].notna().any():
+                v = df[p].values
+                vmin = min(vmin, np.nanmin(v)); vmax = max(vmax, np.nanmax(v))
+        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+            vmin, vmax = 0.0, 1.0
+        span = (vmax - vmin) or 1.0
+        pad = 0.02 * span
+        ranges.append((vmin - pad, vmax + pad))
+
+    # colors & labels
+    n = len(dfs)
+    if colors is None:
+        cyc = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0','C1','C2','C3','C4','C5','C6'])
+        colors = [cyc[i % len(cyc)] for i in range(n)]
+    run_names = run_names or [f'run {i+1}' for i in range(n)]
+
+    # helper: alpha from loss (lower loss -> higher alpha)
+    a_min, a_max = alpha_range
+    def loss_to_alpha(loss_array):
+        L = np.asarray(loss_array, float)
+        Lmin, Lmax = np.nanmin(L), np.nanmax(L)
+        if not np.isfinite(Lmin) or not np.isfinite(Lmax) or Lmin == Lmax:
+            q = np.zeros_like(L)
+        else:
+            q = (L - Lmin) / (Lmax - Lmin)
+        s = (1.0 - q)**float(alpha_gamma)
+        return a_min + s * (a_max - a_min)
+
+    # draw: first run initializes grid; others overlay contours; then scatter for each
+    fig, axes = None, None
+    for idx, (df, lcol, col) in enumerate(zip(dfs, loss_cols, colors)):
+        # enforce finite rows for plotted params
+        keep = np.ones(len(df), dtype=bool)
+        for p in params:
+            keep &= (p in df.columns) & np.isfinite(df[p].values)
+        D = df.loc[keep, :]
+        if D.empty: continue
+
+        X = np.column_stack([D[p].values for p in params])
+
+        if fig is None:
+            fig = corner.corner(
+                X,
+                labels=params,            # swap for TeX if you want
+                bins=bins,
+                range=ranges,
+                color=col,
+                smooth=smooth,
+                levels=levels,
+                plot_datapoints=False,    # we’ll scatter ourselves
+                plot_density=True,        # KDE for contours
+                plot_contours=True,
+                fill_contours=False,
+                hist_kwargs=dict(histtype="step", linewidth=1.2),
+                contour_kwargs=dict(linewidths=1.5),
+            )
+            axes = np.array(fig.axes).reshape((k, k))
+        else:
+            fig = corner.corner(
+                X,
+                fig=fig,
+                bins=bins,
+                range=ranges,
+                color=col,
+                smooth=smooth,
+                levels=levels,
+                plot_datapoints=False,
+                plot_density=True,
+                plot_contours=True,
+                fill_contours=False,
+                hist_kwargs=dict(histtype="step", linewidth=1.2),
+                contour_kwargs=dict(linewidths=1.5),
+            )
+
+        # scatter (raw data) with per-point alpha on off-diagonals
+        alphas = loss_to_alpha(D[lcol].values)
+        base_rgba = np.array(mcolors.to_rgba(col))
+        rgba = np.repeat(base_rgba[None, :], len(D), axis=0)
+        rgba[:, 3] = np.clip(alphas, 0.0, 1.0)
+
+        for i in range(1, k):
+            for j in range(i):
+                ax = axes[i, j]
+                ax.scatter(
+                    D[params[j]].values, D[params[i]].values,
+                    s=point_size,
+                    c=rgba,
+                    marker='.',
+                    linewidths=0,
+                    rasterized=True
+                )
+
+    # legend
+    handles = [Line2D([0],[0], color=c, lw=2) for c in colors]
+    fig.legend(handles, run_names, loc="upper right", bbox_to_anchor=(0.98, 0.98))
+
+    if save_path:
+        fig.savefig(save_path, dpi=200, bbox_inches="tight")
+    if show:
+        plt.show()
+    return fig
+
+
+
 
 
 
@@ -1695,6 +1920,13 @@ if __name__ == "__main__":
         print("No valid indices chosen. Exiting.")
         sys.exit(0)
 
+    # output dir reused later too
+    overlay_dir = os.path.join(current_dir, "analysis", "overlay")
+    os.makedirs(overlay_dir, exist_ok=True)
+
+    # ---- FIRST: export best row per selected folder
+    export_best_per_folder_csv(chosen, os.path.join(overlay_dir, "best_per_folder.csv"))
+
 
     # build analyzers for selected
     analyzers = []
@@ -1703,7 +1935,7 @@ if __name__ == "__main__":
         primary_csv = _choose_primary_csv(csvs)
         out_root = os.path.join(path, "analysis", os.path.splitext(os.path.basename(primary_csv))[0]) + os.sep
         a = UncertaintyAnalysis(results_file=primary_csv, output_path=out_root)
-        if a.df_sorted[a.fitness_col].iloc[0] < 0.33:
+        if a.df_sorted[a.fitness_col].iloc[0] < 0.1:
             # prefer folder-specific bulge_pcard.txt if present
             pcard_here = os.path.join(path, "bulge_pcard.txt")
             if os.path.isfile(pcard_here):
@@ -1731,6 +1963,20 @@ if __name__ == "__main__":
                 '#99724B',
                 '#59454E',]
 
+    params = ['sigma_2', 't_2', 'infall_2', 't_1', 'infall_1', 'sfe', 'mgal', 'delta_sfe', 'mae']
+
+    fig = plot_corner_points_contours(
+        runs=analyzers,
+        params=params,
+        run_names=labels,
+        include_loss_axis=True,
+        colors=inkcolrs,                              # <- use your ink colors
+        levels=(0.68,),
+        smooth=0.9,
+        point_size=4,
+        bins=40,
+        save_path=os.path.join(overlay_dir, "corner_points_contours.png"),
+    )
 
 
     save_path = os.path.join(overlay_dir, f"bigger_posterior_corner_combo.png")
@@ -1739,11 +1985,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=labels,
         save_path=save_path
@@ -1754,11 +2000,11 @@ if __name__ == "__main__":
     _ = compute_and_plot_combined_covariant_uncertainties(
             analyzers,
             params=params,          # or a shorter list if you prefer
-            percentile=25,          # or use 10; selection still respects per-folder mixture cutoff when present
+            percentile=100,          # or use 10; selection still respects per-folder mixture cutoff when present
             weight_power=1.0,
             p_hpd=0.68,
             grid_n=240,
-            alpha_gamma=0.7,
+            alpha_gamma=0.9,
             ink_colors=inkcolrs,
             save_dir=save_path
     )
@@ -1775,11 +2021,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path
@@ -1792,11 +2038,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path
@@ -1808,11 +2054,11 @@ if __name__ == "__main__":
     plot_corner_with_marginals_multi(
         analyzers,
         params=params,
-        percentile=25,
+        percentile=100,
         weight_power=1.0,
         bins=40,
         assoc_metric='spearman',
-        alpha_gamma=0.8,
+        alpha_gamma=0.9,
         ink_colors=inkcolrs,
         legend_labels=None,
         save_path=save_path

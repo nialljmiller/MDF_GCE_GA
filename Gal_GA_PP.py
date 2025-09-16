@@ -441,14 +441,13 @@ class GalacticEvolutionGA:
         
         # Handle categorical parameters with fitness-weighted selection
         categorical_indices = [0, 1, 2, 3, 4]
+
         for i in categorical_indices:
-            if random.random() < weight1:
-                # Child 1 inherits from parent 1, child 2 from parent 1
-                ind2_copy[i] = ind1[i]
-            else:
-                # Child 1 inherits from parent 2, child 2 from parent 2  
-                ind1_copy[i] = ind2[i]
-        
+            # child 1
+            ind1_copy[i] = ind1[i] if random.random() < weight1 else ind2[i]
+            # child 2
+            ind2_copy[i] = ind1[i] if random.random() < weight1 else ind2[i]
+
         # Handle continuous parameters with fitness-weighted blending
         continuous_indices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
         for i in continuous_indices:
@@ -604,90 +603,56 @@ class GalacticEvolutionGA:
 
 
 
-
     def update_operator_rates(self, population, generation, num_generations):
-        """Fitness-guided exploration with Voronoi dearth exploration always active"""
-        
-        # 1. BETTER DIVERSITY METRIC: Use nearest neighbor distances
-        continuous_genes = np.array([ind[5:] for ind in population])
-        
-        # Normalize parameters to [0,1] for fair distance calculation
-        normalized_genes = np.zeros_like(continuous_genes)
-        for i, param_idx in enumerate(range(5, 5 + continuous_genes.shape[1])):
-            min_bound, max_bound = self.get_param_bounds(param_idx)
-            param_range = max_bound - min_bound
-            if param_range > 0:
-                normalized_genes[:, i] = (continuous_genes[:, i] - min_bound) / param_range
-        
-        # Calculate average nearest neighbor distance (better diversity metric)
-        if len(normalized_genes) > 1:
-            from scipy.spatial.distance import pdist, squareform
-            distances = squareform(pdist(normalized_genes))
-            np.fill_diagonal(distances, np.inf)  # Exclude self-distances
-            avg_nearest_neighbor_dist = np.mean(np.min(distances, axis=1))
+        """
+        Deterministic 3-phase schedule (seed-agnostic):
+          Phase A (0 → gA): brief exploration
+          Phase B (gA → gB): focus
+          Phase C (gB → end): exploit
+        Voronoi dearth exploration: early only, deterministic (or disabled if not supported).
+        """
+
+        # --- schedule (fractions of total gens) ---
+        explore_frac = getattr(self, "explore_frac", self.exploration_steps)   # first 20% of gens
+        focus_frac   = getattr(self, "focus_frac",   0.70)   # until 70%; last 30% exploit
+
+        gA = int(explore_frac * num_generations)
+        gB = int(focus_frac   * num_generations)
+
+        # --- operator levels (fixed numbers) ---
+        mut_hi, mut_md, mut_lo = self.mutpb, 0.25, 0.15
+        cx_lo,  cx_md,  cx_hi  = 0.50, 0.65, self.cxpb
+
+        # keep tournament size small and constant (prevents lock-in to wrong basin)
+        self.tournament_size = getattr(self, "tournament_size", 2)
+
+        # --- choose phase by generation index (no feedback from population) ---
+        if generation < gA:
+            # Phase A: exploration
+            self.mutpb = mut_hi
+            self.cxpb  = cx_lo
+            vor_frac   = 0.3
+        elif generation < gB:
+            # Phase B: focus
+            self.mutpb = mut_md
+            self.cxpb  = cx_md
+            vor_frac   = 0.01
         else:
-            avg_nearest_neighbor_dist = 0.0
-        
-        # 2. FITNESS-BASED POPULATION ANALYSIS
-        fitnesses = [ind.fitness.values[0] for ind in population if ind.fitness.valid]
-        if not fitnesses:
-            return
-            
-        fitness_std = np.std(fitnesses)
-        best_fitness = min(fitnesses)
-        worst_fitness = max(fitnesses)
-        fitness_range = worst_fitness - best_fitness
-        # 3. ADAPTIVE STRATEGY BASED ON SEARCH STATE
-        if generation < self.exploration_steps:
+            # Phase C: exploit
+            self.mutpb = mut_lo
+            self.cxpb  = cx_hi
+            vor_frac   = 0.0
 
-            if self.backup_tournament_size == 0:
-                self.backup_tournament_size = self.tournament_size
+        # --- early Voronoi only, without randomness ---
+        if vor_frac > 0.0:
+                voronoi_explore_dearths(
+                    self, population,
+                    exploration_fraction=vor_frac,
+                )
 
-            self.mutpb = 0.8
-            self.cxpb = 0.2
-            strategy = "INITIAL EXPLORATION"
-            exploration_fraction = 0.4
-
-        else:            
-            self.tournament_size = self.backup_tournament_size
-            # If fitness diversity is high (population spread across fitness landscape)
-            if fitness_range > 0.1 and fitness_std > 0.05:
-                # EXPLORATION MODE: High mutation, moderate crossover
-                self.mutpb = 0.6
-                self.cxpb = 0.4
-                strategy = "EXPLORATION"
-                exploration_fraction = 0.3  # High Voronoi exploration
-                
-            # If fitness diversity is low but spatial diversity is high  
-            elif avg_nearest_neighbor_dist > 0.1:
-                # CONVERGENCE MODE: Lower mutation, higher crossover
-                self.mutpb = 0.2
-                self.cxpb = 0.7
-                strategy = "CONVERGENCE"
-                exploration_fraction = 0.15  # Moderate Voronoi exploration
-                
-            # If both fitness and spatial diversity are low
-            else:
-                # INTENSIFICATION MODE: Focus on local search around best solutions
-                self.mutpb = 0.3
-                self.cxpb = 0.6
-                strategy = "INTENSIFICATION"
-                exploration_fraction = 0.1  # Lower but still active Voronoi exploration
-            
-            # 4. NEVER REDUCE EXPLORATION TOO MUCH (prevent premature convergence)
-            self.mutpb = max(0.15, self.mutpb)  # Always maintain minimum mutation
-            exploration_fraction = max(0.05, exploration_fraction)  # Always maintain some Voronoi exploration
-                    
-        # 6. VORONOI EXPLORATION VIRTUALLY ALWAYS (magnitude guided by strategy)
-        voronoi_explore_dearths(self, population, exploration_fraction=exploration_fraction)
-        
-        if True:#generation % 5 == 0:
-            print(f"Gen {generation}: Strategy={strategy}, NN_dist={avg_nearest_neighbor_dist:.3f}, "
-                  f"Fit_std={fitness_std:.3f}, MutPb={self.mutpb:.2f}, CxPb={self.cxpb:.2f}, "
-                  f"Voronoi={exploration_fraction:.2f}, " 
-                  f"Tournament Size={self.tournament_size:.2f}")
-
-
+        if generation % 5 == 0 or generation in (0, gA, gB, num_generations-1):
+            print(f"Gen {generation:>4}/{num_generations} "
+                  f"mutpb={self.mutpb:.2f}  cxpb={self.cxpb:.2f}  Voronoi={vor_frac:.2f}")
 
 
 
@@ -1024,6 +989,7 @@ class GalacticEvolutionGA:
         return (primary_loss_value,), result
 
 
+
     def _run_genetic_algorithm(
         self,
         population,
@@ -1034,15 +1000,29 @@ class GalacticEvolutionGA:
         checkpoint_manager=None,
         output_interval=None,
     ):
+        """
+        GA main loop with small elitism:
+          - evaluate invalid
+          - pick k elites (protected)
+          - select/mate/mutate the remaining (len(pop)-k)
+          - optional quantize + de-dup
+          - evaluate invalid
+          - replace population = elites ⊕ children
+          - (optional) update operator rates, checkpoint, partial results
+        """
         if not hasattr(self, 'walker_history') or start_gen == 0:
             self.walker_history = {i: [] for i in range(len(population))}
-            
+
+        # small, fixed elitism unless user set self.elitism_k
+        base_k = max(1, len(population) // 16)  # ~6%
+        elitism_k = max(1, int(getattr(self, 'elitism_k', base_k)))
+
         for gen in range(start_gen, num_generations):
             print(f"-- =================== --")
             print(f"-- Generation {gen}/{num_generations} --")
             self.gen = gen
-            
-            # Step 1: Evaluate individuals with invalid fitness (initial population)
+
+            # ---------- Step 1: evaluate invalid in current population ----------
             invalid_ind = [ind for ind in population if not ind.fitness.valid]
             if invalid_ind:
                 if self.PP:
@@ -1063,46 +1043,67 @@ class GalacticEvolutionGA:
 
             gc.collect()
 
-            # Step 2: Select the next generation
-            offspring = toolbox.select(population)
-            offspring = list(map(toolbox.clone, offspring))
+            # ---------- Step 2: pick elites (PROTECTED) ----------
+            elites = tools.selBest(population, elitism_k)
+            elites = [toolbox.clone(e) for e in elites]
+            for e in elites:
+                # force re-eval flag off; we keep the elite genomes intact and their fitness as-is
+                # (no del e.fitness.values)
+                pass
 
+            # ---------- Step 3: select parents for breeding (rest of pop) ----------
+            # full selection for pressure; then take the needed count for children
+            mating_pool = toolbox.select(population)
+            mating_pool = list(map(toolbox.clone, mating_pool))
+            # keep only the number we need to refill to full size
+            needed_children = len(population) - elitism_k
+            breed_pool = mating_pool[:max(needed_children, 0)]
 
-            # Identify the fittest walker in the current population
-            best_walker = tools.selBest(population, 1)[0]
+            # Targeted improvement for very poor parents - no poors allowed
+            if len(population) > 0:
+                best_walker = tools.selBest(population, 1)[0]
+                best_clone = toolbox.clone(best_walker)
+                for p in breed_pool:
+                    if p.fitness.valid and p.fitness.values[0] > 100.0:
+                        # two nudges + biased mate with best
+                        toolbox.mutate(p); toolbox.mutate(p)
+                        child, _ = toolbox.mate(p, best_clone)
+                        p[:] = child
+                        if hasattr(p.fitness, 'values'):
+                            del p.fitness.values
 
-            # Apply targeted improvement for poorly performing walkers
-            for mutant in offspring:
-                if mutant.fitness.values[0] > 100.0:
-                    toolbox.mutate(mutant)
-                    toolbox.mutate(mutant)
-                    best_clone = toolbox.clone(best_walker)
-                    child, _ = toolbox.mate(mutant, best_clone)
-                    mutant[:] = child
-                    del mutant.fitness.values
+            # ---------- Step 4: crossover then mutation (children only; elites protected) ----------
+            offspring = list(map(toolbox.clone, breed_pool))
 
-
-            # Step 3: Apply crossover and mutation
-            # Apply crossover first
-            for child1, child2 in zip(offspring[::2], offspring[1::2]):
+            # crossover (pairwise)
+            for c1, c2 in zip(offspring[::2], offspring[1::2]):
                 if random.random() < self.cxpb:
-                    toolbox.mate(child1, child2)
-                    del child1.fitness.values
-                    del child2.fitness.values
+                    toolbox.mate(c1, c2)
+                    if hasattr(c1.fitness, 'values'): del c1.fitness.values
+                    if hasattr(c2.fitness, 'values'): del c2.fitness.values
 
-            # Apply mutation
-            for mutant in offspring:
+            # mutation
+            for m in offspring:
                 if random.random() < self.mutpb:
-                    toolbox.mutate(mutant)
-                    del mutant.fitness.values
+                    toolbox.mutate(m)
+                    if hasattr(m.fitness, 'values'): del m.fitness.values
 
-            # Step 4: Handle quantization and prevent duplicates
+            # optional quantization (children only)
             if self.quant_individuals:
                 offspring = [requantize(ind) for ind in offspring]
-            
+
+            # de-duplicate CHILDREN ONLY; elites remain unchanged
             offspring = self.prevent_duplicates(offspring, toolbox)
 
-            # Step 5: Evaluate offspring with invalid fitness
+            # ensure we have exactly the needed number of children
+            if len(offspring) > needed_children:
+                offspring = offspring[:needed_children]
+            elif len(offspring) < needed_children:
+                # pad with best clones if de-dup trimmed too far
+                fillers = tools.selBest(population, needed_children - len(offspring))
+                offspring += [toolbox.clone(f) for f in fillers]
+
+            # ---------- Step 5: evaluate invalid children ----------
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
             if invalid_ind:
                 if self.PP:
@@ -1121,23 +1122,18 @@ class GalacticEvolutionGA:
                     self.model_numbers.append(result['model_number'])
                     self.model_count += 1
 
-            # Step 6: Record walker history for current population before replacement
+            # ---------- Step 6: record history before replacement ----------
             for idx, ind in enumerate(population):
                 self.walker_history[idx].append(list(ind))
 
-            # Step 7: Replace population with offspring
-            population[:] = offspring
+            # ---------- Step 7: replace population = elites ⊕ offspring ----------
+            new_population = elites + offspring
+            population[:] = new_population  # size preserved
 
-            # Step 8: Update operator rates for next generation
+            # ---------- Step 8: (optional) adaptive operator rates ----------
             self.update_operator_rates(population, gen, num_generations)
 
-            # Step 9: Debug output and housekeeping
-            #if output_interval and ((gen) % max(1,int(output_interval/2)) == 0 or gen == num_generations - 1):
-            #    print_population(self, population, generation=gen)
-
-            gc.collect()  # clean up
-
-            # Step 10: Save checkpoints and partial results
+            # ---------- Step 9: checkpoint + periodic results ----------
             if checkpoint_manager:
                 checkpoint_manager.save(gen, population, self)
             else:
@@ -1146,6 +1142,8 @@ class GalacticEvolutionGA:
 
             if output_interval and ((gen) % output_interval == 0 or gen == num_generations - 1):
                 self.save_partial_results(gen)
+
+            gc.collect()
 
 
     def save_partial_results(self, generation):

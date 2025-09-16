@@ -4,10 +4,10 @@
 #SBATCH --error=logs/GCE_task_%j.err
 #SBATCH --account=galacticbulge
 #SBATCH --nodes=1
-#SBATCH --ntasks=96
-#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=96
 #SBATCH --mem=64G
-#SBATCH --time=2:00:00
+#SBATCH --time=02:00:00
 
 set -euo pipefail
 

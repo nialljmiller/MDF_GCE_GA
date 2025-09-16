@@ -5,7 +5,7 @@ set -euo pipefail
 timesteps=(100)
 weights=(1.0)
 targets=(joyce)
-attempt_no=(0 1 2 3 4)
+attempt_no=(0 1)
 
 mkdir -p logs
 

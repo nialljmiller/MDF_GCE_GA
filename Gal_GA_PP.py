@@ -745,8 +745,10 @@ class GalacticEvolutionGA:
                     else:
                         base_scale = base_sigma_scale
                     
-                    # Add randomness to step size (prevents uniform steps)
-                    step_multiplier = 0.1 + 2.0 * random.random()
+                    
+                    step_multiplier = 0.5 + 0.5 * random.random()
+                    base_scale = max(0.3 * base_sigma_scale, base_scale)
+
                     sigma = range_size * base_scale * step_multiplier * fitness_scale
                     
                     # Anti-oscillation: if we're moving back toward previous value, 
@@ -952,7 +954,7 @@ class GalacticEvolutionGA:
                     alpha_arrs, 
                     age_x_data, age_y_data
                 )
-                primary_loss_value * penalty_factor
+                primary_loss_value = primary_loss_value * penalty_factor
 
 
         # Return the result with a detailed label

@@ -117,7 +117,7 @@ normalized_count = count / count.max()  # Normalize count for comparison
 try:
     obs_age_data = load_bensby_data('data/Bensby_Data.tsv')
 except:
-    obs_age_data = load_bensby_data('../data/Bensby_Data.tsv')
+    obs_age_data = load_bensby_data('/project/galacticbulge/MDF_GCE_GA/data/Bensby_Data.tsv')
 
 # Global GalGA object to be used for both computation and plotting
 GalGA = None

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+
 # grid
 timesteps=(100)
 weights=(1.0)

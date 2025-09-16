@@ -67,8 +67,7 @@ if [ ! -f "$YIELDS_DIR/$REQ_YIELD_FILE" ]; then
   exit 4
 fi
 
-# --- now rewrite bulge_pcard.txt inside this job’s private workdir ---
-# (Ensure trailing slashes and escape for sed)
+
 YI="${YIELDS_DIR%/}/"; YI="${YI//\//\\/}"
 II="${INIAB_DIR%/}/";  II="${II//\//\\/}"
 OF="${PROJECT_DIR}/data/equal_weight_mdf.dat"; OF="${OF//\//\\/}"

@@ -4,8 +4,8 @@
 #SBATCH --error=logs/GCE_task_%j.err
 #SBATCH --account=galacticbulge
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=96
+#SBATCH --ntasks=96
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
 #SBATCH --time=2:00:00
 

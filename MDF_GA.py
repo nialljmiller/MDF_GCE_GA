@@ -114,7 +114,10 @@ feh, count = np.loadtxt(obs_file, usecols=(0, 1), unpack=True)
 normalized_count = count / count.max()  # Normalize count for comparison
 
 # Load the data
-obs_age_data = load_bensby_data('data/Bensby_Data.tsv')
+try:
+    obs_age_data = load_bensby_data('data/Bensby_Data.tsv')
+except:
+    obs_age_data = load_bensby_data('../data/Bensby_Data.tsv')
 
 # Global GalGA object to be used for both computation and plotting
 GalGA = None

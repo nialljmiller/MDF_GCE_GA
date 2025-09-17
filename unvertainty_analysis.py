@@ -1935,7 +1935,7 @@ if __name__ == "__main__":
         primary_csv = _choose_primary_csv(csvs)
         out_root = os.path.join(path, "analysis", os.path.splitext(os.path.basename(primary_csv))[0]) + os.sep
         a = UncertaintyAnalysis(results_file=primary_csv, output_path=out_root)
-        if a.df_sorted[a.fitness_col].iloc[0] < 0.1:
+        if a.df_sorted[a.fitness_col].iloc[0] < 0.03:
             # prefer folder-specific bulge_pcard.txt if present
             pcard_here = os.path.join(path, "bulge_pcard.txt")
             if os.path.isfile(pcard_here):

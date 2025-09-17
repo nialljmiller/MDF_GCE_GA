@@ -23,7 +23,7 @@ for at_no in "${attempt_no[@]}"; do
   for ts in "${timesteps[@]}"; do
     for w in "${weights[@]}"; do
       for tgt in "${targets[@]}"; do
-        run_dir="bc_batch_local_${at_no}_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_${tgt,,}"
+        run_dir="bc_batch_local_${at_no}_${ts}_w_$(echo "$w * 10" | bc | cut -d. -f1)_MDF"
         mkdir -p "$run_dir"
 
         # Modify param file

@@ -84,7 +84,7 @@ selection_threshold: -1
 # Justification: Size 2 balances diversity and selection pressure.
 # References: Miller & Goldberg (1995, Evolutionary Computation) for tournament size 2-4 optimal.
 # Contentious: Larger (4+) faster but risks locals; 2 preferred for astro params.
-tournament_size: 3
+tournament_size: 2
 
 # How the distance to the real data is calculated : 'wrmse','mae','mape','huber','cosine','log_cosh','wrmse','ks','ensemble'
 # Justification: 'ensemble' combines metrics for robust MDF fitting.
@@ -120,7 +120,7 @@ perturbation_strength: 0.2
 
 # Frequency of applying physical constraints (every N evaluations)
 # Justification: Every 3 balances efficiency and realism.
-physical_constraints_freq: 0
+physical_constraints_freq: 1
 
 # Loss metric for age-metallicity relation fitting
 # Available options: 'mae', 'rmse', 'weighted_mae', 'weighted_rmse', 'huber_loss', 
@@ -135,7 +135,7 @@ obs_age_data_target: 'joyce'
 # Range: 0.0 to 1.0, where higher values favor MDF fitting
 # 0.8 = 80% MDF loss + 20% age-metallicity loss
 # 0.5 = equal weighting
-mdf_vs_age_weight: 0.7
+mdf_vs_age_weight: 1.0
 
 ############################################################
 #
@@ -333,7 +333,7 @@ mgal_values: [0.9e10,2.0e10]
 # Contentious: Bulge rates potentially higher due to density/binary fraction; typical 0.001-0.003, but variations by factor 3-5 in models.
 # References: Maoz et al. (2014, ARA&A, 52, 107) for ~1e-3; Matteucci et al. (2021) 3e-4-3e-3 in bulge; Greggio (2005, A&A, 441, 1055) for 1e-4-1e-2 variations; Kobayashi et al. (2020) confirming 0.0005-0.005 for Fe-peak.
 ############################################################
-nb_array: [0.5e-3, 5.5e-3]  # Sweep SN1a frequency
+nb_array: [0.5e-3, 1.5e-3]  # Sweep SN1a frequency
 
 ############################################################
 #
@@ -345,7 +345,8 @@ nb_array: [0.5e-3, 5.5e-3]  # Sweep SN1a frequency
 # Contentious: Power-law (t^{-1}) standard but gauss fits clusters; exp for single-degenerate; maoz for observed rates.
 # References: Greggio (2005, A&A, 441, 1055) power-law; Strolger et al. (2004, ApJ, 613, 200) gaussian; Matteucci et al. (2001, A&A, 370, 951) exponential; Maoz et al. (2014) for empirical DTD.
 ############################################################
-sn1a_rates: ['power_law','gauss','exp']
+sn1a_rates: ['power_law']
+#sn1a_rates: ['power_law','gauss','exp']
 
 ############################################################
 #

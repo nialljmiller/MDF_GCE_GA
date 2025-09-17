@@ -67,6 +67,7 @@ INIAB_DIR="$(first_existing_dir \
   "$PROJECT_DIR/JINAPyCEE/yield_tables/iniabu" \
   "$PROJECT_DIR/NuPyCEE/yield_tables/iniabu")" || { echo "FATAL: iniabu not found"; exit 3; }
 
+
 OBS_FILE="$PROJECT_DIR/data/equal_weight_mdf.dat"
 [ -f "$OBS_FILE" ] || { echo "FATAL: $OBS_FILE missing"; exit 4; }
 

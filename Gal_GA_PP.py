@@ -631,12 +631,12 @@ class GalacticEvolutionGA:
             # Phase A: exploration
             self.mutpb = mut_hi
             self.cxpb  = cx_lo
-            vor_frac   = 0.3
+            vor_frac   = 0.4
         elif generation < gB:
             # Phase B: focus
             self.mutpb = mut_md
             self.cxpb  = cx_md
-            vor_frac   = 0.01
+            vor_frac   = 0.0
         else:
             # Phase C: exploit
             self.mutpb = mut_lo

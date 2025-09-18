@@ -63,9 +63,9 @@ def compute_ensemble_metric(GA_class, theory_count_array):
     base_loss = alpha * wrmse_val + beta * cosine_val + gamma * huber_val
 
     # ---- KS penalty ----
-    ks_threshold = 0.2  # If KS > this, trigger penalty
+    ks_threshold = 0.15  # If KS > this, trigger penalty
     if ks_val > ks_threshold:
-        penalty_scale = 1.0 + 2.5 * (ks_val - ks_threshold)
+        penalty_scale = 1.0 + 4.0 * (ks_val - ks_threshold)
         base_loss *= penalty_scale
 
     return base_loss

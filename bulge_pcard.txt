@@ -31,7 +31,7 @@ iniab_header: 'yield_tables/iniabu/'
 sn1a_header: 'yield_tables/'
 
 output_path: 'bc_batch_local_100_w_7_joyce/'
-
+seed = 69420
 ##################yeah ##########################################
 #
 # Genetic Algorithm stuff!
@@ -59,7 +59,7 @@ generations: 128
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
-output_interval: 8
+output_interval: 32
 
 # Probability an individual will make babies. 
 # Justification: 0.5 promotes mixing without excessive randomness.
@@ -70,7 +70,7 @@ crossover_probability: 0.5
 # High probability = high genetic diversity but risks destroying the signal found with a good fit. 
 # Justification: 0.7 maintains exploration in degenerate spaces like GCE.
 # References: Charbonneau (1995, ApJS, 101, 309) for astro GA mutation ~0.1-0.8.
-mutation_probability: 0.8
+mutation_probability: 0.5
 
 # The threshold at which a gene is considered successful.(-1 : threshold is median fitness of that sample)
 selection_threshold: -1

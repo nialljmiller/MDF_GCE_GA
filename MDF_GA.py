@@ -25,6 +25,7 @@ import mdf_plotting
 from multiprocessing import cpu_count
 import shutil
 import os
+import numpy as _np, random as _random, os as _os
 
 
 def load_bensby_data(file_path='data/Bensby_Data.tsv'):
@@ -85,6 +86,10 @@ obs_age_data_loss_metric = params['obs_age_data_loss_metric']
 obs_age_data_target = params['obs_age_data_target']
 mdf_vs_age_weight = params['mdf_vs_age_weight']
 
+rand_seed = params['seed']
+_random.seed(rand_seed)
+_np.random.seed(rand_seed)
+_os.environ['PYTHONHASHSEED'] = str(rand_seed)
 
 
 # Create argument parser

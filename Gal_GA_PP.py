@@ -643,6 +643,10 @@ class GalacticEvolutionGA:
             self.cxpb  = cx_hi
             vor_frac   = 0.0
 
+        if generation >= gB:
+            self.tournament_size = 4
+
+
         # --- early Voronoi only, without randomness ---
         if vor_frac > 0.0:
                 voronoi_explore_dearths(

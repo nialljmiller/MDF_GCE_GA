@@ -14,7 +14,7 @@ modify_param() {
 }
 
 # Parameter grids
-generations=(312)
+generations=(420)
 timesteps=(100)
 weights=(1.0)
 targets=(joyce)

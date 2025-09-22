@@ -362,18 +362,18 @@ def run(base=".", select="ask", mode="exp", temperature=None, target_ess_frac=0.
         out_comb = os.path.join(outdir, "analysis", "corner_mcmc_like_weighted.png")
         os.makedirs(os.path.dirname(out_comb), exist_ok=True)
 
-        # Use the new corner_weighted (colors + group overlay)
-        corner_weighted(
-            df=df_comb,
-            params=params,
-            weights=w_comb,
-            out_png=out_comb,
-            group_by='source',                # <-- colors per run
-            colors=inkcolrs,                  # <-- your palette
-            bins=bins,
-            point_size=4,
-            title_note=note
-        )
+    # Use the new corner_weighted (colors + group overlay)
+    corner_weighted(
+        df=df_comb,
+        params=params,
+        weights=w_comb,
+        out_png=out_comb,
+        group_by='source',                # <-- colors per run
+        colors=inkcolrs,                  # <-- your palette
+        bins=bins,
+        point_size=4,
+        title_note=note
+    )
 
     print(f"[saved] {out_comb}  | Combined ESS={ess_comb}/{len(w_comb)}")
 

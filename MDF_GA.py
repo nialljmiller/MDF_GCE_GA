@@ -164,19 +164,19 @@ def load_walker_history():
 
 
 
-
 def run_ga(cp_manager):
     """Run the genetic algorithm with optional checkpointing."""
     global GalGA
-    
-    # Initialize the Galactic Evolution Genetic Algorithm class with parsed parameters
+    import numpy as _np
+
+    # 0) Build GA object
     GalGA = Gal_GA.GalacticEvolutionGA(
         output_path=output_path,
         iniab_header=iniab_header,
         sn1a_header=sn1a_header,
         sigma_2_list=sigma_2_list,
         tmax_1_list=tmax_1_list,
-        tmax_2_list=tmax_2_list,    
+        tmax_2_list=tmax_2_list,
         infall_timescale_1_list=infall_timescale_1_list,
         infall_timescale_2_list=infall_timescale_2_list,
         comp_array=comp_array,
@@ -196,9 +196,9 @@ def run_ga(cp_manager):
         normalized_count=normalized_count,
         obs_age_data=obs_age_data,
         loss_metric=loss_metric,
-        obs_age_data_loss_metric = obs_age_data_loss_metric,
-        obs_age_data_target = obs_age_data_target,
-        mdf_vs_age_weight = mdf_vs_age_weight,
+        obs_age_data_loss_metric=obs_age_data_loss_metric,
+        obs_age_data_target=obs_age_data_target,
+        mdf_vs_age_weight=mdf_vs_age_weight,
         fancy_mutation=fancy_mutation,
         shrink_range=shrink_range,
         gaussian_sigma_scale=gaussian_sigma_scale,
@@ -213,19 +213,39 @@ def run_ga(cp_manager):
         PP=True
     )
 
-    # Initialize Genetic Algorithm population and toolbox
-    genal_population, genal_toolbox = GalGA.init_GenAl(population_size=popsize)
+    # 1) Init population & toolbox
+    init_population, toolbox = GalGA.init_GenAl(population_size=popsize)
 
-    # ---- checkpoint resume / population setup ----
+    # helpers
+    def _invalidate(ind):
+        try:
+            if getattr(ind.fitness, "valid", False):
+                del ind.fitness.values
+        except Exception:
+            pass
+
+    def _tiny_jitter(ind, frac=1e-3):
+        # jitter continuous genes (indices 5..14)
+        for gi in range(5, len(ind)):
+            try:
+                x = float(ind[gi])
+            except Exception:
+                continue
+            span = max(abs(x), 1.0) * frac
+            ind[gi] = x + _np.random.normal(0.0, span)
+
+    # 2) Checkpoint resume (requantize + sanitize inline)
     cp_data = cp_manager.load()
     start_gen = 0
     population = None
+    num_generations = generations  # local shadow we can bump if needed
 
     if cp_data:
-        ga_state = cp_data.get("ga_state", {})
-        pop = list(cp_data.get("population", []) or [])  # make a concrete list
+        cp_gen = int(cp_data.get("generation", -1))
+        ga_state = dict(cp_data.get("ga_state", {}))
+        pop = list(cp_data.get("population", []) or [])
 
-        # 1) sanitize bulky GA state (reduce RAM on resume)
+        # sanitize bulky state to keep RAM down
         for k in (
             "mdf_data", "alpha_data", "results", "labels",
             "all_gene_values_successful", "all_gene_values_unsuccessful",
@@ -238,61 +258,67 @@ def run_ga(cp_manager):
             if k in ga_state:
                 ga_state[k] = int(popsize)
 
-        # apply GA state
         GalGA.__dict__.update(ga_state)
 
-        # 2) choose survivors for new popsize
+        # select valid by best fitness, else slice
         valid = [
             ind for ind in pop
             if getattr(ind, "fitness", None)
             and getattr(ind.fitness, "valid", False)
             and hasattr(ind.fitness, "values")
         ]
-
         if valid:
-            # lower fitness = better
-            valid.sort(key=lambda ind: float(ind.fitness.values[0]))
+            valid.sort(key=lambda ind: float(ind.fitness.values[0]))  # lower is better
             pop = valid[:popsize]
             print(f"Seed population size is: {len(valid)} (valid)")
             print(f"Reducing population size to user defined: {popsize}")
         else:
-            if len(pop) != popsize:
-                print(f"Seed population size is: {len(pop)}")
-                print(f"Reducing population size to user defined: {popsize}")
+            print(f"Seed population size is: {len(pop)} (no valid fitness)")
             pop = pop[:popsize]
 
-        # 3) reset walker history and FORCE reevaluation
-        GalGA.walker_history = {i: [] for i in range(len(pop))}
-        for ind in pop:
-            # invalidate fitness so DEAP will reevaluate this generation
-            try:
-                if getattr(ind.fitness, "valid", False):
-                    del ind.fitness.values
-            except Exception:
-                pass
+        # pad to popsize if needed (clone best + jitter) and FORCE reevaluation
+        if len(pop) < popsize:
+            if not pop:
+                # nothing in checkpoint: fall back to initializer
+                pop = init_population
+            else:
+                seed = pop[0]
+                while len(pop) < popsize:
+                    clone = toolbox.clone(seed)
+                    _tiny_jitter(clone)
+                    _invalidate(clone)
+                    pop.append(clone)
 
+        for ind in pop:
+            _invalidate(ind)
+
+        GalGA.walker_history = {i: [] for i in range(len(pop))}
         population = pop
-        start_gen = int(cp_data.get("generation", -1)) + 1
+        start_gen = cp_gen + 1
+
+        # ensure at least one generation runs
+        if start_gen >= num_generations:
+            num_generations = start_gen + 1
+            print(f"Extending generations to {num_generations} to run ≥1 gen after resume")
 
     else:
-        # Fresh run (whatever you normally do)
-        population = make_initial_population(popsize)  # <-- your initializer
+        # fresh run
+        population = init_population
         GalGA.walker_history = {i: [] for i in range(len(population))}
         start_gen = 0
 
-
-    # Run the GA with checkpointing support
+    # 3) RUN the GA (this always executes; no exit paths)
     GalGA.GenAl(
         population_size=popsize,
-        num_generations=generations,
-        population=genal_population,
-        toolbox=genal_toolbox,
+        num_generations=num_generations,
+        population=population,
+        toolbox=toolbox,
         checkpoint_manager=cp_manager,
         start_gen=start_gen,
         output_interval=output_interval,
     )
 
-    # Define column names based on the structure of GalGA.results
+    # 4) Save final results
     col_names = [
         'comp_idx', 'imf_idx', 'sn1a_idx', 'sy_idx', 'sn1ar_idx',
         'sigma_2', 't_1', 't_2', 'infall_1', 'infall_2',
@@ -301,30 +327,28 @@ def run_ga(cp_manager):
         'cosine', 'log_cosh', 'fitness', 'age_meta_fitness', 'physics_penalty'
     ]
 
-    # Create DataFrame from results
-    results_df = pd.DataFrame(GalGA.results, columns=col_names)
+    results_df = pd.DataFrame(GalGA.results, columns=col_names) if GalGA.results else pd.DataFrame(columns=col_names)
+    if 'loss' not in results_df.columns and not results_df.empty:
+        results_df['loss'] = results_df[loss_metric]
+        results_df.sort_values('loss', inplace=True)
+        results_df.reset_index(drop=True, inplace=True)
 
-    # Use the chosen loss metric to define a loss column
-    results_df['loss'] = results_df[loss_metric]
-
-    # Sort the results DataFrame by loss (lowest first) and reset index
-    results_df.sort_values('loss', inplace=True)
-    results_df.reset_index(drop=True, inplace=True)
-
-    # Save the results to a CSV file
     results_file = output_path + 'simulation_results.csv'
     results_df.to_csv(results_file, index=False)
     print(f"Results saved to: {results_file}")
 
-    # The best model is now the first row in the sorted DataFrame
-    best_model = results_df.iloc[0]
-    print("Best model from results dataframe:")
-    print(best_model)
-    
-
-
+    if not results_df.empty:
+        best_model = results_df.iloc[0]
+        print("Best model from results dataframe:")
+        print(best_model)
 
     return results_file
+
+
+
+
+
+
 
 def load_ga_for_plotting():
     """Load GA object for plotting only"""

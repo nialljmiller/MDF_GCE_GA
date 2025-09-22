@@ -30,7 +30,7 @@ iniab_header: 'yield_tables/iniabu/'
 # References: Kobayashi et al. (2020, ApJ, 900, 179) for metallicity-dependent SN Ia in GCE.
 sn1a_header: 'yield_tables/'
 
-output_path: 'bc_batch_local_3_100_w_10_MDF/'
+output_path: 'bc_batch_local_4_100_w_10_MDF/'
 seed: 69420
 ##################yeah ##########################################
 #

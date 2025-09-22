@@ -216,14 +216,16 @@ def run_ga(cp_manager):
     # Initialize Genetic Algorithm population and toolbox
     genal_population, genal_toolbox = GalGA.init_GenAl(population_size=popsize)
 
-
+    # ---- checkpoint resume / population setup ----
     cp_data = cp_manager.load()
     start_gen = 0
-    if cp_data:
-        genal_population = cp_data["population"]
-        ga_state = cp_data["ga_state"]
+    population = None
 
-        # ---- sanitize bulky GA state carried in the checkpoint (frees RAM) ----
+    if cp_data:
+        ga_state = cp_data.get("ga_state", {})
+        pop = list(cp_data.get("population", []) or [])  # make a concrete list
+
+        # 1) sanitize bulky GA state (reduce RAM on resume)
         for k in (
             "mdf_data", "alpha_data", "results", "labels",
             "all_gene_values_successful", "all_gene_values_unsuccessful",
@@ -232,46 +234,51 @@ def run_ga(cp_manager):
             if k in ga_state:
                 ga_state[k] = []
 
-        # If your GA stores popsize-like fields inside state, keep them consistent
         for k in ("popsize", "population_size"):
             if k in ga_state:
                 ga_state[k] = int(popsize)
 
-        # Apply GA state to the class/instance as before
+        # apply GA state
         GalGA.__dict__.update(ga_state)
 
-        # ---- reduce/expand population to the user-requested popsize ----
-        # Keep only individuals with a valid fitness, then take the best popsize
-        valid = [ind for ind in genal_population
-                 if getattr(ind, "fitness", None) and ind.fitness.valid]
+        # 2) choose survivors for new popsize
+        valid = [
+            ind for ind in pop
+            if getattr(ind, "fitness", None)
+            and getattr(ind.fitness, "valid", False)
+            and hasattr(ind.fitness, "values")
+        ]
 
-        if not valid:
-            # If the checkpoint has no valid fitness yet, just cap the length
-            # (first-gen re-eval will sort them out)
-            if len(genal_population) != popsize:
-                print(f"Seed population size is: {len(genal_population)}")
-                print(f"Reducing population size to user defined: {popsize}")
-                genal_population = genal_population[:popsize]
-        else:
-            if len(valid) != popsize:
-                print(f"Seed population size is: {len(valid)} (valid)")
-                print(f"Reducing population size to user defined: {popsize}")
-            # lower fitness is better
+        if valid:
+            # lower fitness = better
             valid.sort(key=lambda ind: float(ind.fitness.values[0]))
-            genal_population = valid[:popsize]
+            pop = valid[:popsize]
+            print(f"Seed population size is: {len(valid)} (valid)")
+            print(f"Reducing population size to user defined: {popsize}")
+        else:
+            if len(pop) != popsize:
+                print(f"Seed population size is: {len(pop)}")
+                print(f"Reducing population size to user defined: {popsize}")
+            pop = pop[:popsize]
 
-        # Reset walker history to match the new length
-        GalGA.walker_history = {i: [] for i in range(len(genal_population))}
+        # 3) reset walker history and FORCE reevaluation
+        GalGA.walker_history = {i: [] for i in range(len(pop))}
+        for ind in pop:
+            # invalidate fitness so DEAP will reevaluate this generation
+            try:
+                if getattr(ind.fitness, "valid", False):
+                    del ind.fitness.values
+            except Exception:
+                pass
 
-        # If your object also keeps these on self, clear them too (lightweight run)
-        for attr in ("mdf_data", "alpha_data", "results", "labels"):
-            if hasattr(GalGA, attr):
-                setattr(GalGA, attr, [])
+        population = pop
+        start_gen = int(cp_data.get("generation", -1)) + 1
 
-        # hand back to the run loop
-        start_gen = cp_data["generation"] + 1
     else:
-        genal_population = None  # or however you initialize fresh runs
+        # Fresh run (whatever you normally do)
+        population = make_initial_population(popsize)  # <-- your initializer
+        GalGA.walker_history = {i: [] for i in range(len(population))}
+        start_gen = 0
 
 
     # Run the GA with checkpointing support

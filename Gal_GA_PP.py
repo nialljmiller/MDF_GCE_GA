@@ -1172,8 +1172,10 @@ class GalacticEvolutionGA:
         df.to_csv(results_file, index=False)
         print(f"Results saved to: {results_file}")
 
-        mdf_plotting.generate_all_plots(self, self.feh, self.normalized_count, results_file)
-
+        try:
+            mdf_plotting.generate_all_plots(self, self.feh, self.normalized_count, results_file)
+        except:
+            pass
 
 
 

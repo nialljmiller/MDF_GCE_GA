@@ -5,6 +5,9 @@ import os, re, glob, argparse, json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import warnings
+# Suppress specific RuntimeWarnings
+warnings.filterwarnings("ignore")#, category=RuntimeWarning)
 
 try:
     import corner
@@ -354,7 +357,7 @@ def main():
                     help="Target ESS fraction for auto-tuning (default 0.30)")
     ap.add_argument("--power", type=float, default=1.0, help="Power p for mode=inv (default 1.0)")
     ap.add_argument("--bins", type=int, default=40, help="Corner bins (default 40)")
-    ap.add_argument("--params", type=str, default="", help="Comma-separated param names; default=auto")
+    ap.add_argument("--params", type=str, default="sigma_2, t_2, infall_2, t_1, infall_1, sfe, mgal, delta_sfe, nb,imf_upper, mae", help="Comma-separated param names; default=auto")
     ap.add_argument("--resample", type=int, default=0,
                     help="If >0, also output resampled corner with N draws")
     ap.add_argument("--outdir", default=".", help="Output root (default .)")

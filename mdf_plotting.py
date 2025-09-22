@@ -912,7 +912,11 @@ def generate_all_plots(GalGA, feh, normalized_count, results_file=None):
         results_file = GalGA.output_path + 'simulation_results.csv'
     
     # Load observational alpha element data
-    f = open('data/Bensby_Data.tsv')
+    try:
+        f = open('data/Bensby_Data.tsv')
+    except:
+        f = open('../data/Bensby_Data.tsv')
+
     lines = f.readlines()
     Fe_H = []
     Fe_H_err = []

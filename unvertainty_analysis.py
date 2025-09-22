@@ -1105,7 +1105,7 @@ def plot_loss_overlays_simple(analyzers, ink_colors, legend_labels, cutoffs=None
 
     ax1.set_xlabel("Loss"); ax1.set_ylabel("Density")
     #ax1.legend(frameon=False, ncol=min(len(legend_labels),4))
-    out1 = (save_prefix or os.path.join(os.getcwd(),"analysis","overlay","loss_overlay")) + "_density.png"
+    out1 = (save_prefix or os.path.join(os.getcwd(),"analysis","loss_overlay")) + "_density.png"
     os.makedirs(os.path.dirname(out1), exist_ok=True)
     fig1.savefig(out1, dpi=300, bbox_inches='tight'); plt.close(fig1)
 
@@ -1117,7 +1117,7 @@ def plot_loss_overlays_simple(analyzers, ink_colors, legend_labels, cutoffs=None
 
     ax2.set_xlabel("Loss"); ax2.set_ylabel("Cumulative fraction"); ax2.set_ylim(0,1)
     #ax2.legend(frameon=False, ncol=min(len(legend_labels),4))
-    out2 = (save_prefix or os.path.join(os.getcwd(),"analysis","overlay","loss_overlay")) + "_cdf.png"
+    out2 = (save_prefix or os.path.join(os.getcwd(),"analysis","loss_overlay")) + "_cdf.png"
     os.makedirs(os.path.dirname(out2), exist_ok=True)
     fig2.savefig(out2, dpi=300, bbox_inches='tight'); plt.close(fig2)
     return out1, out2
@@ -1340,14 +1340,14 @@ def plot_corner_with_marginals_multi(
 
     # save
     if save_path is None:
-        save_path = os.path.join(os.getcwd(), "analysis", "overlay", "corner_overlay.png")
+        save_path = os.path.join(os.getcwd(), "analysis",  "corner_overlay.png")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"Overlay corner saved to: {save_path}")
 
 
-    save_prefix = os.path.join(os.getcwd(), "analysis", "overlay", "loss_overlay_selection")
+    save_prefix = os.path.join(os.getcwd(), "analysis", "loss_overlay_selection")
     os.makedirs(os.path.dirname(save_prefix), exist_ok=True)
     plot_loss_overlays_simple(
         analyzers,
@@ -1421,7 +1421,7 @@ def compute_and_plot_combined_covariant_uncertainties(
 
     # outputs
     if save_dir is None:
-        save_dir = os.path.join(os.getcwd(), "analysis", "overlay", "combined_uncertainty")
+        save_dir = os.path.join(os.getcwd(), "analysis", "combined_uncertainty")
     os.makedirs(save_dir, exist_ok=True)
 
     # ---------------- helpers ----------------
@@ -1921,7 +1921,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # output dir reused later too
-    overlay_dir = os.path.join(current_dir, "analysis", "overlay")
+    overlay_dir = os.path.join(current_dir, "analysis")
     os.makedirs(overlay_dir, exist_ok=True)
 
     # ---- FIRST: export best row per selected folder
@@ -1949,7 +1949,7 @@ if __name__ == "__main__":
     params = _choose_common_params(analyzers)
 
     # output path (overlay)
-    overlay_dir = os.path.join(current_dir, "analysis", "overlay")
+    overlay_dir = os.path.join(current_dir, "analysis")
     os.makedirs(overlay_dir, exist_ok=True)
     tag = "_".join([labels[i][:12] for i in range(len(labels))])
 

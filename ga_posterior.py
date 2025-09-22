@@ -150,41 +150,85 @@ def pick_params(df, preferred=None, min_unique=20):
         raise ValueError("No continuous numeric parameters found.")
     return out
 
-def corner_weighted(df, params, weights, axis_ranges=None, bins=40, out_png=None, title_note=None):
-    X = df[params].to_numpy(float)
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import corner
+from matplotlib.lines import Line2D
+
+def _colors_for(n, ink_colors=None):
+    if ink_colors is not None and len(ink_colors) >= n:
+        return list(ink_colors)[:n]
+    cyc = plt.rcParams.get('axes.prop_cycle').by_key().get('color', ['C0','C1','C2','C3','C4','C5','C6'])
+    out = []
+    i = 0
+    for _ in range(n):
+        out.append(cyc[i % len(cyc)])
+        i += 1
+    return out
+
+def corner_weighted(
+    df, 
+    params, 
+    weights, 
+    out_png, 
+    group_by=None,              # e.g. 'source' / 'folder' column; if None, tries 'run' else single group
+    colors=None,                # list of hex colors (your ink palette)
+    bins=40, 
+    point_size=4, 
+    title_note=None
+):
+    # pick group labels
+    if group_by is None:
+        group_by = 'run' if 'run' in df.columns else None
+    if group_by is None:
+        df = df.copy()
+        df['_group'] = 'all'
+        group_by = '_group'
+
     labels = [c.replace('_',' ') for c in params]
-    fig = corner.corner(
-        X, labels=labels, bins=bins, weights=weights,
-        show_titles=True, quantiles=[0.16,0.5,0.84], title_fmt=".3g"
-    )
-    # apply axis ranges if provided
-    if axis_ranges:
-        k = len(params)
-        axes = np.array(fig.axes).reshape((k, k))
-        for i,p in enumerate(params):
-            lo_i, hi_i = axis_ranges.get(p, (None, None))
-            if lo_i is None or hi_i is None: 
-                continue
-            # diagonal
-            axes[i,i].set_xlim(lo_i, hi_i)
-            # lower triangle limits
-            for j in range(i):
-                ax = axes[i,j]
-                xlo, xhi = axis_ranges.get(params[j], (None, None))
-                if xlo is not None and xhi is not None:
-                    ax.set_xlim(xlo, xhi)
-                ax.set_ylim(lo_i, hi_i)
+    groups = list(df[group_by].astype(str).unique())
+    palette = _colors_for(len(groups), ink_colors=colors)
+
+    fig = None
+    for gi, g in enumerate(groups):
+        sub = df[df[group_by].astype(str) == g]
+        X = sub[params].to_numpy(float)
+        w = np.asarray(weights)[sub.index] if hasattr(weights, 'index') else np.asarray(weights)[sub.index] if isinstance(weights, np.ndarray) else np.asarray(weights)[sub.index]
+        # overlay: pass fig from previous call
+        fig = corner.corner(
+            X,
+            labels=labels,
+            bins=bins,
+            weights=w,
+            color=palette[gi],
+            fig=fig,
+            show_titles=True,
+            quantiles=[0.16, 0.5, 0.84],
+            title_fmt=".3g",
+            plot_datapoints=True,
+            # tune scatter/hist per group so overlays read cleanly
+            scatter_kwargs={'s': point_size, 'alpha': 0.5, 'rasterized': True},
+            hist_kwargs={'density': True, 'alpha': 0.35, 'linewidth': 1.5}
+        )
+
+    # optional title note
     if title_note:
         fig.axes[0].text(0.02, 0.98, title_note, transform=fig.axes[0].transAxes,
                          ha='left', va='top', fontsize=9)
-    if out_png:
-        os.makedirs(os.path.dirname(out_png), exist_ok=True)
-        fig.savefig(out_png, dpi=300, bbox_inches='tight')
-        plt.close(fig)
-    else:
-        plt.show()
 
-def plot_overlaid_marginals(records, params, bins=60, out_png="analysis/combined/marginals_overlay.png"):
+    # make a simple legend in the top-left subplot
+    handles = [Line2D([0],[0], color=palette[i], lw=2) for i in range(len(groups))]
+    fig.axes[0].legend(handles, groups, frameon=False, fontsize=9, loc='upper right')
+
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
+    fig.savefig(out_png, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print("[saved]", out_png)
+    return fig
+
+
+def plot_overlaid_marginals(records, params, bins=60, out_png="analysis/marginals_overlay.png"):
     n = len(params); ncols = 3; nrows = (n + ncols - 1)//ncols
     fig, axes = plt.subplots(nrows, ncols, figsize=(11, 3*nrows))
     axes = axes.ravel()
@@ -290,38 +334,58 @@ def run(base=".", select="ask", mode="exp", temperature=None, target_ess_frac=0.
         if los:
             union_ranges[p] = (min(los), max(his))
 
-    # Combined weighted corner
-    df_comb = pd.concat([r['df'][params] for r in records], axis=0, ignore_index=True)
-    w_comb = np.concatenate([r['w'] for r in records]); w_comb /= (w_comb.sum() + 1e-300)
-    ess_comb = int(effective_sample_size(w_comb))
-    note = f"weighted by {', '.join(sorted(set(r['losscol'] for r in records)))}; mode={mode}"
-    out_comb = os.path.join(outdir, "analysis", "combined", "corner_mcmc_like_weighted.png")
-    corner_weighted(df_comb, params, w_comb, axis_ranges=union_ranges, bins=bins, out_png=out_comb, title_note=note)
+        # ---------------- Combined weighted corner (color-coded by run) ----------------
+        # Build a combined DataFrame with a 'source' column so corner_weighted can group/color
+        df_parts, w_parts = [], []
+        for r in records:
+            sub = r['df'][params].copy()
+            sub['source'] = r['name']              # color/group key
+            df_parts.append(sub)
+            w_parts.append(r['w'])
+
+        df_comb = pd.concat(df_parts, axis=0, ignore_index=True)
+        w_comb = np.concatenate(w_parts)
+        w_comb /= (w_comb.sum() + 1e-300)
+        ess_comb = int(effective_sample_size(w_comb))
+
+        inkcolrs =  ['#F0B800',
+                    '#004C40',
+                    '#0099A1',
+                    '#C20016',
+                    '#E8DCD8',
+                    '#97BAAB',
+                    '#1E6E6C',
+                    '#99724B',
+                    '#59454E',]
+
+        note = f"weighted by {', '.join(sorted(set(r['losscol'] for r in records)))}; mode={mode}"
+        out_comb = os.path.join(outdir, "analysis", "corner_mcmc_like_weighted.png")
+        os.makedirs(os.path.dirname(out_comb), exist_ok=True)
+
+        # Use the new corner_weighted (colors + group overlay)
+        corner_weighted(
+            df=df_comb,
+            params=params,
+            weights=w_comb,
+            out_png=out_comb,
+            group_by='source',                # <-- colors per run
+            colors=inkcolrs,                  # <-- your palette
+            bins=bins,
+            point_size=4,
+            title_note=note
+        )
+
     print(f"[saved] {out_comb}  | Combined ESS={ess_comb}/{len(w_comb)}")
 
-    # Optional resampled corner (posterior-looking draws)
-    if resample and resample > 0:
-        n = int(resample)
-        idx = np.random.choice(len(df_comb), size=n, replace=True, p=w_comb)
-        Y = df_comb.iloc[idx][params].to_numpy(float)
-        fig = corner.corner(
-            Y, labels=[c.replace('_',' ') for c in params], bins=bins,
-            show_titles=True, quantiles=[0.16,0.5,0.84], title_fmt=".3g"
-        )
-        out_resamp = os.path.join(outdir, "analysis", "combined", f"corner_mcmc_like_resampled_{n}.png")
-        os.makedirs(os.path.dirname(out_resamp), exist_ok=True)
-        fig.savefig(out_resamp, dpi=300, bbox_inches='tight'); plt.close(fig)
-        print(f"[saved] {out_resamp}")
-
     # Per-run corners
-    for r in records:
-        out_one = os.path.join(outdir, "analysis", os.path.basename(r['path']), "corner_weighted.png")
-        note1 = f"{r['name']}  (weighted by {r['losscol']}; mode={mode}; ESS={r['ess']}/{len(r['w'])})"
-        corner_weighted(r['df'], params, r['w'], axis_ranges=union_ranges, bins=bins, out_png=out_one, title_note=note1)
-        print(f"[saved] {out_one}")
+    #for r in records:
+    #    out_one = os.path.join(outdir, "analysis", os.path.basename(r['path']), "corner_weighted.png")
+    #    note1 = f"{r['name']}  (weighted by {r['losscol']}; mode={mode}; ESS={r['ess']}/{len(r['w'])})"
+    #    corner_weighted(r['df'], params, r['w'], axis_ranges=union_ranges, bins=bins, out_png=out_one, title_note=note1)
+    #    print(f"[saved] {out_one}")
 
     # Per-run 1D marginal overlays (for convergence sanity)
-    out_overlay = os.path.join(outdir, "analysis", "combined", "marginals_overlay.png")
+    out_overlay = os.path.join(outdir, "analysis", "marginals_overlay.png")
     plot_overlaid_marginals(records, params, bins=min(80, max(30, bins)), out_png=out_overlay)
 
     # Optional: write a small JSON with run stats
@@ -339,7 +403,7 @@ def run(base=".", select="ask", mode="exp", temperature=None, target_ess_frac=0.
             ],
             "combined": {"N": int(len(w_comb)), "ESS": int(ess_comb)}
         }
-        out_meta = os.path.join(outdir, "analysis", "combined", "posterior_meta.json")
+        out_meta = os.path.join(outdir, "analysis", "posterior_meta.json")
         os.makedirs(os.path.dirname(out_meta), exist_ok=True)
         with open(out_meta, "w") as f:
             json.dump(meta, f, indent=2)

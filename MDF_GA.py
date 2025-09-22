@@ -87,9 +87,10 @@ obs_age_data_target = params['obs_age_data_target']
 mdf_vs_age_weight = params['mdf_vs_age_weight']
 
 rand_seed = params['seed']
-_random.seed(rand_seed)
-_np.random.seed(rand_seed)
-_os.environ['PYTHONHASHSEED'] = str(rand_seed)
+if rand_seed > 0:
+    _random.seed(rand_seed)
+    _np.random.seed(rand_seed)
+    _os.environ['PYTHONHASHSEED'] = str(rand_seed)
 
 
 # Create argument parser
@@ -215,13 +216,63 @@ def run_ga(cp_manager):
     # Initialize Genetic Algorithm population and toolbox
     genal_population, genal_toolbox = GalGA.init_GenAl(population_size=popsize)
 
-    # Check for existing checkpoint
+
     cp_data = cp_manager.load()
     start_gen = 0
     if cp_data:
-        genal_population = cp_data['population']
-        GalGA.__dict__.update(cp_data['ga_state'])
-        start_gen = cp_data['generation'] + 1
+        genal_population = cp_data["population"]
+        ga_state = cp_data["ga_state"]
+
+        # ---- sanitize bulky GA state carried in the checkpoint (frees RAM) ----
+        for k in (
+            "mdf_data", "alpha_data", "results", "labels",
+            "all_gene_values_successful", "all_gene_values_unsuccessful",
+            "all_losses_successful", "all_losses_unsuccessful"
+        ):
+            if k in ga_state:
+                ga_state[k] = []
+
+        # If your GA stores popsize-like fields inside state, keep them consistent
+        for k in ("popsize", "population_size"):
+            if k in ga_state:
+                ga_state[k] = int(popsize)
+
+        # Apply GA state to the class/instance as before
+        GalGA.__dict__.update(ga_state)
+
+        # ---- reduce/expand population to the user-requested popsize ----
+        # Keep only individuals with a valid fitness, then take the best popsize
+        valid = [ind for ind in genal_population
+                 if getattr(ind, "fitness", None) and ind.fitness.valid]
+
+        if not valid:
+            # If the checkpoint has no valid fitness yet, just cap the length
+            # (first-gen re-eval will sort them out)
+            if len(genal_population) != popsize:
+                print(f"Seed population size is: {len(genal_population)}")
+                print(f"Reducing population size to user defined: {popsize}")
+                genal_population = genal_population[:popsize]
+        else:
+            if len(valid) != popsize:
+                print(f"Seed population size is: {len(valid)} (valid)")
+                print(f"Reducing population size to user defined: {popsize}")
+            # lower fitness is better
+            valid.sort(key=lambda ind: float(ind.fitness.values[0]))
+            genal_population = valid[:popsize]
+
+        # Reset walker history to match the new length
+        GalGA.walker_history = {i: [] for i in range(len(genal_population))}
+
+        # If your object also keeps these on self, clear them too (lightweight run)
+        for attr in ("mdf_data", "alpha_data", "results", "labels"):
+            if hasattr(GalGA, attr):
+                setattr(GalGA, attr, [])
+
+        # hand back to the run loop
+        start_gen = cp_data["generation"] + 1
+    else:
+        genal_population = None  # or however you initialize fresh runs
+
 
     # Run the GA with checkpointing support
     GalGA.GenAl(

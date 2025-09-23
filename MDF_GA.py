@@ -234,78 +234,78 @@ def run_ga(cp_manager):
             span = max(abs(x), 1.0) * frac
             ind[gi] = x + _np.random.normal(0.0, span)
 
-    # 2) Checkpoint resume (requantize + sanitize inline)
+
     cp_data = cp_manager.load()
     start_gen = 0
     population = None
-    num_generations = generations  # local shadow we can bump if needed
+    num_generations = generations  # may bump if checkpoint is beyond target
 
     if cp_data:
-        cp_gen = int(cp_data.get("generation", -1))
+        cp_gen   = int(cp_data.get("generation", -1))
         ga_state = dict(cp_data.get("ga_state", {}))
-        pop = list(cp_data.get("population", []) or [])
+        full_pop = list(cp_data.get("population", []) or [])
 
-        # sanitize bulky state to keep RAM down
-        for k in (
-            "mdf_data", "alpha_data", "results", "labels",
-            "all_gene_values_successful", "all_gene_values_unsuccessful",
-            "all_losses_successful", "all_losses_unsuccessful"
-        ):
-            if k in ga_state:
-                ga_state[k] = []
-
-        for k in ("popsize", "population_size"):
-            if k in ga_state:
-                ga_state[k] = int(popsize)
-
+        # Apply GA state EXACTLY as saved (do NOT scrub results/mdf/labels/etc.)
         GalGA.__dict__.update(ga_state)
 
-        # select valid by best fitness, else slice
-        valid = [
-            ind for ind in pop
-            if getattr(ind, "fitness", None)
-            and getattr(ind.fitness, "valid", False)
-            and hasattr(ind.fitness, "values")
-        ]
-        if valid:
-            valid.sort(key=lambda ind: float(ind.fitness.values[0]))  # lower is better
-            pop = valid[:popsize]
-            print(f"Seed population size is: {len(valid)} (valid)")
-            print(f"Reducing population size to user defined: {popsize}")
+        # Keep the full checkpoint population available for plotting/analysis
+        # (nothing is thrown away)
+        GalGA.checkpoint_population = full_pop[:]  # optional, for transparency/tools
+
+        # --- MINIMAL CHANGE: choose ACTIVE walkers (top-by-fitness), else pad ---
+        def _fit(ind):
+            try:
+                if getattr(ind.fitness, "valid", False) and hasattr(ind.fitness, "values"):
+                    return float(ind.fitness.values[0])  # lower is better
+            except Exception:
+                pass
+            return float("inf")  # invalid/unknown fitness sorted last
+
+        if len(full_pop) >= popsize:
+            ranked = sorted(full_pop, key=_fit)  
+            print(f'reducing from {len(full_pop)} to {popsize}')
+            population = ranked[:popsize]                # take best popsize
         else:
-            print(f"Seed population size is: {len(pop)} (no valid fitness)")
-            pop = pop[:popsize]
-
-        # pad to popsize if needed (clone best + jitter) and FORCE reevaluation
-        if len(pop) < popsize:
-            if not pop:
-                # nothing in checkpoint: fall back to initializer
-                pop = init_population
-            else:
-                seed = pop[0]
-                while len(pop) < popsize:
+            ranked = sorted(full_pop, key=_fit)
+            population = ranked[:]                       # take what exists (maybe 0..popsize-1)
+            if population:
+                seed = population[0]                     # best individual
+                while len(population) < popsize:
                     clone = toolbox.clone(seed)
-                    _tiny_jitter(clone)
-                    _invalidate(clone)
-                    pop.append(clone)
+                    # tiny jitter on continuous genes so clones aren’t byte-identical
+                    for gi in range(5, len(clone)):
+                        try:
+                            xv = float(clone[gi]); span = max(abs(xv), 1.0) * 1e-4
+                            clone[gi] = xv + _np.random.normal(0.0, span)
+                        except Exception:
+                            pass
+                    # mark clone for re-eval so at least something runs
+                    try:
+                        if getattr(clone.fitness, "valid", False):
+                            del clone.fitness.values
+                    except Exception:
+                        pass
+                    population.append(clone)
+            else:
+                # empty checkpoint population; fall back to initializer
+                population = init_population
 
-        for ind in pop:
-            _invalidate(ind)
 
-        GalGA.walker_history = {i: [] for i in range(len(pop))}
-        population = pop
+        # Size walker history to the ACTIVE population only
+        GalGA.walker_history = {i: [] for i in range(len(population))}
+
+        # Resume one step beyond the saved generation; ensure at least one gen will run
         start_gen = cp_gen + 1
-
-        # ensure at least one generation runs
         if start_gen >= num_generations:
             num_generations = start_gen + 1
-            print(f"Extending generations to {num_generations} to run ≥1 gen after resume")
+            print(f"Extending generations to {num_generations} to ensure ≥1 generation runs after resume.")
 
     else:
-        # fresh run
+        # Fresh run
         population = init_population
         GalGA.walker_history = {i: [] for i in range(len(population))}
         start_gen = 0
+
 
     # 3) RUN the GA (this always executes; no exit paths)
     GalGA.GenAl(

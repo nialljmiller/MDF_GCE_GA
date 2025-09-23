@@ -30,7 +30,7 @@ iniab_header: 'yield_tables/iniabu/'
 # References: Kobayashi et al. (2020, ApJ, 900, 179) for metallicity-dependent SN Ia in GCE.
 sn1a_header: 'yield_tables/'
 
-output_path: 'bc_batch_local_0_100_w_10_MDF/'
+output_path: 'bc_batch_local_5_100_w_10_MDF/'
 seed: -1
 ##################yeah ##########################################
 #
@@ -55,7 +55,7 @@ popsize:-1
 # How many generations (/epochs) are performed. 
 # Justification: 128 ensures ~16k evaluations; sufficient for convergence in 10-20 dim spaces.
 # References: Whitley (1994, Foundations of Genetic Algorithms) for generation scaling.
-generations: 420
+generations: 326
 
 # Interval (in generations) at which full results and plots are generated
 # Set to a positive integer to enable periodic output
